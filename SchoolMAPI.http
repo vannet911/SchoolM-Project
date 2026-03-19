@@ -1,0 +1,6 @@
+@SchoolMAPI_HostAddress = http://localhost:5141
+
+GET {{SchoolMAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
