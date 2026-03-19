@@ -1,6 +1,6 @@
 {
-    "name": "schoolms_frontend",
-    "short_name": "schoolms_frontend",
+    "name": "School Management System",
+    "short_name": "SchoolMS",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
