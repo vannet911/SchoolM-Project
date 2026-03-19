@@ -12,7 +12,7 @@ run:
 
 # Run database migrations
 migrate:
-	dotnet ef database update --project backend/SchoolMS.API/SchoolMS.API.csproj
+	dotnet ef database update --project backend/SchoolMS.Infrastructure --startup-project backend/SchoolMS.API
 
 # Run tests
 test:

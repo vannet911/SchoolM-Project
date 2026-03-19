@@ -1,12 +1,12 @@
 # SchoolMS
 
-SchoolMS is a full-stack school management system consisting of a Flutter frontend and a .NET Core backend API. The system manages school-related data including students, teachers, users, roles, classes, and subjects.
+SchoolMS is a full-stack school management system consisting of a Flutter frontend and a .NET 8 backend API. The system manages school-related data including students, teachers, users, roles, classes, and subjects.
 
 ## Architecture
 
 The project follows Clean Architecture principles with a layered backend structure:
 
-- **SchoolMS.API**: Presentation layer with ASP.NET Core Web API
+- **SchoolMS.API**: Presentation layer with ASP.NET Core Web API (.NET 8)
 - **SchoolMS.Core**: Domain layer containing entities, interfaces, and business logic
 - **SchoolMS.Infrastructure**: Data access layer with EF Core and repositories
 - **SchoolMS.Tests**: Unit and integration tests
@@ -55,11 +55,9 @@ SchoolMS/
 │   │   └── IntegrationTests/
 │   └── SchoolMS.sln
 │
-├── .github/workflows/               # CI/CD pipelines
 ├── docs/                           # Documentation
 ├── scripts/sql/                    # Database scripts
 ├── docker-compose.yml              # Container orchestration
-├── .env                            # Environment variables
 ├── .gitignore
 ├── Makefile                        # Build shortcuts
 └── README.md
@@ -75,7 +73,7 @@ SchoolMS/
 ## Setup
 
 1. Clone the repository
-2. Copy `.env` and configure your environment variables
+2. Configure your database connection in `backend/SchoolMS.API/appsettings.json`
 3. Run `make build` to build the .NET solution
 4. Run `make migrate` to apply database migrations
 5. Run `make run` to start the API
@@ -91,7 +89,7 @@ docker-compose up --build
 
 ## API Documentation
 
-Swagger UI available at `http://localhost:5000/swagger` when running the API.
+Swagger UI available at `https://localhost:7273/swagger` or `http://localhost:5141/swagger` when running the API.
 
 ## Contributing
 
