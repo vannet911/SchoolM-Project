@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SchoolMAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+286e502905d75ee0bbdc3f9e5100e6a2e855b32f")]
 [assembly: System.Reflection.AssemblyProductAttribute("SchoolMAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SchoolMAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

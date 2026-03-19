@@ -1,23 +1,108 @@
-# SchoolMAPI
+# SchoolMS
 
-SchoolMAPI is a .NET 8 Web API project designed for managing school-related data, including students, teachers, users, roles, classes, and subjects. It utilizes Entity Framework Core for database operations and follows a layered architecture with controllers, services, repositories, and data transfer objects (DTOs).
+SchoolMS is a full-stack school management system consisting of a Flutter frontend and a .NET Core backend API. The system manages school-related data including students, teachers, users, roles, classes, and subjects.
+
+## Architecture
+
+The project follows Clean Architecture principles with a layered backend structure:
+
+- **SchoolMS.API**: Presentation layer with ASP.NET Core Web API
+- **SchoolMS.Core**: Domain layer containing entities, interfaces, and business logic
+- **SchoolMS.Infrastructure**: Data access layer with EF Core and repositories
+- **SchoolMS.Tests**: Unit and integration tests
+
+The frontend is built with Flutter for cross-platform mobile/desktop applications.
 
 ## Project Structure
 
 ```
-SchoolMAPI/
-├── 📁 controllers/
-│   ├── ClassesController.cs
-│   ├── RolesController.cs
-│   ├── StudentsController.cs
-│   ├── SubjectsController.cs
-│   ├── TeachersController.cs
-│   └── UsersController.cs
-├── 📁 data/
-│   └── SchoolDbContext.cs
-├── 📁 DTOs/
-├── 📁 mappings/
-├── 📁 middlewares/
+SchoolMS/
+├── frontend/                        # Flutter app
+│   ├── lib/
+│   │   ├── models/                  # Data models
+│   │   ├── services/                # API service calls
+│   │   ├── screens/                 # UI screens
+│   │   ├── widgets/                 # Reusable components
+│   │   ├── providers/               # State management
+│   │   ├── utils/                   # Helpers and constants
+│   │   └── main.dart
+│   ├── assets/                      # Images and fonts
+│   ├── test/                        # Flutter tests
+│   ├── pubspec.yaml
+│   └── Dockerfile
+│
+├── backend/                         # .NET Core solution
+│   ├── SchoolMS.API/                # Presentation layer
+│   │   ├── Controllers/
+│   │   ├── Middlewares/
+│   │   ├── DTOs/
+│   │   ├── Extensions/
+│   │   ├── Program.cs
+│   │   ├── appsettings.json
+│   │   └── Dockerfile
+│   ├── SchoolMS.Core/               # Domain layer
+│   │   ├── Entities/
+│   │   ├── Interfaces/
+│   │   ├── Enums/
+│   │   └── Exceptions/
+│   ├── SchoolMS.Infrastructure/     # Data layer
+│   │   ├── Data/                    # DbContext
+│   │   ├── Repositories/
+│   │   ├── Services/
+│   │   └── Migrations/
+│   ├── SchoolMS.Tests/              # Test projects
+│   │   ├── UnitTests/
+│   │   └── IntegrationTests/
+│   └── SchoolMS.sln
+│
+├── .github/workflows/               # CI/CD pipelines
+├── docs/                           # Documentation
+├── scripts/sql/                    # Database scripts
+├── docker-compose.yml              # Container orchestration
+├── .env                            # Environment variables
+├── .gitignore
+├── Makefile                        # Build shortcuts
+└── README.md
+```
+
+## Prerequisites
+
+- .NET 8 SDK
+- Flutter SDK
+- Docker & Docker Compose
+- SQL Server (or use Docker container)
+
+## Setup
+
+1. Clone the repository
+2. Copy `.env` and configure your environment variables
+3. Run `make build` to build the .NET solution
+4. Run `make migrate` to apply database migrations
+5. Run `make run` to start the API
+6. For frontend: `cd frontend && flutter pub get && flutter run`
+
+## Docker
+
+Use Docker Compose for full environment:
+
+```bash
+docker-compose up --build
+```
+
+## API Documentation
+
+Swagger UI available at `http://localhost:5000/swagger` when running the API.
+
+## Contributing
+
+1. Create a feature branch
+2. Make changes
+3. Run tests: `make test`
+4. Submit a pull request
+
+## License
+
+[Your License Here]
 ├── 📁 Migrations/
 │   ├── 20251127075840_InitialCreate.cs
 │   ├── 20251127075840_InitialCreate.Designer.cs
