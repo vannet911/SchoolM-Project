@@ -163,9 +163,9 @@ class Sidebar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.refresh, size: 16, color: AppColors.textMuted),
+                const Icon(Icons.refresh, size: 18, color: AppColors.textMuted),
                 const SizedBox(width: 8),
-                Text(AppConstants.appVersion, style: AppTextStyles.caption),
+                Text(AppConstants.appVersion, style: AppTextStyles.body),
               ],
             ),
           ),
@@ -204,7 +204,7 @@ class _SidebarActionButton extends StatelessWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
+class _NavItem extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool isActive;
@@ -218,39 +218,71 @@ class _NavItem extends StatelessWidget {
   });
 
   @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool isHovering = false;
+
+  @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        height: 44,
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-        decoration: BoxDecoration(
-          color: isActive ? AppColors.primarySurface : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border(
-            left: BorderSide(
-              color: isActive ? AppColors.primary : Colors.transparent,
-              width: 3,
-            ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.onTap,
+        onHover: (hovering) {
+          setState(() => isHovering = hovering);
+        },
+        borderRadius: BorderRadius.circular(4),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: 44,
+          margin: const EdgeInsets.symmetric(vertical: 1),
+          decoration: BoxDecoration(
+            color: isHovering
+                ? Colors.black.withOpacity(0.02)
+                : widget.isActive
+                    ? AppColors.background
+                    : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
           ),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 13),
-            Icon(
-              icon,
-              size: 20,
-              color: isActive ? AppColors.primary : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: AppTextStyles.body.copyWith(
-                color: isActive ? AppColors.primary : AppColors.textSecondary,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: widget.isActive
+                      ? AppColors.primary
+                      : Colors.transparent,
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(4),
+                    bottomRight: Radius.circular(4),
+                  ),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 13),
+              Icon(
+                widget.icon,
+                size: 20,
+                color: widget.isActive
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                widget.label,
+                style: AppTextStyles.body.copyWith(
+                  color: widget.isActive
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  fontWeight: widget.isActive
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

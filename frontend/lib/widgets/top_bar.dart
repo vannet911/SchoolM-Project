@@ -49,7 +49,7 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
           const SizedBox(width: 8),
           // Settings icon
           _TopBarIconButton(
-            icon: Icons.settings_outlined,
+            icon: Icons.dark_mode_outlined,
             onTap: () {},
           ),
           const SizedBox(width: 12),
