@@ -1,0 +1,530 @@
+// lib/screens/students_screen.dart
+import 'package:flutter/material.dart';
+import 'package:schoolms_portal/services/api_service.dart';
+import 'package:schoolms_portal/utils/app_constants.dart';
+import 'package:schoolms_portal/widgets/table_widgets.dart';
+
+class StudentsScreen extends StatefulWidget {
+  const StudentsScreen({super.key});
+
+  @override
+  State<StudentsScreen> createState() => _StudentsScreenState();
+}
+
+class _StudentsScreenState extends State<StudentsScreen> {
+  final ApiService _api = ApiService();
+  List<Map<String, dynamic>> _students = [];
+  List<Map<String, dynamic>> _filtered = [];
+  bool _loading = true;
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _searchCtrl.addListener(_filter);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await _api.getStudents();
+      setState(() {
+        _students = data.cast<Map<String, dynamic>>();
+        _filtered = _students;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+      _showSnack('Failed to load students', isError: true);
+    }
+  }
+
+  void _filter() {
+    final q = _searchCtrl.text.toLowerCase();
+    setState(() {
+      _filtered = q.isEmpty
+          ? _students
+          : _students
+              .where((s) =>
+                  '${s['firstName']} ${s['lastName']} ${s['email']}'
+                      .toLowerCase()
+                      .contains(q))
+              .toList();
+    });
+  }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? AppColors.error : AppColors.success,
+    ));
+  }
+
+  Future<void> _delete(Map<String, dynamic> s) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: Text("Delete ${s['firstName']} ${s['lastName']}?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        await _api.deleteStudent(s['id']);
+        _showSnack('Student deleted');
+        _load();
+      } catch (_) {
+        _showSnack('Delete failed', isError: true);
+      }
+    }
+  }
+
+  void _openForm({Map<String, dynamic>? student}) {
+    showDialog(
+      context: context,
+      builder: (_) => StudentFormDialog(
+        student: student,
+        onSave: (data) async {
+          try {
+            if (student == null) {
+              await _api.createStudent(data);
+              _showSnack('Student created!');
+            } else {
+              await _api.updateStudent(student['id'], data);
+              _showSnack('Student updated!');
+            }
+            _load();
+          } catch (_) {
+            _showSnack('Save failed', isError: true);
+          }
+        },
+      ),
+    );
+  }
+
+  String _initials(String? first, String? last) {
+    final f = (first ?? '').isNotEmpty ? first![0].toUpperCase() : '';
+    final l = (last ?? '').isNotEmpty ? last![0].toUpperCase() : '';
+    return '$f$l'.isEmpty ? '?' : '$f$l';
+  }
+
+  static const List<Color> _avatarColors = [
+    Color(0xFF3A6B35), Color(0xFF1565C0), Color(0xFFC62828),
+    Color(0xFF6A1B9A), Color(0xFFE65100), Color(0xFF00695C),
+  ];
+  Color _avatarColor(String name) =>
+      _avatarColors[name.hashCode.abs() % _avatarColors.length];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppConstants.pagePadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text('Students', style: AppTextStyles.heading2),
+            const Spacer(),
+            _SearchBox(controller: _searchCtrl, hint: 'Search students...'),
+            const SizedBox(width: 12),
+            _AddButton(label: 'Add Student', onTap: () => _openForm()),
+          ]),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _TableCard(
+              loading: _loading,
+              empty: _filtered.isEmpty,
+              emptyIcon: Icons.school_outlined,
+              emptyLabel: 'No students found',
+              header: Row(children: [
+                TableHeader(label: 'Name', flex: 3),
+                TableHeader(label: 'Email', flex: 3),
+                TableHeader(label: 'Date of Birth', flex: 2),
+                TableHeader(label: 'Enrolled', flex: 2),
+                TableHeader(label: 'Actions', flex: 1),
+              ]),
+              body: ListView.builder(
+                itemCount: _filtered.length,
+                itemBuilder: (_, i) {
+                  final s = _filtered[i];
+                  final name =
+                      '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim();
+                  final c = _avatarColor(name);
+                  return _TableRow(children: [
+                    Expanded(
+                      flex: 3,
+                      child: Row(children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: c.withOpacity(0.15),
+                          child: Text(_initials(s['firstName'], s['lastName']),
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: c)),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name.isEmpty ? '—' : name,
+                                  style: AppTextStyles.body
+                                      .copyWith(fontWeight: FontWeight.w500),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                              Text('ID: ${s['id']}',
+                                  style: AppTextStyles.caption),
+                            ],
+                          ),
+                        ),
+                      ]),
+                    ),
+                    Expanded(
+                        flex: 3,
+                        child: Text(s['email'] ?? '—',
+                            style: AppTextStyles.bodySmall)),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        s['dateOfBirth'] != null
+                            ? (s['dateOfBirth'] as String).substring(0, 10)
+                            : '—',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: s['enrollmentDate'] != null
+                          ? _GreenBadge(
+                              text: (s['enrollmentDate'] as String)
+                                  .substring(0, 10))
+                          : Text('—', style: AppTextStyles.bodySmall),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Row(children: [
+                        ActionBtn(
+                            icon: Icons.edit_outlined,
+                            color: AppColors.primary,
+                            onTap: () => _openForm(student: s)),
+                        const SizedBox(width: 4),
+                        ActionBtn(
+                            icon: Icons.delete_outline,
+                            color: AppColors.error,
+                            onTap: () => _delete(s)),
+                      ]),
+                    ),
+                  ]);
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Student Form Dialog ───────────────────────────────────────────────────────
+class StudentFormDialog extends StatefulWidget {
+  final Map<String, dynamic>? student;
+  final Future<void> Function(Map<String, dynamic>) onSave;
+  const StudentFormDialog({super.key, this.student, required this.onSave});
+
+  @override
+  State<StudentFormDialog> createState() => _StudentFormDialogState();
+}
+
+class _StudentFormDialogState extends State<StudentFormDialog> {
+  final _first = TextEditingController();
+  final _last = TextEditingController();
+  final _email = TextEditingController();
+  final _dob = TextEditingController();
+  final _enroll = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.student;
+    if (s != null) {
+      _first.text = s['firstName'] ?? '';
+      _last.text = s['lastName'] ?? '';
+      _email.text = s['email'] ?? '';
+      _dob.text = s['dateOfBirth'] != null
+          ? (s['dateOfBirth'] as String).substring(0, 10) : '';
+      _enroll.text = s['enrollmentDate'] != null
+          ? (s['enrollmentDate'] as String).substring(0, 10) : '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _first.dispose(); _last.dispose(); _email.dispose();
+    _dob.dispose(); _enroll.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    await widget.onSave({
+      'firstName': _first.text.trim(),
+      'lastName': _last.text.trim(),
+      'email': _email.text.trim(),
+      'dateOfBirth': _dob.text.isNotEmpty ? _dob.text : null,
+      'enrollmentDate': _enroll.text.isNotEmpty ? _enroll.text : null,
+    });
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _FormDialog(
+      title: widget.student == null ? 'Add Student' : 'Edit Student',
+      saving: _saving,
+      onSave: _save,
+      children: [
+        Row(children: [
+          Expanded(child: FormFieldInput(label: 'First Name', controller: _first, hint: 'First name')),
+          const SizedBox(width: 12),
+          Expanded(child: FormFieldInput(label: 'Last Name', controller: _last, hint: 'Last name')),
+        ]),
+        const SizedBox(height: 14),
+        FormFieldInput(label: 'Email', controller: _email, hint: 'student@school.edu', keyboardType: TextInputType.emailAddress),
+        const SizedBox(height: 14),
+        Row(children: [
+          Expanded(child: FormFieldInput(label: 'Date of Birth', controller: _dob, hint: 'YYYY-MM-DD')),
+          const SizedBox(width: 12),
+          Expanded(child: FormFieldInput(label: 'Enrollment Date', controller: _enroll, hint: 'YYYY-MM-DD')),
+        ]),
+      ],
+    );
+  }
+}
+
+// ── Shared local helpers (not exported) ──────────────────────────────────────
+
+class _SearchBox extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  const _SearchBox({required this.controller, required this.hint});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 240,
+      height: 40,
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: AppTextStyles.bodySmall,
+          prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.textMuted),
+          contentPadding: EdgeInsets.zero,
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.border)),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.border)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.primary)),
+          filled: true,
+          fillColor: AppColors.white,
+        ),
+      ),
+    );
+  }
+}
+
+class _AddButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _AddButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.add, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+class _TableCard extends StatelessWidget {
+  final bool loading;
+  final bool empty;
+  final IconData emptyIcon;
+  final String emptyLabel;
+  final Widget header;
+  final Widget body;
+  const _TableCard({
+    required this.loading, required this.empty,
+    required this.emptyIcon, required this.emptyLabel,
+    required this.header, required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: loading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : empty
+              ? Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(emptyIcon, size: 48, color: AppColors.textMuted),
+                    const SizedBox(height: 12),
+                    Text(emptyLabel,
+                        style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),
+                  ]),
+                )
+              : Column(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(AppConstants.cardRadius)),
+                      border: Border(bottom: BorderSide(color: AppColors.border)),
+                    ),
+                    child: header,
+                  ),
+                  Expanded(child: body),
+                ]),
+    );
+  }
+}
+
+class _TableRow extends StatelessWidget {
+  final List<Widget> children;
+  const _TableRow({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+          border: Border(
+              bottom: BorderSide(color: AppColors.border.withOpacity(0.5)))),
+      child: Row(children: children),
+    );
+  }
+}
+
+class _GreenBadge extends StatelessWidget {
+  final String text;
+  const _GreenBadge({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.success.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(text,
+          style: AppTextStyles.caption.copyWith(
+              color: AppColors.success, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+class _FormDialog extends StatelessWidget {
+  final String title;
+  final bool saving;
+  final VoidCallback onSave;
+  final List<Widget> children;
+  const _FormDialog(
+      {required this.title, required this.saving,
+       required this.onSave, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 440,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Text(title, style: AppTextStyles.heading3),
+              const Spacer(),
+              InkWell(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.close,
+                      size: 20, color: AppColors.textSecondary)),
+            ]),
+            const SizedBox(height: 20),
+            ...children,
+            const SizedBox(height: 24),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel',
+                    style: TextStyle(color: AppColors.textSecondary)),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: saving ? null : onSave,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
+                ),
+                child: saving
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('Save Changes'),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+}

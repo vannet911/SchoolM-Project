@@ -1,5 +1,5 @@
-name: schoolms_frontend
-description: Flutter frontend for SchoolMS
+name: schoolms_portal
+description: School Management System Portal
 
 publish_to: 'none'
 
@@ -26,3 +26,33 @@ flutter:
   assets:
     - assets/images/
     - assets/fonts/
+  fonts:
+    - family: KantumruyPro
+      fonts:
+        # Regular (400)
+        - asset: assets/fonts/KantumruyPro-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/KantumruyPro-Italic.ttf
+          weight: 400
+          style: italic
+ 
+        # Medium (500)
+        - asset: assets/fonts/KantumruyPro-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/KantumruyPro-MediumItalic.ttf
+          weight: 500
+          style: italic
+ 
+        # SemiBold (600)
+        - asset: assets/fonts/KantumruyPro-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/KantumruyPro-SemiBoldItalic.ttf
+          weight: 600
+          style: italic
+ 
+        # Bold (700)
+        - asset: assets/fonts/KantumruyPro-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/KantumruyPro-BoldItalic.ttf
+          weight: 700
+          style: italic
