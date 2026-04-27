@@ -10,16 +10,17 @@ import 'package:schoolms_portal/screens/students.dart';
 import 'package:schoolms_portal/screens/teachers.dart';
 import 'package:schoolms_portal/screens/class_subject.dart';
 
-
 class MainShell extends StatelessWidget {
   const MainShell({super.key});
 
   @override
   Widget build(BuildContext context) {
     final nav = context.watch<NavProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1A1A2E) : AppColors.white;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       body: Row(
         children: [
           // ── Sidebar ───────────────────────────────────────────
@@ -76,7 +77,8 @@ class _ReportsPlaceholder extends StatelessWidget {
           const SizedBox(height: 16),
           Text('Reports', style: AppTextStyles.heading2),
           const SizedBox(height: 8),
-          Text('Coming soon...', style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),
+          Text('Coming soon...',
+              style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),
         ],
       ),
     );

@@ -72,12 +72,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          AppConstants.appName,
-                          style: AppTextStyles.heading3.copyWith(fontSize: 14, letterSpacing: 0.5),
+                          'KOMPONG PHNOM',
+                          style: AppTextStyles.heading2.copyWith(fontSize: 18),
                         ),
                         Text(
                           AppConstants.appSubtitle,
-                          style: AppTextStyles.caption,
+                          style: AppTextStyles.body,
                         ),
                       ],
                     ),
@@ -125,16 +125,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: _ChartPlaceholder(height: 180),
+                      child: _ChartPlaceholder(height: 240),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: _ChartPlaceholder(height: 180),
+                      child: _ChartPlaceholder(height: 240),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                _ChartPlaceholder(height: 180),
+                _ChartPlaceholder(height: 350),
               ],
             ),
           ),
@@ -314,9 +314,9 @@ class _CourseInfoPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Course Information', style: AppTextStyles.heading3),
+                Text('Subject Information', style: AppTextStyles.heading3),
                 const SizedBox(height: 2),
-                Text('Notifications about course Info', style: AppTextStyles.caption),
+                Text('Notifications about subject Info', style: AppTextStyles.caption),
               ],
             ),
           ),

@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/auth_provider.dart';
 import 'package:schoolms_portal/providers/nav_provider.dart';
+import 'package:schoolms_portal/providers/theme_provider.dart';
 import 'package:schoolms_portal/screens/login.dart';
 import 'package:schoolms_portal/screens/main_shell.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
-
 
 void main() {
   runApp(
@@ -14,6 +14,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => NavProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const SchoolMSApp(),
     ),
@@ -25,9 +26,12 @@ class SchoolMSApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+
     return MaterialApp(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
+      themeMode: themeProvider.themeMode,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -91,6 +95,71 @@ class SchoolMSApp extends StatelessWidget {
           ),
           filled: true,
           fillColor: AppColors.white,
+        ),
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          brightness: Brightness.dark,
+        ),
+        scaffoldBackgroundColor: const Color(0xFF1A1A2E),
+        fontFamily: 'KantumruyPro',
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF16213E),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF16213E),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+            side: const BorderSide(color: Color(0xFF2A2A4A)),
+          ),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: const Color(0xFF16213E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        snackBarTheme: const SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.primary,
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF2A2A4A)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF2A2A4A)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
+          filled: true,
+          fillColor: const Color(0xFF1A1A2E),
         ),
       ),
       home: const _AppRoot(),

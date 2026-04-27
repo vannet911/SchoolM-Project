@@ -52,10 +52,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
       _filtered = q.isEmpty
           ? _students
           : _students
-              .where((s) =>
-                  '${s['firstName']} ${s['lastName']} ${s['email']}'
-                      .toLowerCase()
-                      .contains(q))
+              .where((s) => '${s['firstName']} ${s['lastName']} ${s['email']}'
+                  .toLowerCase()
+                  .contains(q))
               .toList();
     });
   }
@@ -129,8 +128,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   static const List<Color> _avatarColors = [
-    Color(0xFF3A6B35), Color(0xFF1565C0), Color(0xFFC62828),
-    Color(0xFF6A1B9A), Color(0xFFE65100), Color(0xFF00695C),
+    Color(0xFF3A6B35),
+    Color(0xFF1565C0),
+    Color(0xFFC62828),
+    Color(0xFF6A1B9A),
+    Color(0xFFE65100),
+    Color(0xFF00695C),
   ];
   Color _avatarColor(String name) =>
       _avatarColors[name.hashCode.abs() % _avatarColors.length];
@@ -143,11 +146,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text('Students', style: AppTextStyles.heading2),
-            const Spacer(),
             _SearchBox(controller: _searchCtrl, hint: 'Search students...'),
-            const SizedBox(width: 12),
-            _AddButton(label: 'Add Student', onTap: () => _openForm()),
+            const Spacer(),
+            _AddButton(label: 'Add', onTap: () => _openForm()),
+            const SizedBox(width: 8),
+            _EditButton(onTap: () {
+              if (_filtered.isNotEmpty) _openForm(student: _filtered[0]);
+            }),
+            const SizedBox(width: 8),
+            _DeleteButton(onTap: () {
+              if (_filtered.isNotEmpty) _delete(_filtered[0]);
+            }),
           ]),
           const SizedBox(height: 16),
           Expanded(
@@ -273,16 +282,21 @@ class _StudentFormDialogState extends State<StudentFormDialog> {
       _last.text = s['lastName'] ?? '';
       _email.text = s['email'] ?? '';
       _dob.text = s['dateOfBirth'] != null
-          ? (s['dateOfBirth'] as String).substring(0, 10) : '';
+          ? (s['dateOfBirth'] as String).substring(0, 10)
+          : '';
       _enroll.text = s['enrollmentDate'] != null
-          ? (s['enrollmentDate'] as String).substring(0, 10) : '';
+          ? (s['enrollmentDate'] as String).substring(0, 10)
+          : '';
     }
   }
 
   @override
   void dispose() {
-    _first.dispose(); _last.dispose(); _email.dispose();
-    _dob.dispose(); _enroll.dispose();
+    _first.dispose();
+    _last.dispose();
+    _email.dispose();
+    _dob.dispose();
+    _enroll.dispose();
     super.dispose();
   }
 
@@ -306,17 +320,33 @@ class _StudentFormDialogState extends State<StudentFormDialog> {
       onSave: _save,
       children: [
         Row(children: [
-          Expanded(child: FormFieldInput(label: 'First Name', controller: _first, hint: 'First name')),
+          Expanded(
+              child: FormFieldInput(
+                  label: 'First Name', controller: _first, hint: 'First name')),
           const SizedBox(width: 12),
-          Expanded(child: FormFieldInput(label: 'Last Name', controller: _last, hint: 'Last name')),
+          Expanded(
+              child: FormFieldInput(
+                  label: 'Last Name', controller: _last, hint: 'Last name')),
         ]),
         const SizedBox(height: 14),
-        FormFieldInput(label: 'Email', controller: _email, hint: 'student@school.edu', keyboardType: TextInputType.emailAddress),
+        FormFieldInput(
+            label: 'Email',
+            controller: _email,
+            hint: 'student@school.edu',
+            keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 14),
         Row(children: [
-          Expanded(child: FormFieldInput(label: 'Date of Birth', controller: _dob, hint: 'YYYY-MM-DD')),
+          Expanded(
+              child: FormFieldInput(
+                  label: 'Date of Birth',
+                  controller: _dob,
+                  hint: 'YYYY-MM-DD')),
           const SizedBox(width: 12),
-          Expanded(child: FormFieldInput(label: 'Enrollment Date', controller: _enroll, hint: 'YYYY-MM-DD')),
+          Expanded(
+              child: FormFieldInput(
+                  label: 'Enrollment Date',
+                  controller: _enroll,
+                  hint: 'YYYY-MM-DD')),
         ]),
       ],
     );
@@ -332,27 +362,34 @@ class _SearchBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
+
     return SizedBox(
       width: 240,
-      height: 40,
+      height: 44,
       child: TextField(
         controller: controller,
+        style: TextStyle(color: textColor),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: AppTextStyles.bodySmall,
-          prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.textMuted),
+          hintStyle: AppTextStyles.bodySmall.copyWith(color: mutedColor),
+          prefixIcon: Icon(Icons.search, size: 18, color: mutedColor),
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border)),
+              borderSide: BorderSide(color: borderColor)),
           enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border)),
+              borderSide: BorderSide(color: borderColor)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppColors.primary)),
           filled: true,
-          fillColor: AppColors.white,
+          fillColor: bgColor,
         ),
       ),
     );
@@ -366,16 +403,80 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton.icon(
+    return OutlinedButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.add, size: 18),
       label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _EditButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _EditButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.edit_outlined, size: 18),
+      label: const Text('Update'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _DeleteButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _DeleteButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.delete_outline, size: 18),
+      label: const Text('Delete'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _FilterButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _FilterButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.filter_list, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
   }
@@ -389,38 +490,48 @@ class _TableCard extends StatelessWidget {
   final Widget header;
   final Widget body;
   const _TableCard({
-    required this.loading, required this.empty,
-    required this.emptyIcon, required this.emptyLabel,
-    required this.header, required this.body,
+    required this.loading,
+    required this.empty,
+    required this.emptyIcon,
+    required this.emptyLabel,
+    required this.header,
+    required this.body,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: bgColor,
         borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: borderColor),
       ),
       child: loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : empty
               ? Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(emptyIcon, size: 48, color: AppColors.textMuted),
+                    Icon(emptyIcon, size: 48, color: mutedColor),
                     const SizedBox(height: 12),
                     Text(emptyLabel,
-                        style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),
+                        style: AppTextStyles.body.copyWith(color: mutedColor)),
                   ]),
                 )
               : Column(children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: const BoxDecoration(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
                       color: Color(0xFFF9FAFB),
                       borderRadius: BorderRadius.vertical(
                           top: Radius.circular(AppConstants.cardRadius)),
-                      border: Border(bottom: BorderSide(color: AppColors.border)),
+                      border:
+                          Border(bottom: BorderSide(color: AppColors.border)),
                     ),
                     child: header,
                   ),
@@ -459,8 +570,8 @@ class _GreenBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(text,
-          style: AppTextStyles.caption.copyWith(
-              color: AppColors.success, fontWeight: FontWeight.w600)),
+          style: AppTextStyles.caption
+              .copyWith(color: AppColors.success, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -471,8 +582,10 @@ class _FormDialog extends StatelessWidget {
   final VoidCallback onSave;
   final List<Widget> children;
   const _FormDialog(
-      {required this.title, required this.saving,
-       required this.onSave, required this.children});
+      {required this.title,
+      required this.saving,
+      required this.onSave,
+      required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -511,12 +624,13 @@ class _FormDialog extends StatelessWidget {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
                 child: saving
                     ? const SizedBox(
-                        width: 16, height: 16,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
                     : const Text('Save Changes'),

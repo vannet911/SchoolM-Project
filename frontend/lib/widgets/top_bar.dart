@@ -1,5 +1,7 @@
 // lib/widgets/top_bar.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:schoolms_portal/providers/theme_provider.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 
 class TopBar extends StatelessWidget implements PreferredSizeWidget {
@@ -19,11 +21,17 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final iconColor = isDark ? Colors.white : AppColors.textPrimary;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
     return Container(
       height: AppConstants.topBarHeight,
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -32,14 +40,14 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
             InkWell(
               onTap: onMenuTap,
               borderRadius: BorderRadius.circular(6),
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child: Icon(Icons.menu, size: 20, color: AppColors.textPrimary),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(Icons.menu, size: 20, color: iconColor),
               ),
             ),
             const SizedBox(width: 12),
           ],
-          Text(title, style: AppTextStyles.heading3),
+          Text(title, style: AppTextStyles.heading3.copyWith(color: textColor)),
           const Spacer(),
           // Info icon
           _TopBarIconButton(
@@ -47,10 +55,16 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
             onTap: () {},
           ),
           const SizedBox(width: 8),
-          // Settings icon
-          _TopBarIconButton(
-            icon: Icons.dark_mode_outlined,
-            onTap: () {},
+          // Settings icon - Theme toggle
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) {
+              return _TopBarIconButton(
+                icon: themeProvider.isDarkMode
+                    ? Icons.light_mode_outlined
+                    : Icons.dark_mode_outlined,
+                onTap: () => themeProvider.toggleTheme(),
+              );
+            },
           ),
           const SizedBox(width: 12),
           // Language selector
@@ -69,6 +83,11 @@ class _TopBarIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final iconColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -77,10 +96,10 @@ class _TopBarIconButton extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: AppColors.border),
-          color: AppColors.white,
+          border: Border.all(color: borderColor),
+          color: bgColor,
         ),
-        child: Icon(icon, size: 18, color: AppColors.textSecondary),
+        child: Icon(icon, size: 18, color: iconColor),
       ),
     );
   }
@@ -96,6 +115,12 @@ class _LanguageSelectorState extends State<_LanguageSelector> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final iconColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
     return InkWell(
       onTap: () {
         // Language dropdown
@@ -104,9 +129,9 @@ class _LanguageSelectorState extends State<_LanguageSelector> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: borderColor),
           borderRadius: BorderRadius.circular(8),
-          color: AppColors.white,
+          color: bgColor,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -114,9 +139,11 @@ class _LanguageSelectorState extends State<_LanguageSelector> {
             // UK Flag emoji
             const Text('🇬🇧', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 6),
-            Text(_selected, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w500)),
+            Text(_selected,
+                style: AppTextStyles.body
+                    .copyWith(fontWeight: FontWeight.w500, color: textColor)),
             const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_up, size: 16, color: AppColors.textSecondary),
+            Icon(Icons.keyboard_arrow_up, size: 16, color: iconColor),
           ],
         ),
       ),

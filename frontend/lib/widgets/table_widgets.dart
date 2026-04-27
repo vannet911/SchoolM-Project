@@ -10,6 +10,9 @@ class TableHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
     return Expanded(
       flex: flex,
       child: Text(
@@ -17,6 +20,7 @@ class TableHeader extends StatelessWidget {
         style: AppTextStyles.caption.copyWith(
           fontWeight: FontWeight.w600,
           letterSpacing: 0.06,
+          color: textColor,
         ),
       ),
     );
@@ -28,7 +32,11 @@ class ActionBtn extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  const ActionBtn({super.key, required this.icon, required this.color, required this.onTap});
+  const ActionBtn(
+      {super.key,
+      required this.icon,
+      required this.color,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {

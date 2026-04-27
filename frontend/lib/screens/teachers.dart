@@ -4,7 +4,6 @@ import 'package:schoolms_portal/services/api_service.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 import 'package:schoolms_portal/widgets/table_widgets.dart';
 
-
 class TeachersScreen extends StatefulWidget {
   const TeachersScreen({super.key});
 
@@ -53,10 +52,9 @@ class _TeachersScreenState extends State<TeachersScreen> {
       _filtered = q.isEmpty
           ? _teachers
           : _teachers
-              .where((t) =>
-                  '${t['firstName']} ${t['lastName']} ${t['email']}'
-                      .toLowerCase()
-                      .contains(q))
+              .where((t) => '${t['firstName']} ${t['lastName']} ${t['email']}'
+                  .toLowerCase()
+                  .contains(q))
               .toList();
     });
   }
@@ -130,8 +128,10 @@ class _TeachersScreenState extends State<TeachersScreen> {
   }
 
   static const List<Color> _avatarColors = [
-    Color(0xFF1565C0), Color(0xFF6A1B9A),
-    Color(0xFF00695C), Color(0xFFE65100),
+    Color(0xFF1565C0),
+    Color(0xFF6A1B9A),
+    Color(0xFF00695C),
+    Color(0xFFE65100),
   ];
   Color _avatarColor(String name) =>
       _avatarColors[name.hashCode.abs() % _avatarColors.length];
@@ -144,22 +144,29 @@ class _TeachersScreenState extends State<TeachersScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text('Teachers', style: AppTextStyles.heading2),
-            const Spacer(),
             _TeacherSearchBox(controller: _searchCtrl),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () => _openForm(),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Teacher'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
+            const Spacer(),
+            _AddButton(label: 'Add', onTap: () => _openForm()),
+            const SizedBox(width: 8),
+            _EditButton(onTap: () {
+              if (_filtered.length == 1) {
+                _openForm(teacher: _filtered[0]);
+              } else {
+                _showSnack(
+                    'Please search and narrow down to a single teacher to edit',
+                    isError: true);
+              }
+            }),
+            const SizedBox(width: 8),
+            _DeleteButton(onTap: () {
+              if (_filtered.length == 1) {
+                _delete(_filtered[0]);
+              } else {
+                _showSnack(
+                    'Please search and narrow down to a single teacher to delete',
+                    isError: true);
+              }
+            }),
           ]),
           const SizedBox(height: 16),
           Expanded(
@@ -171,7 +178,8 @@ class _TeachersScreenState extends State<TeachersScreen> {
               ),
               child: _loading
                   ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary))
+                      child:
+                          CircularProgressIndicator(color: AppColors.primary))
                   : _filtered.isEmpty
                       ? Center(
                           child: Text('No teachers found',
@@ -185,7 +193,8 @@ class _TeachersScreenState extends State<TeachersScreen> {
                             decoration: const BoxDecoration(
                               color: Color(0xFFF9FAFB),
                               borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(AppConstants.cardRadius)),
+                                  top:
+                                      Radius.circular(AppConstants.cardRadius)),
                               border: Border(
                                   bottom: BorderSide(color: AppColors.border)),
                             ),
@@ -233,10 +242,11 @@ class _TeachersScreenState extends State<TeachersScreen> {
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
-                                          child: Text(
-                                              name.isEmpty ? '—' : name,
-                                              style: AppTextStyles.body.copyWith(
-                                                  fontWeight: FontWeight.w500),
+                                          child: Text(name.isEmpty ? '—' : name,
+                                              style: AppTextStyles.body
+                                                  .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w500),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis),
                                         ),
@@ -250,8 +260,10 @@ class _TeachersScreenState extends State<TeachersScreen> {
                                       flex: 2,
                                       child: t['subject'] != null
                                           ? Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 3),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3),
                                               decoration: BoxDecoration(
                                                 color: const Color(0xFF6A1B9A)
                                                     .withOpacity(0.1),
@@ -283,8 +295,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
                                         ActionBtn(
                                             icon: Icons.edit_outlined,
                                             color: AppColors.primary,
-                                            onTap: () =>
-                                                _openForm(teacher: t)),
+                                            onTap: () => _openForm(teacher: t)),
                                         const SizedBox(width: 4),
                                         ActionBtn(
                                             icon: Icons.delete_outline,
@@ -334,14 +345,18 @@ class _TeacherFormDialogState extends State<TeacherFormDialog> {
       _email.text = t['email'] ?? '';
       _subject.text = t['subject'] ?? '';
       _hireDate.text = t['hireDate'] != null
-          ? (t['hireDate'] as String).substring(0, 10) : '';
+          ? (t['hireDate'] as String).substring(0, 10)
+          : '';
     }
   }
 
   @override
   void dispose() {
-    _first.dispose(); _last.dispose(); _email.dispose();
-    _subject.dispose(); _hireDate.dispose();
+    _first.dispose();
+    _last.dispose();
+    _email.dispose();
+    _subject.dispose();
+    _hireDate.dispose();
     super.dispose();
   }
 
@@ -379,19 +394,37 @@ class _TeacherFormDialogState extends State<TeacherFormDialog> {
             ]),
             const SizedBox(height: 20),
             Row(children: [
-              Expanded(child: FormFieldInput(label: 'First Name', controller: _first, hint: 'First name')),
+              Expanded(
+                  child: FormFieldInput(
+                      label: 'First Name',
+                      controller: _first,
+                      hint: 'First name')),
               const SizedBox(width: 12),
-              Expanded(child: FormFieldInput(label: 'Last Name', controller: _last, hint: 'Last name')),
+              Expanded(
+                  child: FormFieldInput(
+                      label: 'Last Name',
+                      controller: _last,
+                      hint: 'Last name')),
             ]),
             const SizedBox(height: 14),
-            FormFieldInput(label: 'Email', controller: _email,
+            FormFieldInput(
+                label: 'Email',
+                controller: _email,
                 hint: 'teacher@school.edu',
                 keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 14),
             Row(children: [
-              Expanded(child: FormFieldInput(label: 'Subject', controller: _subject, hint: 'e.g. Mathematics')),
+              Expanded(
+                  child: FormFieldInput(
+                      label: 'Subject',
+                      controller: _subject,
+                      hint: 'e.g. Mathematics')),
               const SizedBox(width: 12),
-              Expanded(child: FormFieldInput(label: 'Hire Date', controller: _hireDate, hint: 'YYYY-MM-DD')),
+              Expanded(
+                  child: FormFieldInput(
+                      label: 'Hire Date',
+                      controller: _hireDate,
+                      hint: 'YYYY-MM-DD')),
             ]),
             const SizedBox(height: 24),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
@@ -409,12 +442,13 @@ class _TeacherFormDialogState extends State<TeacherFormDialog> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
                 child: _saving
                     ? const SizedBox(
-                        width: 16, height: 16,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
                     : const Text('Save Changes'),
@@ -433,20 +467,121 @@ class _TeacherSearchBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
+
     return SizedBox(
-      width: 240, height: 40,
+      width: 240,
+      height: 44,
       child: TextField(
         controller: controller,
+        style: TextStyle(color: textColor),
         decoration: InputDecoration(
           hintText: 'Search teachers...',
-          hintStyle: AppTextStyles.bodySmall,
-          prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.textMuted),
+          hintStyle: AppTextStyles.bodySmall.copyWith(color: mutedColor),
+          prefixIcon: Icon(Icons.search, size: 18, color: mutedColor),
           contentPadding: EdgeInsets.zero,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary)),
-          filled: true, fillColor: AppColors.white,
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: borderColor)),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: borderColor)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.primary)),
+          filled: true,
+          fillColor: bgColor,
         ),
+      ),
+    );
+  }
+}
+
+class _AddButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _AddButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.add, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _EditButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _EditButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.edit_outlined, size: 18),
+      label: const Text('Update'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _DeleteButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _DeleteButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.delete_outlined, size: 18),
+      label: const Text('Delete'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _FilterButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _FilterButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.filter_list, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: const BorderSide(color: AppColors.primary, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
   }

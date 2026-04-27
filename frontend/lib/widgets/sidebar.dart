@@ -12,12 +12,17 @@ class Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final nav = context.watch<NavProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.sidebarBg;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white70 : AppColors.textSecondary;
 
     return Container(
       width: AppConstants.sidebarWidth,
-      decoration: const BoxDecoration(
-        color: AppColors.sidebarBg,
-        border: Border(right: BorderSide(color: AppColors.border, width: 1)),
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(right: BorderSide(color: borderColor, width: 1)),
       ),
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
       child: Column(
@@ -26,10 +31,7 @@ class Sidebar extends StatelessWidget {
           // ── User profile section ──────────────────────────────────
           Container(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-            color: AppColors.background,
-            // decoration: const BoxDecoration(
-            //   border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
-            // ),
+            color: isDark ? const Color(0xFF1A1A2E) : AppColors.background,
             child: Column(
               children: [
                 // Avatar
@@ -40,16 +42,16 @@ class Sidebar extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppColors.primarySurface,
-                    border: Border.all(color: AppColors.border, width: 2),
+                    border: Border.all(color: borderColor, width: 2),
                   ),
                   child: ClipOval(
                     child: Image.network(
                       'https://www.shutterstock.com/image-vector/default-avatar-photo-placeholder-grey-600nw-2007531536.jpg',
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
+                      errorBuilder: (_, __, ___) => Icon(
                         Icons.person,
                         size: 40,
-                        color: AppColors.textSecondary,
+                        color: mutedColor,
                       ),
                     ),
                   ),
@@ -61,7 +63,8 @@ class Sidebar extends StatelessWidget {
                     children: [
                       Text(
                         auth.displayName,
-                        style: AppTextStyles.heading3.copyWith(fontWeight: FontWeight.w600),
+                        style: AppTextStyles.heading3.copyWith(
+                            fontWeight: FontWeight.w600, color: textColor),
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -69,7 +72,7 @@ class Sidebar extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         auth.displayEmail,
-                        style: AppTextStyles.body,
+                        style: AppTextStyles.body.copyWith(color: mutedColor),
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -78,7 +81,9 @@ class Sidebar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Divider(color: AppColors.divider),
+                Divider(
+                    color:
+                        isDark ? const Color(0xFF2A2A4A) : AppColors.divider),
                 const SizedBox(height: 4),
                 // Profile & Logout buttons
                 Padding(
@@ -95,7 +100,7 @@ class Sidebar extends StatelessWidget {
                       Container(
                         width: 1,
                         height: 38,
-                        color: AppColors.border,
+                        color: borderColor,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -158,14 +163,15 @@ class Sidebar extends StatelessWidget {
           // ── Version ───────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: borderColor, width: 1)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.refresh, size: 18, color: AppColors.textMuted),
+                Icon(Icons.refresh, size: 18, color: mutedColor),
                 const SizedBox(width: 8),
-                Text(AppConstants.appVersion, style: AppTextStyles.body),
+                Text(AppConstants.appVersion,
+                    style: AppTextStyles.body.copyWith(color: mutedColor)),
               ],
             ),
           ),
@@ -188,15 +194,19 @@ class _SidebarActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         height: 38,
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: borderColor),
           borderRadius: BorderRadius.circular(8),
-          color: AppColors.white,
+          color: bgColor,
         ),
         child: Icon(icon, size: 18, color: color),
       ),
@@ -226,6 +236,13 @@ class _NavItemState extends State<_NavItem> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hoverColor = isDark
+        ? Colors.white.withOpacity(0.05)
+        : Colors.black.withOpacity(0.02);
+    final activeBg = isDark ? const Color(0xFF1A1A2E) : AppColors.background;
+    final textColor = isDark ? Colors.white : AppColors.textSecondary;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -240,9 +257,9 @@ class _NavItemState extends State<_NavItem> {
           margin: const EdgeInsets.symmetric(vertical: 1),
           decoration: BoxDecoration(
             color: isHovering
-                ? Colors.black.withOpacity(0.02)
+                ? hoverColor
                 : widget.isActive
-                    ? AppColors.background
+                    ? activeBg
                     : Colors.transparent,
             borderRadius: BorderRadius.circular(4),
           ),
@@ -252,9 +269,8 @@ class _NavItemState extends State<_NavItem> {
                 width: 4,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: widget.isActive
-                      ? AppColors.primary
-                      : Colors.transparent,
+                  color:
+                      widget.isActive ? AppColors.primary : Colors.transparent,
                   borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(4),
                     bottomRight: Radius.circular(4),
@@ -265,20 +281,15 @@ class _NavItemState extends State<_NavItem> {
               Icon(
                 widget.icon,
                 size: 20,
-                color: widget.isActive
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
+                color: widget.isActive ? AppColors.primary : textColor,
               ),
               const SizedBox(width: 12),
               Text(
                 widget.label,
                 style: AppTextStyles.body.copyWith(
-                  color: widget.isActive
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
-                  fontWeight: widget.isActive
-                      ? FontWeight.w600
-                      : FontWeight.w400,
+                  color: widget.isActive ? AppColors.primary : textColor,
+                  fontWeight:
+                      widget.isActive ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
             ],
