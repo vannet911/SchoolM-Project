@@ -17,6 +17,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
+  String? _emailError;
+  String? _passwordError;
 
   @override
   void dispose() {
@@ -25,16 +27,20 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _login() async {
+  void _validateAndLogin() {
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
+
+    setState(() {
+      _emailError = email.isEmpty ? 'Email is required' : null;
+      _passwordError = password.isEmpty ? 'Password is required' : null;
+    });
+
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter email and password')),
-      );
       return;
     }
-    await context.read<AuthProvider>().login(email, password);
+
+    context.read<AuthProvider>().login(email, password);
   }
 
   @override
@@ -181,7 +187,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         hint: 'Email',
                         prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
-                        onSubmitted: (_) => _login(),
+                        errorText: _emailError,
+                        onSubmitted: (_) => _validateAndLogin(),
+                        onChanged: (_) => setState(() => _emailError = null),
                       ),
                       const SizedBox(height: 14),
 
@@ -191,6 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         hint: 'Password',
                         prefixIcon: Icons.lock_outlined,
                         obscureText: _obscurePassword,
+                        errorText: _passwordError,
                         suffixIcon: InkWell(
                           onTap: () => setState(
                               () => _obscurePassword = !_obscurePassword),
@@ -204,7 +213,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : AppColors.textSecondary,
                           ),
                         ),
-                        onSubmitted: (_) => _login(),
+                        onSubmitted: (_) => _validateAndLogin(),
+                        onChanged: (_) => setState(() => _passwordError = null),
                       ),
                       const SizedBox(height: 8),
                       // Forgot password
@@ -234,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         height: 40,
                         child: ElevatedButton(
-                          onPressed: isLoading ? null : _login,
+                          onPressed: isLoading ? null : _validateAndLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.white,
@@ -318,6 +328,8 @@ class _LoginField extends StatelessWidget {
   final Widget? suffixIcon;
   final TextInputType keyboardType;
   final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String>? onChanged;
+  final String? errorText;
 
   const _LoginField({
     required this.controller,
@@ -327,6 +339,8 @@ class _LoginField extends StatelessWidget {
     this.suffixIcon,
     this.keyboardType = TextInputType.text,
     this.onSubmitted,
+    this.onChanged,
+    this.errorText,
   });
 
   @override
@@ -337,32 +351,52 @@ class _LoginField extends StatelessWidget {
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
     final iconColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final errorColor = AppColors.error;
 
-    return Container(
-      height: 46,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
-        color: bgColor,
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        onSubmitted: onSubmitted,
-        style: AppTextStyles.body.copyWith(color: textColor),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: AppTextStyles.body.copyWith(color: mutedColor),
-          prefixIcon: Icon(prefixIcon, size: 20, color: iconColor),
-          suffixIcon: suffixIcon != null
-              ? Padding(
-                  padding: const EdgeInsets.only(right: 8), child: suffixIcon)
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+    final hasError = errorText != null;
+    final currentBorderColor = hasError ? errorColor : borderColor;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 46,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: currentBorderColor),
+            color: bgColor,
+          ),
+          child: TextField(
+            controller: controller,
+            obscureText: obscureText,
+            keyboardType: keyboardType,
+            onSubmitted: onSubmitted,
+            onChanged: onChanged,
+            style: AppTextStyles.body.copyWith(color: textColor),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: AppTextStyles.body.copyWith(color: mutedColor),
+              prefixIcon: Icon(prefixIcon, size: 20, color: iconColor),
+              suffixIcon: suffixIcon != null
+                  ? Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: suffixIcon)
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
         ),
-      ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Text(
+              errorText!,
+              style: AppTextStyles.bodySmall.copyWith(color: errorColor),
+            ),
+          ),
+      ],
     );
   }
 }
