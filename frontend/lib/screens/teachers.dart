@@ -1,5 +1,7 @@
 // lib/screens/teachers_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/services/api_service.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 import 'package:schoolms_portal/widgets/table_widgets.dart';
@@ -138,6 +140,9 @@ class _TeachersScreenState extends State<TeachersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return Padding(
       padding: const EdgeInsets.all(AppConstants.pagePadding),
       child: Column(
@@ -146,7 +151,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
           Row(children: [
             _TeacherSearchBox(controller: _searchCtrl),
             const Spacer(),
-            _AddButton(label: 'Add', onTap: () => _openForm()),
+            _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
             const SizedBox(width: 8),
             _EditButton(onTap: () {
               if (_filtered.length == 1) {
@@ -182,7 +187,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
                           CircularProgressIndicator(color: AppColors.primary))
                   : _filtered.isEmpty
                       ? Center(
-                          child: Text('No teachers found',
+                          child: Text(t['no_data'] ?? 'No teachers found',
                               style: AppTextStyles.body
                                   .copyWith(color: AppColors.textMuted)))
                       : Column(children: [
@@ -199,11 +204,16 @@ class _TeachersScreenState extends State<TeachersScreen> {
                                   bottom: BorderSide(color: AppColors.border)),
                             ),
                             child: Row(children: [
-                              TableHeader(label: 'Name', flex: 3),
-                              TableHeader(label: 'Email', flex: 3),
-                              TableHeader(label: 'Subject', flex: 2),
-                              TableHeader(label: 'Hire Date', flex: 2),
-                              TableHeader(label: 'Actions', flex: 1),
+                              TableHeader(
+                                  label: t['teacher_name'] ?? 'Name', flex: 3),
+                              TableHeader(
+                                  label: t['email'] ?? 'Email', flex: 3),
+                              TableHeader(
+                                  label: t['subject'] ?? 'Subject', flex: 2),
+                              TableHeader(
+                                  label: t['teachers'] ?? 'Hire Date', flex: 2),
+                              TableHeader(
+                                  label: t['actions'] ?? 'Actions', flex: 1),
                             ]),
                           ),
                           // Rows
@@ -374,6 +384,9 @@ class _TeacherFormDialogState extends State<TeacherFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -384,7 +397,10 @@ class _TeacherFormDialogState extends State<TeacherFormDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              Text(widget.teacher == null ? 'Add Teacher' : 'Edit Teacher',
+              Text(
+                  widget.teacher == null
+                      ? (t['add_teacher'] ?? 'Add Teacher')
+                      : (t['edit_teacher'] ?? 'Edit Teacher'),
                   style: AppTextStyles.heading3),
               const Spacer(),
               InkWell(
@@ -396,19 +412,19 @@ class _TeacherFormDialogState extends State<TeacherFormDialog> {
             Row(children: [
               Expanded(
                   child: FormFieldInput(
-                      label: 'First Name',
+                      label: t['teacher_name'] ?? 'First Name',
                       controller: _first,
                       hint: 'First name')),
               const SizedBox(width: 12),
               Expanded(
                   child: FormFieldInput(
-                      label: 'Last Name',
+                      label: t['teacher_name'] ?? 'Last Name',
                       controller: _last,
                       hint: 'Last name')),
             ]),
             const SizedBox(height: 14),
             FormFieldInput(
-                label: 'Email',
+                label: t['email'] ?? 'Email',
                 controller: _email,
                 hint: 'teacher@school.edu',
                 keyboardType: TextInputType.emailAddress),
@@ -416,13 +432,13 @@ class _TeacherFormDialogState extends State<TeacherFormDialog> {
             Row(children: [
               Expanded(
                   child: FormFieldInput(
-                      label: 'Subject',
+                      label: t['subject'] ?? 'Subject',
                       controller: _subject,
                       hint: 'e.g. Mathematics')),
               const SizedBox(width: 12),
               Expanded(
                   child: FormFieldInput(
-                      label: 'Hire Date',
+                      label: t['teachers'] ?? 'Hire Date',
                       controller: _hireDate,
                       hint: 'YYYY-MM-DD')),
             ]),
@@ -430,8 +446,8 @@ class _TeacherFormDialogState extends State<TeacherFormDialog> {
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel',
-                    style: TextStyle(color: AppColors.textSecondary)),
+                child: Text(t['cancel'] ?? 'Cancel',
+                    style: const TextStyle(color: AppColors.textSecondary)),
               ),
               const SizedBox(width: 8),
               ElevatedButton(
@@ -451,7 +467,7 @@ class _TeacherFormDialogState extends State<TeacherFormDialog> {
                         height: 16,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
-                    : const Text('Save Changes'),
+                    : Text(t['save'] ?? 'Save Changes'),
               ),
             ]),
           ],

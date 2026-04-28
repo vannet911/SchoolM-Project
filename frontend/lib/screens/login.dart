@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/auth_provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/providers/theme_provider.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 //import 'package:schoolms_portal/widgets/top_bar.dart';
@@ -19,6 +20,47 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   String? _emailError;
   String? _passwordError;
+  final List<Map<String, String>> _languages = [
+    {'code': 'en', 'name': 'English', 'flag': '🇬🇧'},
+    {'code': 'km', 'name': 'Khmer', 'flag': '🇰🇭'},
+  ];
+
+  void _showLanguageMenu(BuildContext context) {
+    final localeProvider = context.read<LocaleProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
+    showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(100, 50, 0, 0),
+      color: bgColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: borderColor),
+      ),
+      items: _languages.map((lang) {
+        return PopupMenuItem<String>(
+          value: lang['code'],
+          child: Row(
+            children: [
+              Text(lang['flag']!, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Text(
+                lang['name']!,
+                style: AppTextStyles.body.copyWith(color: textColor),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    ).then((value) {
+      if (value != null) {
+        localeProvider.setLocale(value);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -28,12 +70,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _validateAndLogin() {
+    final locale = context.read<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
 
     setState(() {
-      _emailError = email.isEmpty ? 'Email is required' : null;
-      _passwordError = password.isEmpty ? 'Password is required' : null;
+      _emailError =
+          email.isEmpty ? (t['email_required'] ?? 'Email is required') : null;
+      _passwordError = password.isEmpty
+          ? (t['password_required'] ?? 'Password is required')
+          : null;
     });
 
     if (email.isEmpty || password.isEmpty) {
@@ -46,9 +93,12 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final localeProvider = context.watch<LocaleProvider>();
+    final locale = localeProvider.locale;
+    final t = AppTranslations.translations[locale]!;
     final isLoading = auth.status == AuthStatus.loading;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF1A1A2E) : AppColors.white;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white70 : AppColors.textSecondary;
@@ -80,26 +130,43 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 const SizedBox(width: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: borderColor),
-                    borderRadius: BorderRadius.circular(8),
-                    color: bgColor,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('🇬🇧', style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 6),
-                      Text('English',
-                          style: AppTextStyles.body.copyWith(color: textColor)),
-                      const SizedBox(width: 4),
-                      Icon(Icons.keyboard_arrow_up,
-                          size: 16, color: mutedColor),
-                    ],
-                  ),
+                Consumer<LocaleProvider>(
+                  builder: (context, localeProvider, _) {
+                    final currentLocale = localeProvider.locale;
+                    final currentLang = _languages.firstWhere(
+                      (l) => l['code'] == currentLocale,
+                      orElse: () => _languages[0],
+                    );
+                    return InkWell(
+                      onTap: () => _showLanguageMenu(context),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: borderColor),
+                          borderRadius: BorderRadius.circular(8),
+                          color: bgColor,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              currentLang['flag']!,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(currentLang['name']!,
+                                style: AppTextStyles.body
+                                    .copyWith(color: textColor)),
+                            const SizedBox(width: 4),
+                            Icon(Icons.keyboard_arrow_up,
+                                size: 16, color: mutedColor),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -143,12 +210,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'KOMPONG PHNOM',
+                                t['app_name'] ?? 'KOMPONG PHNOM',
                                 style: AppTextStyles.heading2
                                     .copyWith(fontSize: 18, color: textColor),
                               ),
                               Text(
-                                AppConstants.appSubtitle,
+                                t['app_subtitle'] ?? 'School Management System',
                                 style: AppTextStyles.body
                                     .copyWith(color: mutedColor, fontSize: 14),
                               ),
@@ -184,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Email field
                       _LoginField(
                         controller: _emailCtrl,
-                        hint: 'Email',
+                        hint: t['email'] ?? 'Email',
                         prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         errorText: _emailError,
@@ -196,7 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Password field
                       _LoginField(
                         controller: _passwordCtrl,
-                        hint: 'Password',
+                        hint: t['password'] ?? 'Password',
                         prefixIcon: Icons.lock_outlined,
                         obscureText: _obscurePassword,
                         errorText: _passwordError,
@@ -227,10 +294,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 vertical: 2, horizontal: 8),
                           ),
                           child: Text(
-                            'Forgot Password?',
-                            style: AppTextStyles.bodySmall.copyWith(
+                            t['forgot_password'] ?? 'Forgot Password?',
+                            style: AppTextStyles.body.copyWith(
                               color: isDark
-                                  ? AppColors.primary.withOpacity(0.8)
+                                  ? AppColors.textLink.withOpacity(0.8)
                                   : AppColors.textLink,
                             ),
                           ),
@@ -260,9 +327,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: CircularProgressIndicator(
                                       color: Colors.white, strokeWidth: 2),
                                 )
-                              : const Text(
-                                  'Log In',
-                                  style: TextStyle(
+                              : Text(
+                                  t['login'] ?? 'Log In',
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 0.5,
@@ -281,7 +348,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 20),
             child: Text(
-              AppConstants.developerTag,
+              t['developer'] ?? AppConstants.developerTag,
               style: AppTextStyles.caption.copyWith(color: mutedColor),
             ),
           ),

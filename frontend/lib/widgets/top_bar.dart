@@ -1,6 +1,7 @@
 // lib/widgets/top_bar.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/providers/theme_provider.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 
@@ -111,20 +112,66 @@ class _LanguageSelector extends StatefulWidget {
 }
 
 class _LanguageSelectorState extends State<_LanguageSelector> {
-  String _selected = 'English';
+  final List<Map<String, String>> _languages = [
+    {'code': 'en', 'name': 'English', 'flag': '🇬🇧'},
+    {'code': 'km', 'name': 'Khmer', 'flag': '🇰🇭'},
+  ];
+
+  void _showLanguageMenu(BuildContext context) {
+    final localeProvider = context.read<LocaleProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
+    showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(100, 50, 0, 0),
+      color: bgColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: borderColor),
+      ),
+      items: _languages.map((lang) {
+        return PopupMenuItem<String>(
+          value: lang['code'],
+          child: Row(
+            children: [
+              Text(lang['flag']!, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Text(
+                lang['name']!,
+                style: AppTextStyles.body.copyWith(color: textColor),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    ).then((value) {
+      if (value != null) {
+        localeProvider.setLocale(value);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final localeProvider = context.watch<LocaleProvider>();
+    final currentLocale = localeProvider.locale;
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final iconColor = isDark ? Colors.white70 : AppColors.textSecondary;
 
+    final currentLang = _languages.firstWhere(
+      (l) => l['code'] == currentLocale,
+      orElse: () => _languages[0],
+    );
+
     return InkWell(
-      onTap: () {
-        // Language dropdown
-      },
+      onTap: () => _showLanguageMenu(context),
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -136,10 +183,9 @@ class _LanguageSelectorState extends State<_LanguageSelector> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // UK Flag emoji
-            const Text('🇬🇧', style: TextStyle(fontSize: 16)),
+            Text(currentLang['flag']!, style: const TextStyle(fontSize: 16)),
             const SizedBox(width: 6),
-            Text(_selected,
+            Text(currentLang['name']!,
                 style: AppTextStyles.body
                     .copyWith(fontWeight: FontWeight.w500, color: textColor)),
             const SizedBox(width: 4),

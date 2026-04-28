@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/auth_provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/providers/nav_provider.dart';
 import 'package:schoolms_portal/providers/theme_provider.dart';
 import 'package:schoolms_portal/screens/login.dart';
@@ -15,6 +16,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => NavProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
       ],
       child: const SchoolMSApp(),
     ),

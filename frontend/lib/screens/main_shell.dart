@@ -1,6 +1,7 @@
 // lib/screens/main_shell.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/providers/nav_provider.dart';
 import 'package:schoolms_portal/widgets/sidebar.dart';
 import 'package:schoolms_portal/widgets/top_bar.dart';
@@ -17,7 +18,7 @@ class MainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final nav = context.watch<NavProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF1A1A2E) : AppColors.white;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -69,6 +70,9 @@ class _ReportsPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -77,7 +81,7 @@ class _ReportsPlaceholder extends StatelessWidget {
           const SizedBox(height: 16),
           Text('Reports', style: AppTextStyles.heading2),
           const SizedBox(height: 8),
-          Text('Coming soon...',
+          Text(t['loading'] ?? 'Coming soon...',
               style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),
         ],
       ),

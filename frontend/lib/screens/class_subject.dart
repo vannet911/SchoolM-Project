@@ -1,5 +1,7 @@
 // lib/screens/class_subject_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/services/api_service.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 import 'package:schoolms_portal/widgets/table_widgets.dart';
@@ -29,12 +31,16 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return Padding(
       padding: const EdgeInsets.all(AppConstants.pagePadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Class & Subject', style: AppTextStyles.heading2),
+          Text(t['classes'] ?? 'Class & Subject',
+              style: AppTextStyles.heading2),
           const SizedBox(height: 16),
           TabBar(
             controller: _tabCtrl,
@@ -44,24 +50,27 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             indicatorColor: AppColors.primary,
             labelStyle:
                 AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-            tabs: const [Tab(text: 'Classes'), Tab(text: 'Subjects')],
+            tabs: [
+              Tab(text: t['classes'] ?? 'Classes'),
+              Tab(text: t['subjects'] ?? 'Subjects'),
+            ],
           ),
           const SizedBox(height: 16),
           Expanded(
             child: TabBarView(
               controller: _tabCtrl,
-              children: const [
+              children: [
                 _GenericCrudList(
                   endpoint: 'classes',
-                  label: 'Class',
+                  label: t['class_name'] ?? 'Class',
                   fields: ['name', 'description'],
-                  badgeColor: Color(0xFF3A6B35),
+                  badgeColor: const Color(0xFF3A6B35),
                 ),
                 _GenericCrudList(
                   endpoint: 'subjects',
-                  label: 'Subject',
+                  label: t['subject_name'] ?? 'Subject',
                   fields: ['name', 'code', 'description'],
-                  badgeColor: Color(0xFF1565C0),
+                  badgeColor: const Color(0xFF1565C0),
                 ),
               ],
             ),
@@ -223,15 +232,13 @@ class _GenericCrudListState extends State<_GenericCrudList> {
         if (_loading)
           const Expanded(
               child: Center(
-                  child:
-                      CircularProgressIndicator(color: AppColors.primary)))
+                  child: CircularProgressIndicator(color: AppColors.primary)))
         else if (_items.isEmpty)
           Expanded(
             child: Center(
               child: Text(
                 'No ${widget.label.toLowerCase()}s yet',
-                style:
-                    AppTextStyles.body.copyWith(color: AppColors.textMuted),
+                style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
               ),
             ),
           )
@@ -242,8 +249,8 @@ class _GenericCrudListState extends State<_GenericCrudList> {
               itemBuilder: (_, i) {
                 final item = _items[i];
                 return Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                       border: Border(
                           bottom: BorderSide(
@@ -325,8 +332,7 @@ class _GenericFormDialogState extends State<_GenericFormDialog> {
     super.initState();
     _ctrls = {
       for (final f in widget.fields)
-        f: TextEditingController(
-            text: widget.item?[f]?.toString() ?? '')
+        f: TextEditingController(text: widget.item?[f]?.toString() ?? '')
     };
   }
 
@@ -338,16 +344,15 @@ class _GenericFormDialogState extends State<_GenericFormDialog> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    await widget.onSave(
-        {for (final f in widget.fields) f: _ctrls[f]!.text.trim()});
+    await widget
+        .onSave({for (final f in widget.fields) f: _ctrls[f]!.text.trim()});
     if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 420,
         padding: const EdgeInsets.all(24),
@@ -372,9 +377,7 @@ class _GenericFormDialogState extends State<_GenericFormDialog> {
             ...widget.fields.map((f) => Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: FormFieldInput(
-                      label: f,
-                      controller: _ctrls[f]!,
-                      hint: 'Enter $f'),
+                      label: f, controller: _ctrls[f]!, hint: 'Enter $f'),
                 )),
             const SizedBox(height: 8),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
@@ -392,8 +395,8 @@ class _GenericFormDialogState extends State<_GenericFormDialog> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
                 child: _saving
                     ? const SizedBox(

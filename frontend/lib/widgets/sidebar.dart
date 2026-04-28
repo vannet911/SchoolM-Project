@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/auth_provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/providers/nav_provider.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 
@@ -12,6 +13,8 @@ class Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final nav = context.watch<NavProvider>();
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.sidebarBg;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
@@ -127,25 +130,25 @@ class Sidebar extends StatelessWidget {
                 children: [
                   _NavItem(
                     icon: Icons.home_outlined,
-                    label: 'Dashboard',
+                    label: t['dashboard'] ?? 'Dashboard',
                     isActive: nav.currentPage == NavPage.dashboard,
                     onTap: () => nav.navigate(NavPage.dashboard),
                   ),
                   _NavItem(
                     icon: Icons.school_outlined,
-                    label: 'Students',
+                    label: t['students'] ?? 'Students',
                     isActive: nav.currentPage == NavPage.students,
                     onTap: () => nav.navigate(NavPage.students),
                   ),
                   _NavItem(
                     icon: Icons.person_outlined,
-                    label: 'Teachers',
+                    label: t['teachers'] ?? 'Teachers',
                     isActive: nav.currentPage == NavPage.teachers,
                     onTap: () => nav.navigate(NavPage.teachers),
                   ),
                   _NavItem(
                     icon: Icons.menu_book_outlined,
-                    label: 'Class & Subject',
+                    label: t['classes'] ?? 'Class & Subject',
                     isActive: nav.currentPage == NavPage.classSubject,
                     onTap: () => nav.navigate(NavPage.classSubject),
                   ),
@@ -269,8 +272,9 @@ class _NavItemState extends State<_NavItem> {
                 width: 4,
                 height: 30,
                 decoration: BoxDecoration(
-                  color:
-                      widget.isActive ? AppColors.primary : Colors.transparent,
+                  color: widget.isActive
+                      ? AppColors.primaryLight
+                      : Colors.transparent,
                   borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(4),
                     bottomRight: Radius.circular(4),
@@ -281,13 +285,13 @@ class _NavItemState extends State<_NavItem> {
               Icon(
                 widget.icon,
                 size: 20,
-                color: widget.isActive ? AppColors.primary : textColor,
+                color: widget.isActive ? AppColors.primaryLight : textColor,
               ),
               const SizedBox(width: 12),
               Text(
                 widget.label,
                 style: AppTextStyles.body.copyWith(
-                  color: widget.isActive ? AppColors.primary : textColor,
+                  color: widget.isActive ? AppColors.primaryLight : textColor,
                   fontWeight:
                       widget.isActive ? FontWeight.w600 : FontWeight.w400,
                 ),

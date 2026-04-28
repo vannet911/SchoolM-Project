@@ -1,5 +1,7 @@
 // lib/screens/dashboard_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/services/api_service.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 
@@ -25,15 +27,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _loading = true);
     try {
       final stats = await _api.getDashboardStats();
-      setState(() { _stats = stats; _loading = false; });
+      setState(() {
+        _stats = stats;
+        _loading = false;
+      });
     } catch (_) {
       // Show zeros if API offline
-      setState(() { _stats = {'students': 40, 'teachers': 5, 'classes': 5}; _loading = false; });
+      setState(() {
+        _stats = {'students': 40, 'teachers': 5, 'classes': 5};
+        _loading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -51,7 +62,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Welcome!', style: AppTextStyles.heading1.copyWith(fontSize: 28)),
+                        Text(t['welcome'] ?? 'Welcome',
+                            style:
+                                AppTextStyles.heading1.copyWith(fontSize: 28)),
                       ],
                     ),
                     const Spacer(),
@@ -64,10 +77,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           height: 72,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.border, width: 1.5),
+                            border:
+                                Border.all(color: AppColors.border, width: 1.5),
                           ),
                           child: const Center(
-                            child: Icon(Icons.school, size: 36, color: AppColors.textPrimary),
+                            child: Icon(Icons.school,
+                                size: 36, color: AppColors.primaryLight),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -87,33 +102,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 // Stat cards row
                 if (_loading)
-                  const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  const Center(
+                      child:
+                          CircularProgressIndicator(color: AppColors.primary))
                 else
                   Row(
                     children: [
                       Expanded(
                         child: _StatCard(
-                          title: 'Total Students',
+                          title: t['total_students'] ?? 'Total Students',
                           value: _stats['students']!.toString().padLeft(2, '0'),
-                          subtitle: 'Data this month',
+                          subtitle: t['data_this_month'] ?? 'Data this month',
                           iconWidget: _StudentIcon(),
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _StatCard(
-                          title: 'Total Teachers',
+                          title: t['total_teachers'] ?? 'Total Teachers',
                           value: _stats['teachers']!.toString().padLeft(2, '0'),
-                          subtitle: 'Data this month',
+                          subtitle: t['data_this_month'] ?? 'Data this month',
                           iconWidget: _TeacherIcon(),
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _StatCard(
-                          title: 'Total Class',
+                          title: t['total_classes'] ?? 'Total Classes',
                           value: _stats['classes']!.toString().padLeft(2, '0'),
-                          subtitle: 'Data this month',
+                          subtitle: t['data_this_month'] ?? 'Data this month',
                           iconWidget: _ClassIcon(),
                         ),
                       ),
@@ -170,7 +187,10 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppConstants.cardRadius),
         border: Border.all(color: AppColors.border),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -180,7 +200,9 @@ class _StatCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(title, style: AppTextStyles.label.copyWith(fontSize: 14, fontWeight: FontWeight.w500)),
+                child: Text(title,
+                    style: AppTextStyles.label
+                        .copyWith(fontSize: 14, fontWeight: FontWeight.w500)),
               ),
               iconWidget,
             ],
@@ -250,6 +272,9 @@ class _ChartPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return Container(
       height: height,
       decoration: BoxDecoration(
@@ -257,11 +282,15 @@ class _ChartPlaceholder extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppConstants.cardRadius),
         border: Border.all(color: AppColors.border),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
         ],
       ),
-      child: const Center(
-        child: Text('Chart / Data coming soon', style: AppTextStyles.caption),
+      child: Center(
+        child: Text(t['chart_coming_soon'] ?? 'Chart / Data coming soon',
+            style: AppTextStyles.heading3),
       ),
     );
   }
@@ -290,12 +319,17 @@ class _CourseInfoPanel extends StatelessWidget {
       color: Color(0xFF1B5E20),
       icon: Icons.web_outlined,
     ),
+    _CourseItem(
+        label: 'Flutter Framework', color: Color(0xFF00897B), icon: Icons.code),
   ];
 
   const _CourseInfoPanel();
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return Container(
       width: AppConstants.rightPanelWidth,
       decoration: const BoxDecoration(
@@ -308,15 +342,19 @@ class _CourseInfoPanel extends StatelessWidget {
           // Header
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.border)),
-            ),
+            // decoration: const BoxDecoration(
+            //   border: Border(bottom: BorderSide(color: AppColors.border)),
+            // ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Subject Information', style: AppTextStyles.heading3),
+                Text(t['subject_information'] ?? 'Subject Information',
+                    style: AppTextStyles.heading3),
                 const SizedBox(height: 2),
-                Text('Notifications about subject Info', style: AppTextStyles.caption),
+                Text(
+                    t['notifications_about_subject'] ??
+                        'Notifications about subject Info',
+                    style: AppTextStyles.body),
               ],
             ),
           ),
@@ -341,7 +379,8 @@ class _CourseItem {
   final Color color;
   final IconData icon;
 
-  const _CourseItem({required this.label, required this.color, required this.icon});
+  const _CourseItem(
+      {required this.label, required this.color, required this.icon});
 
   Widget buildCard() {
     return Container(
@@ -381,7 +420,7 @@ class _CourseItem {
                 const SizedBox(height: 2),
                 const Text(
                   'Learn Today!',
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),

@@ -1,5 +1,7 @@
 // lib/screens/students_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/services/api_service.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 import 'package:schoolms_portal/widgets/table_widgets.dart';
@@ -140,15 +142,20 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return Padding(
       padding: const EdgeInsets.all(AppConstants.pagePadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            _SearchBox(controller: _searchCtrl, hint: 'Search students...'),
+            _SearchBox(
+                controller: _searchCtrl,
+                hint: t['search'] ?? 'Search students...'),
             const Spacer(),
-            _AddButton(label: 'Add', onTap: () => _openForm()),
+            _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
             const SizedBox(width: 8),
             _EditButton(onTap: () {
               if (_filtered.isNotEmpty) _openForm(student: _filtered[0]);
@@ -164,13 +171,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
               loading: _loading,
               empty: _filtered.isEmpty,
               emptyIcon: Icons.school_outlined,
-              emptyLabel: 'No students found',
+              emptyLabel: t['no_data'] ?? 'No students found',
               header: Row(children: [
-                TableHeader(label: 'Name', flex: 3),
-                TableHeader(label: 'Email', flex: 3),
-                TableHeader(label: 'Date of Birth', flex: 2),
-                TableHeader(label: 'Enrolled', flex: 2),
-                TableHeader(label: 'Actions', flex: 1),
+                TableHeader(label: t['student_name'] ?? 'Name', flex: 3),
+                TableHeader(label: t['email'] ?? 'Email', flex: 3),
+                TableHeader(
+                    label: t['date_of_birth'] ?? 'Date of Birth', flex: 2),
+                TableHeader(label: t['students'] ?? 'Enrolled', flex: 2),
+                TableHeader(label: t['actions'] ?? 'Actions', flex: 1),
               ]),
               body: ListView.builder(
                 itemCount: _filtered.length,
@@ -314,23 +322,32 @@ class _StudentFormDialogState extends State<StudentFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return _FormDialog(
-      title: widget.student == null ? 'Add Student' : 'Edit Student',
+      title: widget.student == null
+          ? (t['add_student'] ?? 'Add Student')
+          : (t['edit_student'] ?? 'Edit Student'),
       saving: _saving,
       onSave: _save,
       children: [
         Row(children: [
           Expanded(
               child: FormFieldInput(
-                  label: 'First Name', controller: _first, hint: 'First name')),
+                  label: t['student_name'] ?? 'First Name',
+                  controller: _first,
+                  hint: 'First name')),
           const SizedBox(width: 12),
           Expanded(
               child: FormFieldInput(
-                  label: 'Last Name', controller: _last, hint: 'Last name')),
+                  label: t['student_name'] ?? 'Last Name',
+                  controller: _last,
+                  hint: 'Last name')),
         ]),
         const SizedBox(height: 14),
         FormFieldInput(
-            label: 'Email',
+            label: t['email'] ?? 'Email',
             controller: _email,
             hint: 'student@school.edu',
             keyboardType: TextInputType.emailAddress),
@@ -338,13 +355,13 @@ class _StudentFormDialogState extends State<StudentFormDialog> {
         Row(children: [
           Expanded(
               child: FormFieldInput(
-                  label: 'Date of Birth',
+                  label: t['date_of_birth'] ?? 'Date of Birth',
                   controller: _dob,
                   hint: 'YYYY-MM-DD')),
           const SizedBox(width: 12),
           Expanded(
               child: FormFieldInput(
-                  label: 'Enrollment Date',
+                  label: t['students'] ?? 'Enrollment Date',
                   controller: _enroll,
                   hint: 'YYYY-MM-DD')),
         ]),
@@ -408,7 +425,7 @@ class _AddButton extends StatelessWidget {
       icon: const Icon(Icons.add, size: 18),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         side: const BorderSide(color: AppColors.primarySurface, width: 1),
@@ -429,7 +446,7 @@ class _EditButton extends StatelessWidget {
       icon: const Icon(Icons.edit_outlined, size: 18),
       label: const Text('Update'),
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         side: const BorderSide(color: AppColors.primarySurface, width: 1),
@@ -450,10 +467,10 @@ class _DeleteButton extends StatelessWidget {
       icon: const Icon(Icons.delete_outline, size: 18),
       label: const Text('Delete'),
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        side: const BorderSide(color: AppColors.background, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
@@ -472,7 +489,7 @@ class _FilterButton extends StatelessWidget {
       icon: const Icon(Icons.filter_list, size: 18),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         side: const BorderSide(color: AppColors.primarySurface, width: 1),
