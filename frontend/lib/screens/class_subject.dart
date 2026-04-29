@@ -63,13 +63,13 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                 _GenericCrudList(
                   endpoint: 'classes',
                   label: t['class_name'] ?? 'Class',
-                  fields: ['name', 'description'],
+                  fields: const ['name', 'description'],
                   badgeColor: const Color(0xFF3A6B35),
                 ),
                 _GenericCrudList(
                   endpoint: 'subjects',
                   label: t['subject_name'] ?? 'Subject',
-                  fields: ['name', 'code', 'description'],
+                  fields: const ['name', 'code', 'description'],
                   badgeColor: const Color(0xFF1565C0),
                 ),
               ],
@@ -209,7 +209,7 @@ class _GenericCrudListState extends State<_GenericCrudList> {
           child: Row(children: [
             ...widget.fields.map((f) =>
                 Expanded(flex: 2, child: TableHeader(label: f, flex: 1))),
-            Expanded(flex: 1, child: TableHeader(label: 'Actions', flex: 1)),
+            const Expanded(flex: 1, child: TableHeader(label: 'Actions', flex: 1)),
             ElevatedButton.icon(
               onPressed: () => _openForm(),
               icon: const Icon(Icons.add, size: 16),
@@ -338,7 +338,9 @@ class _GenericFormDialogState extends State<_GenericFormDialog> {
 
   @override
   void dispose() {
-    for (final c in _ctrls.values) c.dispose();
+    for (final c in _ctrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 

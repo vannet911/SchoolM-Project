@@ -25,6 +25,11 @@ namespace SchoolMS.Infrastructure.Services
             return user;
         }
 
+        public async Task<User?> GetByEmailAsync(string email)
+        {
+            return await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == email);
+        }
+
         public async Task<User> CreateAsync(User user)
         {
             if (string.IsNullOrWhiteSpace(user.Username))

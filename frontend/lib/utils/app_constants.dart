@@ -1,6 +1,25 @@
 // lib/utils/app_constants.dart
 import 'package:flutter/material.dart';
 
+// API Configuration & App Constants
+class AppConstants {
+  // Backend API base URL - change to your backend server address
+  static const String apiBase = 'http://localhost:5000/api';
+
+  // App Info
+  static const String appName = 'SchoolMS Portal';
+  static const String appSubtitle = 'School Management Portal';
+  static const String appVersion = 'Version 1.0.0';
+  static const String developerTag = '@vannet.developer';
+
+  // Layout
+  static const double sidebarWidth = 250.0;
+  static const double rightPanelWidth = 300.0;
+  static const double topBarHeight = 60.0;
+  static const double cardRadius = 12.0;
+  static const double pagePadding = 24.0;
+}
+
 class AppColors {
   // Primary green matching the screenshots
   static const Color primary = Color(0xFF3A6B35);
@@ -36,41 +55,43 @@ class AppColors {
 
 class AppTextStyles {
   static const TextStyle heading1 = TextStyle(
-    fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textPrimary,
+    fontSize: 24,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimary,
   );
   static const TextStyle heading2 = TextStyle(
-    fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary,
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimary,
   );
   static const TextStyle heading3 = TextStyle(
-    fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
   );
   static const TextStyle body = TextStyle(
-    fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textPrimary,
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textPrimary,
   );
   static const TextStyle bodySmall = TextStyle(
-    fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.textSecondary,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textSecondary,
   );
   static const TextStyle caption = TextStyle(
-    fontSize: 11, fontWeight: FontWeight.w400, color: AppColors.textMuted,
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textMuted,
   );
   static const TextStyle label = TextStyle(
-    fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary,
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textSecondary,
   );
   static const TextStyle statValue = TextStyle(
-    fontSize: 32, fontWeight: FontWeight.w700, color: AppColors.textPrimary,
+    fontSize: 32,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimary,
   );
-}
-
-class AppConstants {
-  static const String apiBase = 'http://localhost:5000/api';
-  static const String appName = 'SchoolMS Portal';
-  static const String appSubtitle = 'School Management Portal';
-  static const String appVersion = 'Version 1.0.0';
-  static const String developerTag = '@vannet.developer';
-
-  static const double sidebarWidth = 250.0;
-  static const double rightPanelWidth = 300.0;
-  static const double topBarHeight = 60.0;
-  static const double cardRadius = 12.0;
-  static const double pagePadding = 24.0;
 }

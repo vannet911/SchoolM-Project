@@ -236,7 +236,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           ? _GreenBadge(
                               text: (s['enrollmentDate'] as String)
                                   .substring(0, 10))
-                          : Text('—', style: AppTextStyles.bodySmall),
+                          : const Text('—', style: AppTextStyles.bodySmall),
                     ),
                     Expanded(
                       flex: 1,
@@ -529,7 +529,7 @@ class _TableCard extends StatelessWidget {
         border: Border.all(color: borderColor),
       ),
       child: loading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : empty
               ? Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -543,7 +543,7 @@ class _TableCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: Color(0xFFF9FAFB),
                       borderRadius: BorderRadius.vertical(
                           top: Radius.circular(AppConstants.cardRadius)),

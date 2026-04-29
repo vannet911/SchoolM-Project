@@ -117,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Row(
               children: [
                 const Spacer(),
-                _TopIconBtn(icon: Icons.info_outline),
+                const _TopIconBtn(icon: Icons.info_outline),
                 const SizedBox(width: 8),
                 Consumer<ThemeProvider>(
                   builder: (context, themeProvider, _) {
@@ -418,7 +418,7 @@ class _LoginField extends StatelessWidget {
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
     final iconColor = isDark ? Colors.white70 : AppColors.textSecondary;
-    final errorColor = AppColors.error;
+    const errorColor = AppColors.error;
 
     final hasError = errorText != null;
     final currentBorderColor = hasError ? errorColor : borderColor;

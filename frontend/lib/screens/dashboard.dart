@@ -90,7 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           'KOMPONG PHNOM',
                           style: AppTextStyles.heading2.copyWith(fontSize: 18),
                         ),
-                        Text(
+                        const Text(
                           AppConstants.appSubtitle,
                           style: AppTextStyles.body,
                         ),
@@ -139,26 +139,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 16),
 
                 // Chart / data rows — placeholder cards matching screenshot
-                Row(
+                const Row(
                   children: [
                     Expanded(
                       child: _ChartPlaceholder(height: 240),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 16),
                     Expanded(
                       child: _ChartPlaceholder(height: 240),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                _ChartPlaceholder(height: 350),
+                const _ChartPlaceholder(height: 350),
               ],
             ),
           ),
         ),
 
         // ── Right panel: Course Information ───────────────────────
-        _CourseInfoPanel(),
+        const _CourseInfoPanel(),
       ],
     );
   }

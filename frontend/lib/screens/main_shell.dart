@@ -77,9 +77,9 @@ class _ReportsPlaceholder extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.bar_chart_outlined, size: 64, color: AppColors.textMuted),
+          const Icon(Icons.bar_chart_outlined, size: 64, color: AppColors.textMuted),
           const SizedBox(height: 16),
-          Text('Reports', style: AppTextStyles.heading2),
+          const Text('Reports', style: AppTextStyles.heading2),
           const SizedBox(height: 8),
           Text(t['loading'] ?? 'Coming soon...',
               style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),

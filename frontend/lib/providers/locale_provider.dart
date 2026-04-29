@@ -118,7 +118,7 @@ class AppTranslations {
       // App
       'app_name': 'KOMPONG PHNOM',
       'app_subtitle': 'School Management System',
-      'developer': 'Developed by: KOSAL',
+      'developer': '@vannet.developer',
     },
     'km': {
       // Common
@@ -216,7 +216,7 @@ class AppTranslations {
       // App
       'app_name': 'កំពង់ភ្នំ',
       'app_subtitle': 'ប្រព័ន្ធគ្រប់គ្រងសាលា',
-      'developer': 'អភិវឌ្ឍដោយ: កូសាល',
+      'developer': '@vannet.developer',
     },
   };
 

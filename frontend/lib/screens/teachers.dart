@@ -287,7 +287,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
                                                         const Color(0xFF6A1B9A),
                                                     fontWeight: FontWeight.w600,
                                                   )))
-                                          : Text('—',
+                                          : const Text('—',
                                               style: AppTextStyles.bodySmall),
                                     ),
                                     Expanded(
