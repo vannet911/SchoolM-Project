@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SchoolMS.Core.Interfaces;
 using SchoolMS.Infrastructure.Services;
@@ -36,6 +37,20 @@ builder.Services.AddCors(options =>
 
 // Build the app AFTER all services are registered
 var app = builder.Build();
+
+// Apply migrations
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
+    try
+    {
+        db.Database.Migrate();
+    }
+    catch (SqlException ex) when (ex.Number == 1801)
+    {
+        app.Logger.LogWarning("Database already exists, skipping creation: {Message}", ex.Message);
+    }
+}
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())

@@ -1,5 +1,5 @@
 # Use the official Flutter image
-FROM cirrusci/flutter:stable
+FROM instrumentisto/flutter:latest
 
 # Set the working directory
 WORKDIR /app

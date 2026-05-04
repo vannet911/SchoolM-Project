@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // API Configuration & App Constants
 class AppConstants {
   // Backend API base URL - change to your backend server address
-  static const String apiBase = 'http://localhost:5000/api';
+  static const String apiBase = 'http://localhost:5001/api';
 
   // App Info
   static const String appName = 'SchoolMS Portal';

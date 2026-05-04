@@ -1,29 +1,35 @@
-version: '3.8'
-
 services:
-  api:
-    build:
-      context: ./backend/SchoolMS.API
-      dockerfile: Dockerfile
-    ports:
-      - "5000:80"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
-    depends_on:
-      - db
-    networks:
-      - schoolms-network
-
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1434:1433"
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=${DB_PASSWORD}
-    ports:
-      - "1433:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
+    networks:
+      - schoolms-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${DB_PASSWORD} -C -Q 'SELECT 1'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: SchoolMS.API/Dockerfile
+    ports:
+      - "5001:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=${ASPNETCORE_URLS}
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
+    depends_on:
+      db:
+        condition: service_started
     networks:
       - schoolms-network
 
@@ -32,7 +38,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - api
     networks:

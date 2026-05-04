@@ -19,6 +19,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
   List<Map<String, dynamic>> _filtered = [];
   bool _loading = true;
   final _searchCtrl = TextEditingController();
+  Map<String, dynamic>? _selectedStudent;
 
   @override
   void initState() {
@@ -100,6 +101,18 @@ class _StudentsScreenState extends State<StudentsScreen> {
     }
   }
 
+  void _openStudentDetail(Map<String, dynamic> student) {
+    setState(() {
+      _selectedStudent = student;
+    });
+  }
+
+  void _closeStudentDetail() {
+    setState(() {
+      _selectedStudent = null;
+    });
+  }
+
   void _openForm({Map<String, dynamic>? student}) {
     showDialog(
       context: context,
@@ -123,7 +136,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
-  String _initials(String? first, String? last) {
+  static String _initials(String? first, String? last) {
     final f = (first ?? '').isNotEmpty ? first![0].toUpperCase() : '';
     final l = (last ?? '').isNotEmpty ? last![0].toUpperCase() : '';
     return '$f$l'.isEmpty ? '?' : '$f$l';
@@ -137,7 +150,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     Color(0xFFE65100),
     Color(0xFF00695C),
   ];
-  Color _avatarColor(String name) =>
+  static Color _avatarColor(String name) =>
       _avatarColors[name.hashCode.abs() % _avatarColors.length];
 
   @override
@@ -145,6 +158,23 @@ class _StudentsScreenState extends State<StudentsScreen> {
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
 
+    if (_selectedStudent != null) {
+      // Detail page: full content area, keep sidebar/topbar visible outside
+      return Padding(
+        padding: const EdgeInsets.all(AppConstants.pagePadding),
+        child: _StudentDetailView(
+          student: _selectedStudent!,
+          onClose: _closeStudentDetail,
+          onEdit: (student) => _openForm(student: student),
+        ),
+      );
+    }
+
+    // Default view: Full table
+    return _buildTableView(t);
+  }
+
+  Widget _buildTableView(Map<String, String> t) {
     return Padding(
       padding: const EdgeInsets.all(AppConstants.pagePadding),
       child: Column(
@@ -187,74 +217,304 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   final name =
                       '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim();
                   final c = _avatarColor(name);
-                  return _TableRow(children: [
-                    Expanded(
-                      flex: 3,
-                      child: Row(children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: c.withOpacity(0.15),
-                          child: Text(_initials(s['firstName'], s['lastName']),
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: c)),
-                        ),
-                        const SizedBox(width: 10),
+                  return _TableRow(
+                      onDoubleTap: () => _openStudentDetail(s),
+                      children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(name.isEmpty ? '—' : name,
-                                  style: AppTextStyles.body
-                                      .copyWith(fontWeight: FontWeight.w500),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              Text('ID: ${s['id']}',
-                                  style: AppTextStyles.caption),
-                            ],
+                          flex: 3,
+                          child: Row(children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: c.withOpacity(0.15),
+                              child: Text(
+                                  _initials(s['firstName'], s['lastName']),
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: c)),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(name.isEmpty ? '—' : name,
+                                      style: AppTextStyles.body.copyWith(
+                                          fontWeight: FontWeight.w500),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                  Text('ID: ${s['id']}',
+                                      style: AppTextStyles.caption),
+                                ],
+                              ),
+                            ),
+                          ]),
+                        ),
+                        Expanded(
+                            flex: 3,
+                            child: Text(s['email'] ?? '—',
+                                style: AppTextStyles.bodySmall)),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            s['dateOfBirth'] != null
+                                ? (s['dateOfBirth'] as String).substring(0, 10)
+                                : '—',
+                            style: AppTextStyles.bodySmall,
                           ),
                         ),
-                      ]),
-                    ),
-                    Expanded(
-                        flex: 3,
-                        child: Text(s['email'] ?? '—',
-                            style: AppTextStyles.bodySmall)),
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                        s['dateOfBirth'] != null
-                            ? (s['dateOfBirth'] as String).substring(0, 10)
-                            : '—',
-                        style: AppTextStyles.bodySmall,
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: s['enrollmentDate'] != null
-                          ? _GreenBadge(
-                              text: (s['enrollmentDate'] as String)
-                                  .substring(0, 10))
-                          : const Text('—', style: AppTextStyles.bodySmall),
-                    ),
-                    Expanded(
-                      flex: 1,
-                      child: Row(children: [
-                        ActionBtn(
-                            icon: Icons.edit_outlined,
-                            color: AppColors.primary,
-                            onTap: () => _openForm(student: s)),
-                        const SizedBox(width: 4),
-                        ActionBtn(
-                            icon: Icons.delete_outline,
-                            color: AppColors.error,
-                            onTap: () => _delete(s)),
-                      ]),
-                    ),
-                  ]);
+                        Expanded(
+                          flex: 2,
+                          child: s['enrollmentDate'] != null
+                              ? _GreenBadge(
+                                  text: (s['enrollmentDate'] as String)
+                                      .substring(0, 10))
+                              : const Text('—', style: AppTextStyles.bodySmall),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Row(children: [
+                            ActionBtn(
+                                icon: Icons.edit_outlined,
+                                color: AppColors.primary,
+                                onTap: () => _openForm(student: s)),
+                            const SizedBox(width: 4),
+                            ActionBtn(
+                                icon: Icons.delete_outline,
+                                color: AppColors.error,
+                                onTap: () => _delete(s)),
+                          ]),
+                        ),
+                      ]);
                 },
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Student Detail View ───────────────────────────────────────────────────────
+class _StudentDetailView extends StatelessWidget {
+  final Map<String, dynamic> student;
+  final VoidCallback onClose;
+  final Function(Map<String, dynamic>) onEdit;
+
+  const _StudentDetailView({
+    required this.student,
+    required this.onClose,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name =
+        '${student['firstName'] ?? ''} ${student['lastName'] ?? ''}'.trim();
+    final c = _StudentsScreenState._avatarColor(name);
+
+    return Column(
+      children: [
+        // Header with close button
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.border.withOpacity(0.3)),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                'Student Details',
+                style: AppTextStyles.heading3,
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: onClose,
+                tooltip: 'Close detail view',
+              ),
+            ],
+          ),
+        ),
+        // Content
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Profile header
+                Center(
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: c.withOpacity(0.15),
+                        child: Text(
+                          _StudentsScreenState._initials(
+                              student['firstName'], student['lastName']),
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: c,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        name.isEmpty ? '—' : name,
+                        style: AppTextStyles.heading2,
+                        textAlign: TextAlign.center,
+                      ),
+                      Text(
+                        'ID: ${student['id']}',
+                        style: AppTextStyles.caption,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Personal Information
+                _DetailCard(
+                  title: 'Personal Information',
+                  children: [
+                    _DetailRow(
+                      label: 'First Name',
+                      value: student['firstName'] ?? '—',
+                    ),
+                    _DetailRow(
+                      label: 'Last Name',
+                      value: student['lastName'] ?? '—',
+                    ),
+                    _DetailRow(
+                      label: 'Email',
+                      value: student['email'] ?? '—',
+                    ),
+                    _DetailRow(
+                      label: 'Date of Birth',
+                      value: student['dateOfBirth'] != null
+                          ? (student['dateOfBirth'] as String).substring(0, 10)
+                          : '—',
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Academic Information
+                _DetailCard(
+                  title: 'Academic Information',
+                  children: [
+                    _DetailRow(
+                      label: 'Enrollment Date',
+                      value: student['enrollmentDate'] != null
+                          ? (student['enrollmentDate'] as String)
+                              .substring(0, 10)
+                          : '—',
+                    ),
+                    _DetailRow(
+                      label: 'Status',
+                      value: 'Active',
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => onEdit(student),
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Edit Student'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _DetailCard({
+    required this.title,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: AppColors.border.withOpacity(0.3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTextStyles.body,
             ),
           ),
         ],
@@ -529,7 +789,8 @@ class _TableCard extends StatelessWidget {
         border: Border.all(color: borderColor),
       ),
       child: loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : empty
               ? Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -560,16 +821,20 @@ class _TableCard extends StatelessWidget {
 
 class _TableRow extends StatelessWidget {
   final List<Widget> children;
-  const _TableRow({required this.children});
+  final VoidCallback? onDoubleTap;
+  const _TableRow({required this.children, this.onDoubleTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-          border: Border(
-              bottom: BorderSide(color: AppColors.border.withOpacity(0.5)))),
-      child: Row(children: children),
+    return GestureDetector(
+      onDoubleTap: onDoubleTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+            border: Border(
+                bottom: BorderSide(color: AppColors.border.withOpacity(0.5)))),
+        child: Row(children: children),
+      ),
     );
   }
 }
