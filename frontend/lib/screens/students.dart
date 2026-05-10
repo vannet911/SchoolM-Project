@@ -203,12 +203,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
               emptyIcon: Icons.school_outlined,
               emptyLabel: t['no_data'] ?? 'No students found',
               header: Row(children: [
+                const TableHeader(label: '#', flex: 1),
+                TableHeader(label: t['code'] ?? 'Code', flex: 2),
                 TableHeader(label: t['student_name'] ?? 'Name', flex: 3),
-                TableHeader(label: t['email'] ?? 'Email', flex: 3),
                 TableHeader(
                     label: t['date_of_birth'] ?? 'Date of Birth', flex: 2),
-                TableHeader(label: t['students'] ?? 'Enrolled', flex: 2),
-                TableHeader(label: t['actions'] ?? 'Actions', flex: 1),
+                TableHeader(label: t['email'] ?? 'Email', flex: 3),
+                TableHeader(label: t['address'] ?? 'Address', flex: 3),
+                TableHeader(label: t['status'] ?? 'Status', flex: 2),
               ]),
               body: ListView.builder(
                 itemCount: _filtered.length,
@@ -220,6 +222,24 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   return _TableRow(
                       onDoubleTap: () => _openStudentDetail(s),
                       children: [
+                        Expanded(
+                          flex: 1,
+                          child: Text(
+                            (i + 1).toString(),
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            s['code'] ??
+                                s['studentCode'] ??
+                                s['id']?.toString() ??
+                                '—',
+                            style: AppTextStyles.bodySmall
+                                .copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
                         Expanded(
                           flex: 3,
                           child: Row(children: [
@@ -251,10 +271,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           ]),
                         ),
                         Expanded(
-                            flex: 3,
-                            child: Text(s['email'] ?? '—',
-                                style: AppTextStyles.bodySmall)),
-                        Expanded(
                           flex: 2,
                           child: Text(
                             s['dateOfBirth'] != null
@@ -264,26 +280,20 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           ),
                         ),
                         Expanded(
-                          flex: 2,
-                          child: s['enrollmentDate'] != null
-                              ? _GreenBadge(
-                                  text: (s['enrollmentDate'] as String)
-                                      .substring(0, 10))
-                              : const Text('—', style: AppTextStyles.bodySmall),
+                          flex: 3,
+                          child: Text(s['email'] ?? '—',
+                              style: AppTextStyles.bodySmall),
                         ),
                         Expanded(
-                          flex: 1,
-                          child: Row(children: [
-                            ActionBtn(
-                                icon: Icons.edit_outlined,
-                                color: AppColors.primary,
-                                onTap: () => _openForm(student: s)),
-                            const SizedBox(width: 4),
-                            ActionBtn(
-                                icon: Icons.delete_outline,
-                                color: AppColors.error,
-                                onTap: () => _delete(s)),
-                          ]),
+                          flex: 3,
+                          child: Text(s['address'] ?? '—',
+                              style: AppTextStyles.bodySmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: _StatusBadge(status: s['status'] ?? 'Active'),
                         ),
                       ]);
                 },
@@ -314,11 +324,51 @@ class _StudentDetailView extends StatelessWidget {
         '${student['firstName'] ?? ''} ${student['lastName'] ?? ''}'.trim();
     final c = _StudentsScreenState._avatarColor(name);
 
+    String formatDate(dynamic value) {
+      if (value == null) return '—';
+      final text = value is String ? value : value.toString();
+      return text.length >= 10 ? text.substring(0, 10) : text;
+    }
+
+    String statusLabel(dynamic value) {
+      if (value == null) return 'Inactive';
+      if (value is bool) return value ? 'Active' : 'Inactive';
+      return value.toString();
+    }
+
+    Widget field(String label, String value, {int maxLines = 1}) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              )),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              value,
+              style: AppTextStyles.body,
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       children: [
-        // Header with close button
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(color: AppColors.border.withOpacity(0.3)),
@@ -326,122 +376,160 @@ class _StudentDetailView extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Text(
-                'Student Details',
-                style: AppTextStyles.heading3,
+              InkWell(
+                onTap: onClose,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Icon(Icons.arrow_back, size: 18),
+                ),
               ),
+              const SizedBox(width: 16),
+              Text(student['code'] ?? 'ST000',
+                  style: AppTextStyles.heading3.copyWith(
+                      fontWeight: FontWeight.w700, letterSpacing: 0.4)),
               const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.close),
+              OutlinedButton.icon(
+                onPressed: () => onEdit(student),
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text('Update'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
                 onPressed: onClose,
-                tooltip: 'Close detail view',
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: const Text('Delete'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
               ),
             ],
           ),
         ),
-        // Content
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile header
-                Center(
-                  child: Column(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       CircleAvatar(
-                        radius: 40,
-                        backgroundColor: c.withOpacity(0.15),
+                        radius: 34,
+                        backgroundColor: c.withOpacity(0.18),
                         child: Text(
                           _StudentsScreenState._initials(
                               student['firstName'], student['lastName']),
                           style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
                             color: c,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        name.isEmpty ? '—' : name,
-                        style: AppTextStyles.heading2,
-                        textAlign: TextAlign.center,
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name.isEmpty ? '—' : name,
+                                style: AppTextStyles.heading3
+                                    .copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 6),
+                            Text('ID: ${student['id']}',
+                                style: AppTextStyles.caption
+                                    .copyWith(color: AppColors.textSecondary)),
+                            const SizedBox(height: 6),
+                            Text(student['email'] ?? '—',
+                                style: AppTextStyles.bodySmall),
+                          ],
+                        ),
                       ),
-                      Text(
-                        'ID: ${student['id']}',
-                        style: AppTextStyles.caption,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          statusLabel(student['status']),
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 24),
-
-                // Personal Information
-                _DetailCard(
-                  title: 'Personal Information',
-                  children: [
-                    _DetailRow(
-                      label: 'First Name',
-                      value: student['firstName'] ?? '—',
-                    ),
-                    _DetailRow(
-                      label: 'Last Name',
-                      value: student['lastName'] ?? '—',
-                    ),
-                    _DetailRow(
-                      label: 'Email',
-                      value: student['email'] ?? '—',
-                    ),
-                    _DetailRow(
-                      label: 'Date of Birth',
-                      value: student['dateOfBirth'] != null
-                          ? (student['dateOfBirth'] as String).substring(0, 10)
-                          : '—',
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Academic Information
-                _DetailCard(
-                  title: 'Academic Information',
-                  children: [
-                    _DetailRow(
-                      label: 'Enrollment Date',
-                      value: student['enrollmentDate'] != null
-                          ? (student['enrollmentDate'] as String)
-                              .substring(0, 10)
-                          : '—',
-                    ),
-                    _DetailRow(
-                      label: 'Status',
-                      value: 'Active',
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Action buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => onEdit(student),
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Edit Student'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
+                  const SizedBox(height: 28),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            field('Code', student['code'] ?? '—'),
+                            const SizedBox(height: 18),
+                            field('Full Name', name.isEmpty ? '—' : name),
+                            const SizedBox(height: 18),
+                            field('Date of Birth',
+                                formatDate(student['dateOfBirth'])),
+                            const SizedBox(height: 18),
+                            field(
+                                'Created Date',
+                                formatDate(student['createDate'] ??
+                                    student['createdAt'])),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            field('Gender', student['gender'] ?? '—'),
+                            const SizedBox(height: 18),
+                            field('Email', student['email'] ?? '—'),
+                            const SizedBox(height: 18),
+                            field('Phone', student['phoneNumber'] ?? '—'),
+                            const SizedBox(height: 18),
+                            field('Address', student['address'] ?? '—',
+                                maxLines: 5),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -534,11 +622,15 @@ class StudentFormDialog extends StatefulWidget {
 }
 
 class _StudentFormDialogState extends State<StudentFormDialog> {
+  final _code = TextEditingController();
   final _first = TextEditingController();
   final _last = TextEditingController();
   final _email = TextEditingController();
+  final _phone = TextEditingController();
+  final _gender = TextEditingController();
   final _dob = TextEditingController();
-  final _enroll = TextEditingController();
+  final _address = TextEditingController();
+  bool _status = true;
   bool _saving = false;
 
   @override
@@ -546,36 +638,45 @@ class _StudentFormDialogState extends State<StudentFormDialog> {
     super.initState();
     final s = widget.student;
     if (s != null) {
+      _code.text = s['code'] ?? '';
       _first.text = s['firstName'] ?? '';
       _last.text = s['lastName'] ?? '';
       _email.text = s['email'] ?? '';
+      _phone.text = s['phoneNumber'] ?? '';
+      _gender.text = s['gender'] ?? '';
       _dob.text = s['dateOfBirth'] != null
           ? (s['dateOfBirth'] as String).substring(0, 10)
           : '';
-      _enroll.text = s['enrollmentDate'] != null
-          ? (s['enrollmentDate'] as String).substring(0, 10)
-          : '';
+      _address.text = s['address'] ?? '';
+      _status = s['status'] ?? true;
     }
   }
 
   @override
   void dispose() {
+    _code.dispose();
     _first.dispose();
     _last.dispose();
     _email.dispose();
+    _phone.dispose();
+    _gender.dispose();
     _dob.dispose();
-    _enroll.dispose();
+    _address.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     setState(() => _saving = true);
     await widget.onSave({
+      'code': _code.text.trim(),
       'firstName': _first.text.trim(),
       'lastName': _last.text.trim(),
       'email': _email.text.trim(),
+      'phoneNumber': _phone.text.trim(),
+      'gender': _gender.text.trim(),
       'dateOfBirth': _dob.text.isNotEmpty ? _dob.text : null,
-      'enrollmentDate': _enroll.text.isNotEmpty ? _enroll.text : null,
+      'address': _address.text.trim(),
+      'status': _status,
     });
     if (mounted) Navigator.pop(context);
   }
@@ -592,6 +693,11 @@ class _StudentFormDialogState extends State<StudentFormDialog> {
       saving: _saving,
       onSave: _save,
       children: [
+        FormFieldInput(
+            label: t['code'] ?? 'Student Code',
+            controller: _code,
+            hint: 'ST001'),
+        const SizedBox(height: 14),
         Row(children: [
           Expanded(
               child: FormFieldInput(
@@ -615,16 +721,56 @@ class _StudentFormDialogState extends State<StudentFormDialog> {
         Row(children: [
           Expanded(
               child: FormFieldInput(
+                  label: t['phone'] ?? 'Phone',
+                  controller: _phone,
+                  hint: '+855 12 345 678',
+                  keyboardType: TextInputType.phone)),
+          const SizedBox(width: 12),
+          Expanded(
+              child: FormFieldInput(
+                  label: t['gender'] ?? 'Gender',
+                  controller: _gender,
+                  hint: 'M/F/Other')),
+        ]),
+        const SizedBox(height: 14),
+        Row(children: [
+          Expanded(
+              child: FormFieldInput(
                   label: t['date_of_birth'] ?? 'Date of Birth',
                   controller: _dob,
                   hint: 'YYYY-MM-DD')),
           const SizedBox(width: 12),
           Expanded(
-              child: FormFieldInput(
-                  label: t['students'] ?? 'Enrollment Date',
-                  controller: _enroll,
-                  hint: 'YYYY-MM-DD')),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'STATUS',
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.06,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _status,
+                      onChanged: (v) => setState(() => _status = v ?? true),
+                    ),
+                    Text(_status ? 'Active' : 'Inactive',
+                        style: AppTextStyles.bodySmall),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ]),
+        const SizedBox(height: 14),
+        FormFieldInput(
+            label: t['address'] ?? 'Address',
+            controller: _address,
+            hint: 'Enter address'),
       ],
     );
   }
@@ -737,28 +883,6 @@ class _DeleteButton extends StatelessWidget {
   }
 }
 
-class _FilterButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _FilterButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.filter_list, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.primarySurface, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      ),
-    );
-  }
-}
-
 class _TableCard extends StatelessWidget {
   final bool loading;
   final bool empty;
@@ -839,21 +963,35 @@ class _TableRow extends StatelessWidget {
   }
 }
 
-class _GreenBadge extends StatelessWidget {
-  final String text;
-  const _GreenBadge({required this.text});
+class _StatusBadge extends StatelessWidget {
+  final dynamic status; // Can be bool or String
+  const _StatusBadge({required this.status});
 
   @override
   Widget build(BuildContext context) {
+    // Handle both boolean and string status
+    final statusStr =
+        status is bool ? (status ? 'Active' : 'Inactive') : status.toString();
+    final isActive = statusStr.toLowerCase() == 'active';
+    final background = isActive
+        ? AppColors.success.withOpacity(0.12)
+        : AppColors.error.withOpacity(0.12);
+    final color = isActive ? AppColors.success : AppColors.error;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.success.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
+        color: background,
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Text(text,
-          style: AppTextStyles.caption
-              .copyWith(color: AppColors.success, fontWeight: FontWeight.w600)),
+      child: Text(
+        statusStr.replaceFirstMapped(
+            RegExp(r'^.'), (m) => m.group(0)!.toUpperCase()),
+        style: AppTextStyles.caption.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }

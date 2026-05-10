@@ -36,7 +36,9 @@ namespace SchoolMS.Infrastructure.Services
             var existingStudent = await _context.Students.FindAsync(id);
             if (existingStudent == null) return null;
 
-            existingStudent.Name = student.Name;
+            existingStudent.FirstName = student.FirstName;
+            existingStudent.LastName = student.LastName;
+            existingStudent.Code = student.Code;
             existingStudent.Gender = student.Gender;
             existingStudent.DateOfBirth = student.DateOfBirth;
             existingStudent.Email = student.Email;

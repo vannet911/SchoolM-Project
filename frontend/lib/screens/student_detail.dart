@@ -101,159 +101,217 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       );
     }
 
+    final student = _student!;
     final name =
-        '${_student!['firstName'] ?? ''} ${_student!['lastName'] ?? ''}'.trim();
+        '${student['firstName'] ?? ''} ${student['lastName'] ?? ''}'.trim();
     final c = _avatarColor(name);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(t['student_detail'] ?? 'Student Details'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => _openEditForm(),
+    String formatDate(dynamic value) {
+      if (value == null) return '—';
+      final text = value is String ? value : value.toString();
+      return text.length >= 10 ? text.substring(0, 10) : text;
+    }
+
+    String formatStatus(dynamic value) {
+      if (value == null) return 'Inactive';
+      if (value is bool) return value ? 'Active' : 'Inactive';
+      return value.toString();
+    }
+
+    Widget field(String label, String value, {int maxLines = 1}) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              )),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14.0, vertical: 14.0),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              value,
+              style: AppTextStyles.body,
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppConstants.pagePadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Student Header Card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConstants.pagePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: c.withOpacity(0.15),
-                    child: Text(
-                      _initials(_student!['firstName'], _student!['lastName']),
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: c,
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
                       ),
+                      child: const Icon(Icons.arrow_back, size: 18),
                     ),
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name.isEmpty ? '—' : name,
-                          style: AppTextStyles.heading2,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'ID: ${_student!['id']}',
-                          style: AppTextStyles.caption,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _student!['email'] ?? '—',
-                          style: AppTextStyles.body,
-                        ),
-                      ],
+                  const SizedBox(width: 16),
+                  Text(student['code'] ?? 'ST000',
+                      style: AppTextStyles.heading2.copyWith(
+                          fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+                  const Spacer(),
+                  OutlinedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Update'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Delete'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 14),
                     ),
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Details Grid
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _DetailCard(
-                    title: t['personal_info'] ?? 'Personal Information',
-                    children: [
-                      _DetailRow(
-                        label: t['first_name'] ?? 'First Name',
-                        value: _student!['firstName'] ?? '—',
-                      ),
-                      _DetailRow(
-                        label: t['last_name'] ?? 'Last Name',
-                        value: _student!['lastName'] ?? '—',
-                      ),
-                      _DetailRow(
-                        label: t['email'] ?? 'Email',
-                        value: _student!['email'] ?? '—',
-                      ),
-                      _DetailRow(
-                        label: t['date_of_birth'] ?? 'Date of Birth',
-                        value: _student!['dateOfBirth'] != null
-                            ? (_student!['dateOfBirth'] as String)
-                                .substring(0, 10)
-                            : '—',
-                      ),
-                    ],
-                  ),
+              const SizedBox(height: 24),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(26),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: _DetailCard(
-                    title: t['academic_info'] ?? 'Academic Information',
-                    children: [
-                      _DetailRow(
-                        label: t['enrollment_date'] ?? 'Enrollment Date',
-                        value: _student!['enrollmentDate'] != null
-                            ? (_student!['enrollmentDate'] as String)
-                                .substring(0, 10)
-                            : '—',
-                      ),
-                      _DetailRow(
-                        label: t['student_status'] ?? 'Status',
-                        value:
-                            'Active', // You can add status field to your model
-                      ),
-                      _DetailRow(
-                        label: t['grade_level'] ?? 'Grade Level',
-                        value: '—', // You can add grade field to your model
-                      ),
-                      _DetailRow(
-                        label: t['gpa'] ?? 'GPA',
-                        value: '—', // You can add GPA field to your model
-                      ),
-                    ],
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 32,
+                          backgroundColor: c.withOpacity(0.18),
+                          child: Text(
+                            _initials(
+                                student['firstName'], student['lastName']),
+                            style: TextStyle(
+                              color: c,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 18),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name.isEmpty ? '—' : name,
+                                  style: AppTextStyles.heading3
+                                      .copyWith(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 6),
+                              Text('ID: ${student['id']}',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textSecondary)),
+                              const SizedBox(height: 4),
+                              Text(student['email'] ?? '—',
+                                  style: AppTextStyles.bodySmall),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withOpacity(0.14),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Text(
+                            formatStatus(student['status']),
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              field('Code', student['code'] ?? '—'),
+                              const SizedBox(height: 18),
+                              field('Full Name', name.isEmpty ? '—' : name),
+                              const SizedBox(height: 18),
+                              field('Date of Birth',
+                                  formatDate(student['dateOfBirth'])),
+                              const SizedBox(height: 18),
+                              field(
+                                  'Created Date',
+                                  formatDate(student['createDate'] ??
+                                      student['createdAt'])),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              field('Gender', student['gender'] ?? '—'),
+                              const SizedBox(height: 18),
+                              field('Email', student['email'] ?? '—'),
+                              const SizedBox(height: 18),
+                              field('Phone', student['phoneNumber'] ?? '—'),
+                              const SizedBox(height: 18),
+                              field('Address', student['address'] ?? '—',
+                                  maxLines: 5),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Additional Information Card
-            _DetailCard(
-              title: t['additional_info'] ?? 'Additional Information',
-              children: [
-                _DetailRow(
-                  label: t['created_at'] ?? 'Created At',
-                  value: _student!['createdAt'] != null
-                      ? (_student!['createdAt'] as String).substring(0, 10)
-                      : '—',
-                ),
-                _DetailRow(
-                  label: t['updated_at'] ?? 'Updated At',
-                  value: _student!['updatedAt'] != null
-                      ? (_student!['updatedAt'] as String).substring(0, 10)
-                      : '—',
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
