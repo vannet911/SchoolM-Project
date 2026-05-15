@@ -97,6 +97,12 @@ class Sidebar extends StatelessWidget {
                         child: _SidebarActionButton(
                           icon: Icons.edit_outlined,
                           onTap: () {},
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(24),
+                            topRight: Radius.circular(0),
+                            bottomLeft: Radius.circular(24),
+                            bottomRight: Radius.circular(0),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -111,8 +117,14 @@ class Sidebar extends StatelessWidget {
                           icon: Icons.logout,
                           color: AppColors.error,
                           onTap: () {
-                            context.read<AuthProvider>().logout();
+                            context.read<AuthProvider>().logout();                            
                           },
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(0),
+                            topRight: Radius.circular(24),
+                            bottomLeft: Radius.circular(0),
+                            bottomRight: Radius.circular(24),
+                          ),
                         ),
                       ),
                     ],
@@ -188,11 +200,15 @@ class _SidebarActionButton extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  final EdgeInsetsGeometry margin;
+  final BorderRadius borderRadius;
 
   const _SidebarActionButton({
     required this.icon,
     this.color = AppColors.textSecondary,
     required this.onTap,
+    this.margin = EdgeInsets.zero,
+    this.borderRadius = const BorderRadius.all(Radius.circular(20)),
   });
 
   @override
@@ -201,17 +217,24 @@ class _SidebarActionButton extends StatelessWidget {
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        height: 38,
-        decoration: BoxDecoration(
-          border: Border.all(color: borderColor),
-          borderRadius: BorderRadius.circular(8),
-          color: bgColor,
+    return Padding(
+      padding: margin,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: borderRadius,
+          child: Container(
+            height: 38,
+            decoration: BoxDecoration(
+              border: Border.all(color: borderColor),
+              borderRadius: borderRadius,
+              color: bgColor,
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: color),
+          ),
         ),
-        child: Icon(icon, size: 18, color: color),
       ),
     );
   }

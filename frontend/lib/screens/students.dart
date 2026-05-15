@@ -20,6 +20,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
   bool _loading = true;
   final _searchCtrl = TextEditingController();
   Map<String, dynamic>? _selectedStudent;
+  Map<String, dynamic>? _detailStudent;
+  bool _showForm = false;
+  Map<String, dynamic>? _formStudent;
 
   @override
   void initState() {
@@ -64,7 +67,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.only(top: 16, right: 16),
+      width: 320,
       content: Text(msg),
       backgroundColor: isError ? AppColors.error : AppColors.success,
     ));
@@ -102,75 +109,75 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   void _openStudentDetail(Map<String, dynamic> student) {
+    setState(() => _selectedStudent = student);
+  }
+
+  void _openDetail(Map<String, dynamic> student) {
     setState(() {
       _selectedStudent = student;
+      _detailStudent = student;
     });
   }
 
-  void _closeStudentDetail() {
-    setState(() {
-      _selectedStudent = null;
-    });
+  void _closeDetail() {
+    setState(() => _detailStudent = null);
   }
 
   void _openForm({Map<String, dynamic>? student}) {
-    showDialog(
-      context: context,
-      builder: (_) => StudentFormDialog(
-        student: student,
-        onSave: (data) async {
-          try {
-            if (student == null) {
-              await _api.createStudent(data);
-              _showSnack('Student created!');
-            } else {
-              await _api.updateStudent(student['id'], data);
-              _showSnack('Student updated!');
-            }
-            _load();
-          } catch (_) {
-            _showSnack('Save failed', isError: true);
-          }
-        },
-      ),
-    );
+    setState(() {
+      _showForm = true;
+      _formStudent = student;
+      _detailStudent = null;
+    });
   }
 
-  static String _initials(String? first, String? last) {
-    final f = (first ?? '').isNotEmpty ? first![0].toUpperCase() : '';
-    final l = (last ?? '').isNotEmpty ? last![0].toUpperCase() : '';
-    return '$f$l'.isEmpty ? '?' : '$f$l';
+  void _closeForm() {
+    setState(() {
+      _showForm = false;
+      _formStudent = null;
+    });
   }
-
-  static const List<Color> _avatarColors = [
-    Color(0xFF3A6B35),
-    Color(0xFF1565C0),
-    Color(0xFFC62828),
-    Color(0xFF6A1B9A),
-    Color(0xFFE65100),
-    Color(0xFF00695C),
-  ];
-  static Color _avatarColor(String name) =>
-      _avatarColors[name.hashCode.abs() % _avatarColors.length];
 
   @override
   Widget build(BuildContext context) {
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
 
-    if (_selectedStudent != null) {
-      // Detail page: full content area, keep sidebar/topbar visible outside
-      return Padding(
-        padding: const EdgeInsets.all(AppConstants.pagePadding),
-        child: _StudentDetailView(
-          student: _selectedStudent!,
-          onClose: _closeStudentDetail,
-          onEdit: (student) => _openForm(student: student),
-        ),
+    if (_showForm) {
+      return StudentFormPanel(
+        student: _formStudent,
+        onCancel: _closeForm,
+        onSave: (data) async {
+          try {
+            if (_formStudent == null) {
+              await _api.createStudent(data);
+              _showSnack('Student created!');
+            } else {
+              await _api.updateStudent(_formStudent!['id'], data);
+              _showSnack('Student updated!');
+            }
+            _closeForm();
+            _load();
+          } catch (_) {
+            _showSnack('Save failed', isError: true);
+          }
+        },
       );
     }
 
-    // Default view: Full table
+    if (_detailStudent != null) {
+      return StudentDetailPanel(
+        student: _detailStudent!,
+        onBack: _closeDetail,
+        onEdit: () => _openForm(student: _detailStudent),
+        onDelete: () async {
+          await _api.deleteStudent(_detailStudent!['id']);
+          _closeDetail();
+          _load();
+        },
+      );
+    }
+
     return _buildTableView(t);
   }
 
@@ -183,7 +190,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
           Row(children: [
             _SearchBox(
                 controller: _searchCtrl,
-                hint: t['search'] ?? 'Search students...'),
+                hint: t['search'] ?? 'Searching...'),
             const Spacer(),
             _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
             const SizedBox(width: 8),
@@ -204,12 +211,18 @@ class _StudentsScreenState extends State<StudentsScreen> {
               emptyLabel: t['no_data'] ?? 'No students found',
               header: Row(children: [
                 const TableHeader(label: '#', flex: 1),
+                const _HeaderDivider(),
                 TableHeader(label: t['code'] ?? 'Code', flex: 2),
-                TableHeader(label: t['student_name'] ?? 'Name', flex: 3),
+                const _HeaderDivider(),
+                TableHeader(label: t['student_name'] ?? 'Full Name', flex: 3),
+                const _HeaderDivider(),
                 TableHeader(
                     label: t['date_of_birth'] ?? 'Date of Birth', flex: 2),
+                const _HeaderDivider(),
                 TableHeader(label: t['email'] ?? 'Email', flex: 3),
+                const _HeaderDivider(),
                 TableHeader(label: t['address'] ?? 'Address', flex: 3),
+                const _HeaderDivider(),
                 TableHeader(label: t['status'] ?? 'Status', flex: 2),
               ]),
               body: ListView.builder(
@@ -218,9 +231,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   final s = _filtered[i];
                   final name =
                       '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim();
-                  final c = _avatarColor(name);
                   return _TableRow(
-                      onDoubleTap: () => _openStudentDetail(s),
+                      isSelected: _selectedStudent != null &&
+                          _selectedStudent!['id'] == s['id'],
+                      onTap: () => _openStudentDetail(s),
+                      onDoubleTap: () => _openDetail(s),
                       children: [
                         Expanded(
                           flex: 1,
@@ -242,39 +257,20 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         ),
                         Expanded(
                           flex: 3,
-                          child: Row(children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: c.withOpacity(0.15),
-                              child: Text(
-                                  _initials(s['firstName'], s['lastName']),
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: c)),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(name.isEmpty ? '—' : name,
-                                      style: AppTextStyles.body.copyWith(
-                                          fontWeight: FontWeight.w500),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis),
-                                  Text('ID: ${s['id']}',
-                                      style: AppTextStyles.caption),
-                                ],
-                              ),
-                            ),
-                          ]),
+                          child: Text(
+                            name.isEmpty ? '—' : name,
+                            style: AppTextStyles.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         Expanded(
                           flex: 2,
                           child: Text(
                             s['dateOfBirth'] != null
-                                ? (s['dateOfBirth'] as String).substring(0, 10)
+                                ? (s['dateOfBirth'] as String)
+                                    .substring(0, 10)
+                                    .replaceAll('-', '/')
                                 : '—',
                             style: AppTextStyles.bodySmall,
                           ),
@@ -302,476 +298,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-// ── Student Detail View ───────────────────────────────────────────────────────
-class _StudentDetailView extends StatelessWidget {
-  final Map<String, dynamic> student;
-  final VoidCallback onClose;
-  final Function(Map<String, dynamic>) onEdit;
-
-  const _StudentDetailView({
-    required this.student,
-    required this.onClose,
-    required this.onEdit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final name =
-        '${student['firstName'] ?? ''} ${student['lastName'] ?? ''}'.trim();
-    final c = _StudentsScreenState._avatarColor(name);
-
-    String formatDate(dynamic value) {
-      if (value == null) return '—';
-      final text = value is String ? value : value.toString();
-      return text.length >= 10 ? text.substring(0, 10) : text;
-    }
-
-    String statusLabel(dynamic value) {
-      if (value == null) return 'Inactive';
-      if (value is bool) return value ? 'Active' : 'Inactive';
-      return value.toString();
-    }
-
-    Widget field(String label, String value, {int maxLines = 1}) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label.toUpperCase(),
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              )),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Text(
-              value,
-              style: AppTextStyles.body,
-              maxLines: maxLines,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: AppColors.border.withOpacity(0.3)),
-            ),
-          ),
-          child: Row(
-            children: [
-              InkWell(
-                onTap: onClose,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Icon(Icons.arrow_back, size: 18),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Text(student['code'] ?? 'ST000',
-                  style: AppTextStyles.heading3.copyWith(
-                      fontWeight: FontWeight.w700, letterSpacing: 0.4)),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: () => onEdit(student),
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Update'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: onClose,
-                icon: const Icon(Icons.delete_outline, size: 16),
-                label: const Text('Delete'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 24,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        radius: 34,
-                        backgroundColor: c.withOpacity(0.18),
-                        child: Text(
-                          _StudentsScreenState._initials(
-                              student['firstName'], student['lastName']),
-                          style: TextStyle(
-                            color: c,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(name.isEmpty ? '—' : name,
-                                style: AppTextStyles.heading3
-                                    .copyWith(fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 6),
-                            Text('ID: ${student['id']}',
-                                style: AppTextStyles.caption
-                                    .copyWith(color: AppColors.textSecondary)),
-                            const SizedBox(height: 6),
-                            Text(student['email'] ?? '—',
-                                style: AppTextStyles.bodySmall),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Text(
-                          statusLabel(student['status']),
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.success,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            field('Code', student['code'] ?? '—'),
-                            const SizedBox(height: 18),
-                            field('Full Name', name.isEmpty ? '—' : name),
-                            const SizedBox(height: 18),
-                            field('Date of Birth',
-                                formatDate(student['dateOfBirth'])),
-                            const SizedBox(height: 18),
-                            field(
-                                'Created Date',
-                                formatDate(student['createDate'] ??
-                                    student['createdAt'])),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            field('Gender', student['gender'] ?? '—'),
-                            const SizedBox(height: 18),
-                            field('Email', student['email'] ?? '—'),
-                            const SizedBox(height: 18),
-                            field('Phone', student['phoneNumber'] ?? '—'),
-                            const SizedBox(height: 18),
-                            field('Address', student['address'] ?? '—',
-                                maxLines: 5),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DetailCard extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-
-  const _DetailCard({
-    required this.title,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: AppColors.border.withOpacity(0.3)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _DetailRow({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: AppTextStyles.bodySmall.copyWith(
-                fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTextStyles.body,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Student Form Dialog ───────────────────────────────────────────────────────
-class StudentFormDialog extends StatefulWidget {
-  final Map<String, dynamic>? student;
-  final Future<void> Function(Map<String, dynamic>) onSave;
-  const StudentFormDialog({super.key, this.student, required this.onSave});
-
-  @override
-  State<StudentFormDialog> createState() => _StudentFormDialogState();
-}
-
-class _StudentFormDialogState extends State<StudentFormDialog> {
-  final _code = TextEditingController();
-  final _first = TextEditingController();
-  final _last = TextEditingController();
-  final _email = TextEditingController();
-  final _phone = TextEditingController();
-  final _gender = TextEditingController();
-  final _dob = TextEditingController();
-  final _address = TextEditingController();
-  bool _status = true;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final s = widget.student;
-    if (s != null) {
-      _code.text = s['code'] ?? '';
-      _first.text = s['firstName'] ?? '';
-      _last.text = s['lastName'] ?? '';
-      _email.text = s['email'] ?? '';
-      _phone.text = s['phoneNumber'] ?? '';
-      _gender.text = s['gender'] ?? '';
-      _dob.text = s['dateOfBirth'] != null
-          ? (s['dateOfBirth'] as String).substring(0, 10)
-          : '';
-      _address.text = s['address'] ?? '';
-      _status = s['status'] ?? true;
-    }
-  }
-
-  @override
-  void dispose() {
-    _code.dispose();
-    _first.dispose();
-    _last.dispose();
-    _email.dispose();
-    _phone.dispose();
-    _gender.dispose();
-    _dob.dispose();
-    _address.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    await widget.onSave({
-      'code': _code.text.trim(),
-      'firstName': _first.text.trim(),
-      'lastName': _last.text.trim(),
-      'email': _email.text.trim(),
-      'phoneNumber': _phone.text.trim(),
-      'gender': _gender.text.trim(),
-      'dateOfBirth': _dob.text.isNotEmpty ? _dob.text : null,
-      'address': _address.text.trim(),
-      'status': _status,
-    });
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final locale = context.watch<LocaleProvider>().locale;
-    final t = AppTranslations.translations[locale]!;
-
-    return _FormDialog(
-      title: widget.student == null
-          ? (t['add_student'] ?? 'Add Student')
-          : (t['edit_student'] ?? 'Edit Student'),
-      saving: _saving,
-      onSave: _save,
-      children: [
-        FormFieldInput(
-            label: t['code'] ?? 'Student Code',
-            controller: _code,
-            hint: 'ST001'),
-        const SizedBox(height: 14),
-        Row(children: [
-          Expanded(
-              child: FormFieldInput(
-                  label: t['student_name'] ?? 'First Name',
-                  controller: _first,
-                  hint: 'First name')),
-          const SizedBox(width: 12),
-          Expanded(
-              child: FormFieldInput(
-                  label: t['student_name'] ?? 'Last Name',
-                  controller: _last,
-                  hint: 'Last name')),
-        ]),
-        const SizedBox(height: 14),
-        FormFieldInput(
-            label: t['email'] ?? 'Email',
-            controller: _email,
-            hint: 'student@school.edu',
-            keyboardType: TextInputType.emailAddress),
-        const SizedBox(height: 14),
-        Row(children: [
-          Expanded(
-              child: FormFieldInput(
-                  label: t['phone'] ?? 'Phone',
-                  controller: _phone,
-                  hint: '+855 12 345 678',
-                  keyboardType: TextInputType.phone)),
-          const SizedBox(width: 12),
-          Expanded(
-              child: FormFieldInput(
-                  label: t['gender'] ?? 'Gender',
-                  controller: _gender,
-                  hint: 'M/F/Other')),
-        ]),
-        const SizedBox(height: 14),
-        Row(children: [
-          Expanded(
-              child: FormFieldInput(
-                  label: t['date_of_birth'] ?? 'Date of Birth',
-                  controller: _dob,
-                  hint: 'YYYY-MM-DD')),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'STATUS',
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.06,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: _status,
-                      onChanged: (v) => setState(() => _status = v ?? true),
-                    ),
-                    Text(_status ? 'Active' : 'Inactive',
-                        style: AppTextStyles.bodySmall),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ]),
-        const SizedBox(height: 14),
-        FormFieldInput(
-            label: t['address'] ?? 'Address',
-            controller: _address,
-            hint: 'Enter address'),
-      ],
     );
   }
 }
@@ -943,22 +469,65 @@ class _TableCard extends StatelessWidget {
   }
 }
 
-class _TableRow extends StatelessWidget {
+class _TableRow extends StatefulWidget {
   final List<Widget> children;
+  final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
-  const _TableRow({required this.children, this.onDoubleTap});
+  final bool isSelected;
+  const _TableRow({required this.children, this.onTap, this.onDoubleTap, this.isSelected = false});
+
+  @override
+  State<_TableRow> createState() => _TableRowState();
+}
+
+class _TableRowState extends State<_TableRow> {
+  bool _isHovering = false;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onDoubleTap: onDoubleTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
+    Color rowColor;
+    if (widget.isSelected) {
+      rowColor = AppColors.primary.withOpacity(0.10);
+    } else if (_isHovering) {
+      rowColor = AppColors.primarySurface;
+    } else {
+      rowColor = Colors.transparent;
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onDoubleTap: widget.onDoubleTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: rowColor,
             border: Border(
-                bottom: BorderSide(color: AppColors.border.withOpacity(0.5)))),
-        child: Row(children: children),
+              left: widget.isSelected
+                  ? const BorderSide(color: AppColors.primary, width: 3)
+                  : BorderSide.none,
+              bottom: BorderSide(color: AppColors.border.withOpacity(0.5)),
+            ),
+          ),
+          child: Row(children: widget.children),
+        ),
       ),
+    );
+  }
+}
+
+class _HeaderDivider extends StatelessWidget {
+  const _HeaderDivider();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 16,
+      color: AppColors.border,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
     );
   }
 }
@@ -973,16 +542,14 @@ class _StatusBadge extends StatelessWidget {
     final statusStr =
         status is bool ? (status ? 'Active' : 'Inactive') : status.toString();
     final isActive = statusStr.toLowerCase() == 'active';
-    final background = isActive
-        ? AppColors.success.withOpacity(0.12)
-        : AppColors.error.withOpacity(0.12);
     final color = isActive ? AppColors.success : AppColors.error;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: background,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color, width: 1),
       ),
       child: Text(
         statusStr.replaceFirstMapped(
@@ -990,73 +557,6 @@ class _StatusBadge extends StatelessWidget {
         style: AppTextStyles.caption.copyWith(
           color: color,
           fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _FormDialog extends StatelessWidget {
-  final String title;
-  final bool saving;
-  final VoidCallback onSave;
-  final List<Widget> children;
-  const _FormDialog(
-      {required this.title,
-      required this.saving,
-      required this.onSave,
-      required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 440,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Text(title, style: AppTextStyles.heading3),
-              const Spacer(),
-              InkWell(
-                  onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close,
-                      size: 20, color: AppColors.textSecondary)),
-            ]),
-            const SizedBox(height: 20),
-            ...children,
-            const SizedBox(height: 24),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel',
-                    style: TextStyle(color: AppColors.textSecondary)),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: saving ? null : onSave,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ),
-                child: saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : const Text('Save Changes'),
-              ),
-            ]),
-          ],
         ),
       ),
     );
