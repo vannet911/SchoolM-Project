@@ -25,6 +25,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
   Map<String, dynamic>? _formStudent;
   String? _sortColumn;
   bool _sortAscending = true;
+  int _currentPage = 1;
+  int _pageSize = 25;
+
+  int get _totalPages => (_filtered.length / _pageSize).ceil().clamp(1, 999);
+  List<Map<String, dynamic>> get _paginated {
+    final start = (_currentPage - 1) * _pageSize;
+    return _filtered.skip(start).take(_pageSize).toList();
+  }
 
   @override
   void initState() {
@@ -70,7 +78,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
         return _sortAscending ? av.compareTo(bv) : bv.compareTo(av);
       });
     }
-    setState(() => _filtered = list);
+    setState(() {
+      _filtered = list;
+      _currentPage = 1;
+    });
   }
 
   String _sortValue(Map<String, dynamic> s, String col) {
@@ -235,6 +246,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   Widget _buildTableView(Map<String, String> t) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white70 : AppColors.textPrimary;
     return Padding(
       padding: const EdgeInsets.all(AppConstants.pagePadding),
       child: Column(
@@ -250,14 +263,22 @@ class _StudentsScreenState extends State<StudentsScreen> {
             _EditButton(
               label: t['edit'] ?? 'Update',
               onTap: () {
-                if (_filtered.isNotEmpty) _openForm(student: _filtered[0]);
+                if (_selectedStudent != null) {
+                  _openForm(student: _selectedStudent);
+                } else {
+                  _showSnack('Please select a row first', isError: true);
+                }
               },
             ),
             const SizedBox(width: 8),
             _DeleteButton(
               label: t['delete'] ?? 'Delete',
               onTap: () {
-                if (_filtered.isNotEmpty) _delete(_filtered[0]);
+                if (_selectedStudent != null) {
+                  _delete(_selectedStudent!);
+                } else {
+                  _showSnack('Please select a row first', isError: true);
+                }
               },
             ),
           ]),
@@ -316,9 +337,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ),
               ]),
               body: ListView.builder(
-                itemCount: _filtered.length,
+                itemCount: _paginated.length,
                 itemBuilder: (_, i) {
-                  final s = _filtered[i];
+                  final s = _paginated[i];
+                  final globalIndex = (_currentPage - 1) * _pageSize + i;
                   final name =
                       '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim();
                   return _TableRow(
@@ -331,25 +353,22 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         Expanded(
                           flex: 1,
                           child: Text(
-                            (i + 1).toString(),
-                            style: AppTextStyles.body,
+                            (globalIndex + 1).toString(),
+                            style: AppTextStyles.body.copyWith(color: textColor),
                           ),
                         ),
                         Expanded(
                           flex: 2,
                           child: Text(
-                            s['code'] ??
-                                s['studentCode'] ??
-                                s['id']?.toString() ??
-                                '—',
-                            style: AppTextStyles.body
+                            s['code'] ?? s['studentCode'] ?? s['id']?.toString() ?? '—',
+                            style: AppTextStyles.body.copyWith(color: textColor),
                           ),
                         ),
                         Expanded(
                           flex: 3,
                           child: Text(
                             name.isEmpty ? '—' : name,
-                            style: AppTextStyles.body,
+                            style: AppTextStyles.body.copyWith(color: textColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -362,21 +381,25 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                     .substring(0, 10)
                                     .replaceAll('-', '/')
                                 : '—',
-                            style: AppTextStyles.body,
+                            style: AppTextStyles.body.copyWith(color: textColor),
                             textAlign: TextAlign.center,
                           ),
                         ),
                         Expanded(
                           flex: 3,
-                          child: Text(s['email'] ?? '—',
-                              style: AppTextStyles.body),
+                          child: Text(
+                            s['email'] ?? '—',
+                            style: AppTextStyles.body.copyWith(color: textColor),
+                          ),
                         ),
                         Expanded(
                           flex: 4,
-                          child: Text(s['address'] ?? '—',
-                              style: AppTextStyles.body,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
+                          child: Text(
+                            s['address'] ?? '—',
+                            style: AppTextStyles.body.copyWith(color: textColor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         Expanded(
                           flex: 1,
@@ -386,6 +409,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 },
               ),
             ),
+          ),
+          const SizedBox(height: 12),
+          _PaginationRow(
+            currentPage: _currentPage,
+            totalPages: _totalPages,
+            pageSize: _pageSize,
+            onPageChanged: (p) => setState(() => _currentPage = p),
+            onPageSizeChanged: (s) => setState(() {
+              _pageSize = s;
+              _currentPage = 1;
+            }),
           ),
         ],
       ),
@@ -451,7 +485,7 @@ class _AddButton extends StatelessWidget {
         foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        side: const BorderSide(color: AppColors.border, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
@@ -473,7 +507,7 @@ class _EditButton extends StatelessWidget {
         foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        side: const BorderSide(color: AppColors.border, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
@@ -495,7 +529,7 @@ class _DeleteButton extends StatelessWidget {
         foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.background, width: 1),
+        side: const BorderSide(color: AppColors.border, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
@@ -602,9 +636,7 @@ class _TableRowState extends State<_TableRow> {
         onDoubleTap: widget.onDoubleTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: rowColor,
-          ),
+          decoration: BoxDecoration(color: rowColor),
           child: Row(children: widget.children),
         ),
       ),
@@ -694,6 +726,108 @@ class _ToastNotification extends StatelessWidget {
           ]),
         ),
       ),
+    );
+  }
+}
+
+// Pagination controls with page size selector and next/prev buttons
+class _PaginationRow extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final int pageSize;
+  final ValueChanged<int> onPageChanged;
+  final ValueChanged<int> onPageSizeChanged;
+
+  const _PaginationRow({
+    required this.currentPage,
+    required this.totalPages,
+    required this.pageSize,
+    required this.onPageChanged,
+    required this.onPageSizeChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+
+    final btnStyle = OutlinedButton.styleFrom(
+      foregroundColor: textColor,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      minimumSize: const Size(44, 44),
+      padding: EdgeInsets.zero,
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+    );
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        // |< first
+        OutlinedButton(
+          onPressed: currentPage > 1 ? () => onPageChanged(1) : null,
+          style: btnStyle,
+          child: const Icon(Icons.first_page, size: 18),
+        ),
+        const SizedBox(width: 4),
+        // < prev
+        OutlinedButton(
+          onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+          style: btnStyle,
+          child: const Icon(Icons.chevron_left, size: 18),
+        ),
+        const SizedBox(width: 8),
+        // X of Y
+        Text(
+          '$currentPage of $totalPages',
+          style: AppTextStyles.body.copyWith(color: textColor),
+        ),
+        const SizedBox(width: 8),
+        // > next
+        OutlinedButton(
+          onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
+          style: btnStyle,
+          child: const Icon(Icons.chevron_right, size: 18),
+        ),
+        const SizedBox(width: 4),
+        // >| last
+        OutlinedButton(
+          onPressed: currentPage < totalPages ? () => onPageChanged(totalPages) : null,
+          style: btnStyle,
+          child: const Icon(Icons.last_page, size: 18),
+        ),
+
+        const Spacer(),
+
+        // Show label + dropdown
+        Text('Show', style: AppTextStyles.body.copyWith(color: textColor)),
+        const SizedBox(width: 8),
+        Container(
+          height: 38,
+          width: 84,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: bgColor,
+            border: Border.all(color: borderColor),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: pageSize,
+              isDense: true,
+              style: AppTextStyles.body.copyWith(color: textColor),
+              dropdownColor: bgColor,
+              items: [25, 50, 100]
+                  .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
+                  .toList(),
+              onChanged: (v) => onPageSizeChanged(v!),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

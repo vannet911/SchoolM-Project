@@ -27,7 +27,7 @@ class AppTranslations {
       'save': 'Save',
       'cancel': 'Cancel',
       'delete': 'Delete',
-      'update': 'Edit',
+      'edit': 'Edit',
       'add': 'Add',
       'search': 'Search',
       'filter': 'Filter',
@@ -71,7 +71,7 @@ class AppTranslations {
       // Students
       'student_list': 'Student List',
       'add_student': 'Add Student',
-      'update_student': 'Edit Student',
+      'edit_student': 'Edit Student',
       'student_name': 'Full Name',
       'gender': 'Gender',
       'date_of_birth': 'Date of Birth',
@@ -83,7 +83,7 @@ class AppTranslations {
       // Teachers
       'teacher_list': 'Teacher List',
       'add_teacher': 'Add Teacher',
-      'update_teacher': 'Edit Teacher',
+      'edit_teacher': 'Edit Teacher',
       'teacher_name': 'Teacher Name',
       'subject': 'Subject',
       'qualification': 'Qualification',
@@ -91,7 +91,7 @@ class AppTranslations {
       // Classes
       'class_list': 'Class List',
       'add_class': 'Add Class',
-      'update_class': 'Edit Class',
+      'edit_class': 'Edit Class',
       'class_name': 'Class Name',
       'grade_level': 'Grade Level',
       'academic_year': 'Academic Year',
@@ -99,7 +99,7 @@ class AppTranslations {
       // Subjects
       'subject_list': 'Subject List',
       'add_subject': 'Add Subject',
-      'update_subject': 'Edit Subject',
+      'edit_subject': 'Edit Subject',
       'subject_name': 'Subject Name',
       'subject_code': 'Subject Code',
       'credit_hours': 'Credit Hours',
@@ -107,7 +107,7 @@ class AppTranslations {
       // Users
       'user_list': 'User List',
       'add_user': 'Add User',
-      'update_user': 'Edit User',
+      'edit_user': 'Edit User',
       'username': 'Username',
       'full_name': 'Full Name',
       'role': 'Role',
@@ -125,7 +125,7 @@ class AppTranslations {
       'save': 'រក្សាទុក',
       'cancel': 'បោះបង់',
       'delete': 'លុប',
-      'update': 'កែប្រែ',
+      'edit': 'កែប្រែ',
       'add': 'បន្ថែម',
       'search': 'ស្វែងរក',
       'filter': 'តម្រង',
@@ -169,7 +169,7 @@ class AppTranslations {
       // Students
       'student_list': 'បញ្ជីសិស្ស',
       'add_student': 'បន្ថែមសិស្ស',
-      'update_student': 'កែប្រែសិស្ស',
+      'edit_student': 'កែប្រែសិស្ស',
       'student_name': 'ឈ្មោះសិស្ស',
       'gender': 'ភេទ',
       'date_of_birth': 'ថ្ងៃខែឆ្នាំកំណើត',
@@ -181,7 +181,7 @@ class AppTranslations {
       // Teachers
       'teacher_list': 'បញ្ជីគ្រូ',
       'add_teacher': 'បន្ថែមគ្រូ',
-      'update_teacher': 'កែប្រែគ្រូ',
+      'edit_teacher': 'កែប្រែគ្រូ',
       'teacher_name': 'ឈ្មោះគ្រូ',
       'subject': 'មុខវិជ្ជា',
       'qualification': 'សញ្ញាបត្រ',
@@ -189,7 +189,7 @@ class AppTranslations {
       // Classes
       'class_list': 'បញ្ជីថ្នាក់',
       'add_class': 'បន្ថែមថ្នាក់',
-      'update_class': 'កែប្រែថ្នាក់',
+      'edit_class': 'កែប្រែថ្នាក់',
       'class_name': 'ឈ្មោះថ្នាក់',
       'grade_level': 'កម្រិតថ្នាក់',
       'academic_year': 'ឆ្នាំសិក្សា',
@@ -197,7 +197,7 @@ class AppTranslations {
       // Subjects
       'subject_list': 'បញ្ជីមុខវិជ្ជា',
       'add_subject': 'បន្ថែមមុខវិជ្ជា',
-      'update_subject': 'កែប្រែមុខវិជ្ជា',
+      'edit_subject': 'កែប្រែមុខវិជ្ជា',
       'subject_name': 'ឈ្មោះមុខវិជ្ជា',
       'subject_code': 'កូដមុខវិជ្ជា',
       'credit_hours': 'ម៉ោងកredit',
@@ -205,7 +205,7 @@ class AppTranslations {
       // Users
       'user_list': 'បញ្ជីអ្នកប្រើប្រាស់',
       'add_user': 'បន្ថែមអ្នកប្រើប្រាស់',
-      'update_user': 'កែប្រែអ្នកប្រើប្រាស់',
+      'edit_user': 'កែប្រែអ្នកប្រើប្រាស់',
       'username': 'ឈ្មោះអ្នកប្រើ',
       'full_name': 'ឈ្មោះពេញ',
       'role': 'តួនាទី',
