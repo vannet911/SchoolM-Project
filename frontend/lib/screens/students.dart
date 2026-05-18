@@ -23,6 +23,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
   Map<String, dynamic>? _detailStudent;
   bool _showForm = false;
   Map<String, dynamic>? _formStudent;
+  String? _sortColumn;
+  bool _sortAscending = true;
 
   @override
   void initState() {
@@ -54,27 +56,72 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   void _filter() {
     final q = _searchCtrl.text.toLowerCase();
+    var list = q.isEmpty
+        ? List<Map<String, dynamic>>.from(_students)
+        : _students
+            .where((s) => '${s['firstName']} ${s['lastName']} ${s['email']}'
+                .toLowerCase()
+                .contains(q))
+            .toList();
+    if (_sortColumn != null) {
+      list.sort((a, b) {
+        final av = _sortValue(a, _sortColumn!);
+        final bv = _sortValue(b, _sortColumn!);
+        return _sortAscending ? av.compareTo(bv) : bv.compareTo(av);
+      });
+    }
+    setState(() => _filtered = list);
+  }
+
+  String _sortValue(Map<String, dynamic> s, String col) {
+    switch (col) {
+      case 'code':
+        return s['code']?.toString().toLowerCase() ?? '';
+      case 'name':
+        return '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.toLowerCase();
+      case 'dob':
+        return s['dateOfBirth']?.toString() ?? '';
+      case 'email':
+        return s['email']?.toString().toLowerCase() ?? '';
+      case 'address':
+        return s['address']?.toString().toLowerCase() ?? '';
+      case 'status':
+        final st = s['status'];
+        return st is bool ? (st ? 'active' : 'inactive') : (st?.toString().toLowerCase() ?? '');
+      default:
+        return '';
+    }
+  }
+
+  void _sortBy(String col) {
     setState(() {
-      _filtered = q.isEmpty
-          ? _students
-          : _students
-              .where((s) => '${s['firstName']} ${s['lastName']} ${s['email']}'
-                  .toLowerCase()
-                  .contains(q))
-              .toList();
+      if (_sortColumn == col) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortColumn = col;
+        _sortAscending = true;
+      }
     });
+    _filter();
   }
 
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(top: 16, right: 16),
-      width: 320,
-      content: Text(msg),
-      backgroundColor: isError ? AppColors.error : AppColors.success,
-    ));
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _ToastNotification(
+        message: msg,
+        isError: isError,
+        onDismiss: () {
+          if (entry.mounted) entry.remove();
+        },
+      ),
+    );
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 3), () {
+      if (entry.mounted) entry.remove();
+    });
   }
 
   Future<void> _delete(Map<String, dynamic> s) async {
@@ -82,7 +129,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Confirm Delete'),
-        content: Text("Delete ${s['firstName']} ${s['lastName']}?"),
+        content: Text(
+            "Are you sure ${s['code'] ?? ''} - ${s['firstName']} ${s['lastName']}?"),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -171,9 +219,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
         onBack: _closeDetail,
         onEdit: () => _openForm(student: _detailStudent),
         onDelete: () async {
-          await _api.deleteStudent(_detailStudent!['id']);
-          _closeDetail();
-          _load();
+          try {
+            await _api.deleteStudent(_detailStudent!['id']);
+            _showSnack('Student deleted');
+            _closeDetail();
+            _load();
+          } catch (_) {
+            _showSnack('Delete failed', isError: true);
+          }
         },
       );
     }
@@ -194,15 +247,21 @@ class _StudentsScreenState extends State<StudentsScreen> {
             const Spacer(),
             _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
             const SizedBox(width: 8),
-            _EditButton(onTap: () {
-              if (_filtered.isNotEmpty) _openForm(student: _filtered[0]);
-            }),
+            _EditButton(
+              label: t['edit'] ?? 'Update',
+              onTap: () {
+                if (_filtered.isNotEmpty) _openForm(student: _filtered[0]);
+              },
+            ),
             const SizedBox(width: 8),
-            _DeleteButton(onTap: () {
-              if (_filtered.isNotEmpty) _delete(_filtered[0]);
-            }),
+            _DeleteButton(
+              label: t['delete'] ?? 'Delete',
+              onTap: () {
+                if (_filtered.isNotEmpty) _delete(_filtered[0]);
+              },
+            ),
           ]),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Expanded(
             child: _TableCard(
               loading: _loading,
@@ -211,19 +270,50 @@ class _StudentsScreenState extends State<StudentsScreen> {
               emptyLabel: t['no_data'] ?? 'No students found',
               header: Row(children: [
                 const TableHeader(label: '#', flex: 1),
-                const _HeaderDivider(),
-                TableHeader(label: t['code'] ?? 'Code', flex: 2),
-                const _HeaderDivider(),
-                TableHeader(label: t['student_name'] ?? 'Full Name', flex: 3),
-                const _HeaderDivider(),
                 TableHeader(
-                    label: t['date_of_birth'] ?? 'Date of Birth', flex: 2),
-                const _HeaderDivider(),
-                TableHeader(label: t['email'] ?? 'Email', flex: 3),
-                const _HeaderDivider(),
-                TableHeader(label: t['address'] ?? 'Address', flex: 3),
-                const _HeaderDivider(),
-                TableHeader(label: t['status'] ?? 'Status', flex: 2),
+                  label: t['code'] ?? 'Code',
+                  flex: 2,
+                  onSort: () => _sortBy('code'),
+                  isSorted: _sortColumn == 'code',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
+                  label: t['student_name'] ?? 'Full Name',
+                  flex: 3,
+                  onSort: () => _sortBy('name'),
+                  isSorted: _sortColumn == 'name',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
+                  label: t['date_of_birth'] ?? 'Date of Birth',
+                  flex: 3,
+                  onSort: () => _sortBy('dob'),
+                  isSorted: _sortColumn == 'dob',
+                  sortAscending: _sortAscending,
+                  textAlign: TextAlign.center,
+                ),
+                TableHeader(
+                  label: t['email'] ?? 'Email',
+                  flex: 3,
+                  onSort: () => _sortBy('email'),
+                  isSorted: _sortColumn == 'email',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
+                  label: t['address'] ?? 'Address',
+                  flex: 4,
+                  onSort: () => _sortBy('address'),
+                  isSorted: _sortColumn == 'address',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
+                  label: t['status'] ?? 'Status',
+                  flex: 1,
+                  onSort: () => _sortBy('status'),
+                  isSorted: _sortColumn == 'status',
+                  sortAscending: _sortAscending,
+                  textAlign: TextAlign.center,
+                ),
               ]),
               body: ListView.builder(
                 itemCount: _filtered.length,
@@ -232,6 +322,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   final name =
                       '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim();
                   return _TableRow(
+                      index: i,
                       isSelected: _selectedStudent != null &&
                           _selectedStudent!['id'] == s['id'],
                       onTap: () => _openStudentDetail(s),
@@ -241,7 +332,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           flex: 1,
                           child: Text(
                             (i + 1).toString(),
-                            style: AppTextStyles.bodySmall,
+                            style: AppTextStyles.body,
                           ),
                         ),
                         Expanded(
@@ -251,44 +342,44 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                 s['studentCode'] ??
                                 s['id']?.toString() ??
                                 '—',
-                            style: AppTextStyles.bodySmall
-                                .copyWith(fontWeight: FontWeight.w600),
+                            style: AppTextStyles.body
                           ),
                         ),
                         Expanded(
                           flex: 3,
                           child: Text(
                             name.isEmpty ? '—' : name,
-                            style: AppTextStyles.bodySmall,
+                            style: AppTextStyles.body,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Expanded(
-                          flex: 2,
+                          flex: 3,
                           child: Text(
                             s['dateOfBirth'] != null
                                 ? (s['dateOfBirth'] as String)
                                     .substring(0, 10)
                                     .replaceAll('-', '/')
                                 : '—',
-                            style: AppTextStyles.bodySmall,
+                            style: AppTextStyles.body,
+                            textAlign: TextAlign.center,
                           ),
                         ),
                         Expanded(
                           flex: 3,
                           child: Text(s['email'] ?? '—',
-                              style: AppTextStyles.bodySmall),
+                              style: AppTextStyles.body),
                         ),
                         Expanded(
-                          flex: 3,
+                          flex: 4,
                           child: Text(s['address'] ?? '—',
-                              style: AppTextStyles.bodySmall,
+                              style: AppTextStyles.body,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis),
                         ),
                         Expanded(
-                          flex: 2,
+                          flex: 1,
                           child: _StatusBadge(status: s['status'] ?? 'Active'),
                         ),
                       ]);
@@ -325,7 +416,7 @@ class _SearchBox extends StatelessWidget {
         style: TextStyle(color: textColor),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: AppTextStyles.bodySmall.copyWith(color: mutedColor),
+          hintStyle: AppTextStyles.body.copyWith(color: mutedColor),
           prefixIcon: Icon(Icons.search, size: 18, color: mutedColor),
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
@@ -369,14 +460,15 @@ class _AddButton extends StatelessWidget {
 
 class _EditButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _EditButton({required this.onTap});
+  final String label;
+  const _EditButton({required this.onTap, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.edit_outlined, size: 18),
-      label: const Text('Update'),
+      label: Text(label),
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.primaryLight,
         elevation: 0,
@@ -390,14 +482,15 @@ class _EditButton extends StatelessWidget {
 
 class _DeleteButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _DeleteButton({required this.onTap});
+  final String label;
+  const _DeleteButton({required this.onTap, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.delete_outline, size: 18),
-      label: const Text('Delete'),
+      label: Text(label),
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.primaryLight,
         elevation: 0,
@@ -429,14 +522,12 @@ class _TableCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
-    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
 
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-        border: Border.all(color: borderColor),
       ),
       child: loading
           ? const Center(
@@ -451,16 +542,9 @@ class _TableCard extends StatelessWidget {
                   ]),
                 )
               : Column(children: [
-                  Container(
+                  Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(AppConstants.cardRadius)),
-                      border:
-                          Border(bottom: BorderSide(color: AppColors.border)),
-                    ),
                     child: header,
                   ),
                   Expanded(child: body),
@@ -474,7 +558,14 @@ class _TableRow extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final bool isSelected;
-  const _TableRow({required this.children, this.onTap, this.onDoubleTap, this.isSelected = false});
+  final int index;
+  const _TableRow({
+    required this.children,
+    required this.index,
+    this.onTap,
+    this.onDoubleTap,
+    this.isSelected = false,
+  });
 
   @override
   State<_TableRow> createState() => _TableRowState();
@@ -485,13 +576,21 @@ class _TableRowState extends State<_TableRow> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEven = widget.index % 2 == 0;
     Color rowColor;
     if (widget.isSelected) {
-      rowColor = AppColors.primary.withOpacity(0.10);
+      rowColor = AppColors.primary.withValues(alpha: 0.10);
     } else if (_isHovering) {
-      rowColor = AppColors.primarySurface;
+      rowColor = isDark
+          ? const Color(0xFF1E2D50)
+          : AppColors.primarySurface;
+    } else if (isDark) {
+      rowColor = isEven
+          ? const Color(0xFF16213E)
+          : const Color(0xFF1C2A4A);
     } else {
-      rowColor = Colors.transparent;
+      rowColor = isEven ? Colors.white : const Color(0xFFF5F7FA);
     }
 
     return MouseRegion(
@@ -502,32 +601,13 @@ class _TableRowState extends State<_TableRow> {
         onTap: widget.onTap,
         onDoubleTap: widget.onDoubleTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: rowColor,
-            border: Border(
-              left: widget.isSelected
-                  ? const BorderSide(color: AppColors.primary, width: 3)
-                  : BorderSide.none,
-              bottom: BorderSide(color: AppColors.border.withOpacity(0.5)),
-            ),
           ),
           child: Row(children: widget.children),
         ),
       ),
-    );
-  }
-}
-
-class _HeaderDivider extends StatelessWidget {
-  const _HeaderDivider();
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 16,
-      color: AppColors.border,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
     );
   }
 }
@@ -538,7 +618,6 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Handle both boolean and string status
     final statusStr =
         status is bool ? (status ? 'Active' : 'Inactive') : status.toString();
     final isActive = statusStr.toLowerCase() == 'active';
@@ -552,11 +631,67 @@ class _StatusBadge extends StatelessWidget {
         border: Border.all(color: color, width: 1),
       ),
       child: Text(
+        textAlign: TextAlign.center,
         statusStr.replaceFirstMapped(
             RegExp(r'^.'), (m) => m.group(0)!.toUpperCase()),
-        style: AppTextStyles.caption.copyWith(
+        style: AppTextStyles.body.copyWith(
           color: color,
-          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _ToastNotification extends StatelessWidget {
+  final String message;
+  final bool isError;
+  final VoidCallback onDismiss;
+  const _ToastNotification(
+      {required this.message,
+      required this.isError,
+      required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isError ? AppColors.error : AppColors.success;
+    final icon =
+        isError ? Icons.error_outline : Icons.check_circle_outline;
+
+    return Positioned(
+      top: 24,
+      right: 24,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 300,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+                child: Text(message,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textPrimary))),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onDismiss,
+              child: const Icon(Icons.close,
+                  size: 16, color: AppColors.textSecondary),
+            ),
+          ]),
         ),
       ),
     );

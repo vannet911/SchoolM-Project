@@ -34,7 +34,7 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
         color: bgColor,
         border: Border(bottom: BorderSide(color: borderColor, width: 1)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
           if (showMenuIcon) ...[

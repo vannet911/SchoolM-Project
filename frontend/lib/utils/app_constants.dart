@@ -17,7 +17,7 @@ class AppConstants {
   static const double rightPanelWidth = 300.0;
   static const double topBarHeight = 60.0;
   static const double cardRadius = 12.0;
-  static const double pagePadding = 18.0;
+  static const double pagePadding = 12.0;
 }
 
 class AppColors {

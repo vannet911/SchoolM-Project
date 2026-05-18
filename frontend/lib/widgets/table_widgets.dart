@@ -84,11 +84,11 @@ class StudentDetailPanel extends StatelessWidget {
       children: [
         // ── header ──────────────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(children: [
             InkWell(
               onTap: onBack,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(24),
               child: const Icon(Icons.chevron_left,
                   size: 24, color: AppColors.textSecondary),
             ),
@@ -104,30 +104,68 @@ class StudentDetailPanel extends StatelessWidget {
             const Spacer(),
             OutlinedButton.icon(
               onPressed: onEdit,
-              icon: const Icon(Icons.person_outline, size: 16),
-              label: const Text('Update'),
+              icon: const Icon(Icons.edit_outlined, size: 16),
+              label: const Text('Edit'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.textPrimary,
-                side: const BorderSide(color: AppColors.border),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                foregroundColor: AppColors.primaryLight,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 18),
+                side: const BorderSide(
+                    color: AppColors.primarySurface, width: 1),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24)),
               ),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
-              onPressed: onDelete,
+              onPressed: onDelete == null
+                  ? null
+                  : () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('Confirm Delete'),
+                          content: Text(
+                              'Are you sure '
+                              ' ${student['code'] ?? ''} -'
+                              ' ${student['firstName'] ?? ''}'
+                              ' ${student['lastName'] ?? ''}?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () =>
+                                  Navigator.pop(context, true),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.error,
+                                  foregroundColor: Colors.white),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok == true) onDelete!();
+                    },
               icon: const Icon(Icons.delete_outline, size: 16),
               label: const Text('Delete'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.textPrimary,
-                side: const BorderSide(color: AppColors.border),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                foregroundColor: AppColors.primaryLight,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 18),
+                side: const BorderSide(
+                    color: AppColors.primarySurface, width: 1),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24)),
               ),
             ),
           ]),
         ),
-        const Divider(height: 1),
+        //const Divider(height: 1),
         // ── content ─────────────────────────────────────────────────
         Expanded(
           child: SingleChildScrollView(
@@ -400,21 +438,24 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
               ),
             ),
             const Spacer(),
-            ElevatedButton.icon(
+            OutlinedButton.icon(
               onPressed: _saving ? null : _save,
               icon: _saving
                   ? const SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.check, size: 16),
               label: const Text('Save'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryLight,
+                elevation: 0,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
+                    horizontal: 16, vertical: 18),
+                side: const BorderSide(
+                    color: AppColors.primarySurface, width: 1),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24)),
               ),
             ),
           ]),
@@ -551,7 +592,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                                 keyboardType: TextInputType.phone,
                                 style: AppTextStyles.body,
                                 decoration: _inputDecoration(
-                                    hint: '+855 12 345 678'),
+                                    hint: '+855 XX XXX XXX'),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -584,50 +625,61 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
 class TableHeader extends StatelessWidget {
   final String label;
   final int flex;
-  const TableHeader({super.key, required this.label, required this.flex});
+  final VoidCallback? onSort;
+  final bool isSorted;
+  final bool sortAscending;
+  final TextAlign textAlign;
+
+  const TableHeader({
+    super.key,
+    required this.label,
+    required this.flex,
+    this.onSort,
+    this.isSorted = false,
+    this.sortAscending = true,
+    this.textAlign = TextAlign.start,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final textColor = isSorted
+        ? AppColors.primary
+        : (isDark ? Colors.white70 : AppColors.textSecondary);
+    final mainAxis = textAlign == TextAlign.center
+        ? MainAxisAlignment.center
+        : MainAxisAlignment.start;
 
     return Expanded(
       flex: flex,
-      child: Text(
-        label.toUpperCase(),
-        style: AppTextStyles.caption.copyWith(
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.06,
-          color: textColor,
+      child: GestureDetector(
+        onTap: onSort,
+        behavior: HitTestBehavior.opaque,
+        child: Row(
+          mainAxisAlignment: mainAxis,
+          children: [
+            Text(
+              label,
+              textAlign: textAlign,
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+            if (onSort != null) ...[
+              const SizedBox(width: 4),
+              Icon(
+                isSorted
+                    ? (sortAscending
+                        ? Icons.arrow_upward
+                        : Icons.arrow_downward)
+                    : Icons.unfold_more,
+                size: 14,
+                color: isSorted ? AppColors.primary : AppColors.textMuted,
+              ),
+            ],
+          ],
         ),
-      ),
-    );
-  }
-}
-
-/// Small icon action button (edit / delete)
-class ActionBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  const ActionBtn(
-      {super.key,
-      required this.icon,
-      required this.color,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(icon, size: 15, color: color),
       ),
     );
   }

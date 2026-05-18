@@ -281,20 +281,7 @@ class _GenericCrudListState extends State<_GenericCrudList> {
                             : Text(value, style: AppTextStyles.bodySmall),
                       );
                     }),
-                    Expanded(
-                      flex: 1,
-                      child: Row(children: [
-                        ActionBtn(
-                            icon: Icons.edit_outlined,
-                            color: AppColors.primary,
-                            onTap: () => _openForm(item: item)),
-                        const SizedBox(width: 4),
-                        ActionBtn(
-                            icon: Icons.delete_outline,
-                            color: AppColors.error,
-                            onTap: () => _delete(item)),
-                      ]),
-                    ),
+                    const Spacer(),
                   ]),
                 );
               },

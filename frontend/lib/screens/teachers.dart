@@ -299,20 +299,6 @@ class _TeachersScreenState extends State<TeachersScreen> {
                                               : '—',
                                           style: AppTextStyles.bodySmall),
                                     ),
-                                    Expanded(
-                                      flex: 1,
-                                      child: Row(children: [
-                                        ActionBtn(
-                                            icon: Icons.edit_outlined,
-                                            color: AppColors.primary,
-                                            onTap: () => _openForm(teacher: t)),
-                                        const SizedBox(width: 4),
-                                        ActionBtn(
-                                            icon: Icons.delete_outline,
-                                            color: AppColors.error,
-                                            onTap: () => _delete(t)),
-                                      ]),
-                                    ),
                                   ]),
                                 );
                               },
