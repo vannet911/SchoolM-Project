@@ -32,7 +32,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _loading = false;
       });
     } catch (_) {
-      // Show zeros if API offline
       setState(() {
         _stats = {'students': 40, 'teachers': 5, 'classes': 5};
         _loading = false;
@@ -44,6 +43,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,9 +65,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(t['welcome'] ?? 'Welcome',
-                            style:
-                                AppTextStyles.heading1.copyWith(fontSize: 28)),
+                        Text(
+                          t['welcome'] ?? 'Welcome',
+                          style: AppTextStyles.heading1.copyWith(
+                              fontSize: 28, color: textColor),
+                        ),
                       ],
                     ),
                     const Spacer(),
@@ -77,8 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           height: 72,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border:
-                                Border.all(color: AppColors.border, width: 1.5),
+                            border: Border.all(color: borderColor, width: 1.5),
                           ),
                           child: const Center(
                             child: Icon(Icons.school,
@@ -87,12 +91,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'KOMPONG PHNOM',
-                          style: AppTextStyles.heading2.copyWith(fontSize: 18),
+                          t['app_name'] ?? 'KOMPONG PHNOM',
+                          style: AppTextStyles.heading2.copyWith(
+                              fontSize: 18, color: textColor),
                         ),
-                        const Text(
-                          AppConstants.appSubtitle,
-                          style: AppTextStyles.body,
+                        Text(
+                          t['app_subtitle'] ?? AppConstants.appSubtitle,
+                          style: AppTextStyles.body.copyWith(color: mutedColor),
                         ),
                       ],
                     ),
@@ -112,8 +117,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: _StatCard(
                           title: t['total_students'] ?? 'Total Students',
                           value: _stats['students']!.toString().padLeft(2, '0'),
-                          subtitle: t['data_this_month'] ?? 'Data this month',
-                          iconWidget: _StudentIcon(),
+                          subtitle:
+                              t['data_this_month'] ?? 'Data this month',
+                          iconWidget: const _StudentIcon(),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -121,8 +127,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: _StatCard(
                           title: t['total_teachers'] ?? 'Total Teachers',
                           value: _stats['teachers']!.toString().padLeft(2, '0'),
-                          subtitle: t['data_this_month'] ?? 'Data this month',
-                          iconWidget: _TeacherIcon(),
+                          subtitle:
+                              t['data_this_month'] ?? 'Data this month',
+                          iconWidget: const _TeacherIcon(),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -130,24 +137,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: _StatCard(
                           title: t['total_classes'] ?? 'Total Classes',
                           value: _stats['classes']!.toString().padLeft(2, '0'),
-                          subtitle: t['data_this_month'] ?? 'Data this month',
-                          iconWidget: _ClassIcon(),
+                          subtitle:
+                              t['data_this_month'] ?? 'Data this month',
+                          iconWidget: const _ClassIcon(),
                         ),
                       ),
                     ],
                   ),
                 const SizedBox(height: 16),
 
-                // Chart / data rows — placeholder cards matching screenshot
+                // Chart placeholder rows
                 const Row(
                   children: [
-                    Expanded(
-                      child: _ChartPlaceholder(height: 240),
-                    ),
+                    Expanded(child: _ChartPlaceholder(height: 240)),
                     SizedBox(width: 16),
-                    Expanded(
-                      child: _ChartPlaceholder(height: 240),
-                    ),
+                    Expanded(child: _ChartPlaceholder(height: 240)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -180,15 +184,22 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF16213E) : AppColors.cardBg;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white54 : AppColors.textMuted;
+    final dividerColor = isDark ? const Color(0xFF2A2A4A) : AppColors.divider;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardBg,
+        color: cardColor,
         borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2)),
         ],
@@ -201,18 +212,22 @@ class _StatCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(title,
-                    style: AppTextStyles.label
-                        .copyWith(fontSize: 14, fontWeight: FontWeight.w500)),
+                    style: AppTextStyles.label.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: textColor)),
               ),
               iconWidget,
             ],
           ),
           const SizedBox(height: 12),
-          Text(value, style: AppTextStyles.statValue),
+          Text(value,
+              style: AppTextStyles.statValue.copyWith(color: textColor)),
           const SizedBox(height: 12),
-          const Divider(color: AppColors.divider, height: 1),
+          Divider(color: dividerColor, height: 1),
           const SizedBox(height: 10),
-          Text(subtitle, style: AppTextStyles.caption),
+          Text(subtitle,
+              style: AppTextStyles.caption.copyWith(color: mutedColor)),
         ],
       ),
     );
@@ -221,6 +236,7 @@ class _StatCard extends StatelessWidget {
 
 // Icon widgets for stat cards
 class _StudentIcon extends StatelessWidget {
+  const _StudentIcon();
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -236,6 +252,7 @@ class _StudentIcon extends StatelessWidget {
 }
 
 class _TeacherIcon extends StatelessWidget {
+  const _TeacherIcon();
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -251,6 +268,7 @@ class _TeacherIcon extends StatelessWidget {
 }
 
 class _ClassIcon extends StatelessWidget {
+  const _ClassIcon();
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -274,23 +292,29 @@ class _ChartPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF16213E) : AppColors.cardBg;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
 
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: AppColors.cardBg,
+        color: cardColor,
         borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2)),
         ],
       ),
       child: Center(
-        child: Text(t['chart_coming_soon'] ?? 'Chart / Data coming soon',
-            style: AppTextStyles.heading3),
+        child: Text(
+          t['chart_coming_soon'] ?? 'Chart / Data coming soon',
+          style: AppTextStyles.heading3.copyWith(color: textColor),
+        ),
       ),
     );
   }
@@ -298,7 +322,7 @@ class _ChartPlaceholder extends StatelessWidget {
 
 // ── Right panel ───────────────────────────────────────────────────────────────
 class _CourseInfoPanel extends StatelessWidget {
-  final List<_CourseItem> _courses = const [
+  static const List<_CourseItem> _courses = [
     _CourseItem(
       label: 'C# Programming',
       color: Color(0xFF6C3FAB),
@@ -320,7 +344,10 @@ class _CourseInfoPanel extends StatelessWidget {
       icon: Icons.web_outlined,
     ),
     _CourseItem(
-        label: 'Flutter Framework', color: Color(0xFF00897B), icon: Icons.code),
+      label: 'Flutter Framework',
+      color: Color(0xFF00897B),
+      icon: Icons.code,
+    ),
   ];
 
   const _CourseInfoPanel();
@@ -329,32 +356,37 @@ class _CourseInfoPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final panelColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white70 : AppColors.textSecondary;
 
     return Container(
       width: AppConstants.rightPanelWidth,
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(left: BorderSide(color: AppColors.border, width: 1)),
+      decoration: BoxDecoration(
+        color: panelColor,
+        border: Border(left: BorderSide(color: borderColor, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Container(
+          Padding(
             padding: const EdgeInsets.all(16),
-            // decoration: const BoxDecoration(
-            //   border: Border(bottom: BorderSide(color: AppColors.border)),
-            // ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t['subject_information'] ?? 'Subject Information',
-                    style: AppTextStyles.heading3),
+                Text(
+                  t['subject_information'] ?? 'Subject Information',
+                  style: AppTextStyles.heading3.copyWith(color: textColor),
+                ),
                 const SizedBox(height: 2),
                 Text(
-                    t['notifications_about_subject'] ??
-                        'Notifications about subject Info',
-                    style: AppTextStyles.body),
+                  t['notifications_about_subject'] ??
+                      'Notifications about subject Info',
+                  style: AppTextStyles.body.copyWith(color: mutedColor),
+                ),
               ],
             ),
           ),
@@ -365,7 +397,7 @@ class _CourseInfoPanel extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               itemCount: _courses.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _courses[i].buildCard(),
+              itemBuilder: (_, i) => _courses[i],
             ),
           ),
         ],
@@ -374,7 +406,7 @@ class _CourseInfoPanel extends StatelessWidget {
   }
 }
 
-class _CourseItem {
+class _CourseItem extends StatelessWidget {
   final String label;
   final Color color;
   final IconData icon;
@@ -382,20 +414,23 @@ class _CourseItem {
   const _CourseItem(
       {required this.label, required this.color, required this.icon});
 
-  Widget buildCard() {
+  @override
+  Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+
     return Container(
       height: 120,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.75)],
+          colors: [color, color.withValues(alpha: 0.75)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       ),
       child: Stack(
         children: [
-          // Background pattern
           Positioned(
             right: -20,
             bottom: -20,
@@ -418,9 +453,9 @@ class _CourseItem {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'Learn Today!',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                Text(
+                  t['learn_today'] ?? 'Learn Today!',
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),

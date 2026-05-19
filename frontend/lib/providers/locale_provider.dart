@@ -82,6 +82,7 @@ class AppTranslations {
       'notifications_about_subject': 'Notifications about subject Info',
       'data_this_month': 'Data this month',
       'chart_coming_soon': 'Chart / Data coming soon',
+      'learn_today': 'Learn Today!',
 
       // Students
       'student_list': 'Student List',
@@ -198,6 +199,7 @@ class AppTranslations {
       'notifications_about_subject': 'ការជូនដំណឹងអំពីមុខវិជ្ជា',
       'data_this_month': 'ទិន្ន័យខែនេះ',
       'chart_coming_soon': 'តារាង / ទិន្ន័យនឹងមកដល់',
+      'learn_today': 'រៀនថ្ងៃនេះ!',
 
       // Students
       'student_list': 'បញ្ជីសិស្ស',
