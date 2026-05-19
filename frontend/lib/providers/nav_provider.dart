@@ -20,13 +20,13 @@ class NavProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String get pageTitle {
+  String get pageTitleKey {
     switch (_currentPage) {
-      case NavPage.dashboard: return 'Dashboard';
-      case NavPage.students: return 'Students';
-      case NavPage.teachers: return 'Teachers';
-      case NavPage.classSubject: return 'Class & Subject';
-      case NavPage.reports: return 'Reports';
+      case NavPage.dashboard: return 'dashboard';
+      case NavPage.students: return 'students';
+      case NavPage.teachers: return 'teachers';
+      case NavPage.classSubject: return 'class & subject';
+      case NavPage.reports: return 'reports';
     }
   }
 }

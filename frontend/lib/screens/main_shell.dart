@@ -17,6 +17,8 @@ class MainShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nav = context.watch<NavProvider>();
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
 
@@ -33,7 +35,7 @@ class MainShell extends StatelessWidget {
               children: [
                 // Top bar
                 TopBar(
-                  title: nav.pageTitle,
+                  title: t[nav.pageTitleKey] ?? nav.pageTitleKey,
                   showMenuIcon: true,
                   onMenuTap: () => nav.toggleSidebar(),
                 ),
@@ -79,9 +81,9 @@ class _ReportsPlaceholder extends StatelessWidget {
         children: [
           const Icon(Icons.bar_chart_outlined, size: 64, color: AppColors.textMuted),
           const SizedBox(height: 16),
-          const Text('Reports', style: AppTextStyles.heading2),
+          Text(t['reports'] ?? 'Reports', style: AppTextStyles.heading2),
           const SizedBox(height: 8),
-          Text(t['loading'] ?? 'Coming soon...',
+          Text(t['chart_coming_soon'] ?? 'Coming soon...',
               style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),
         ],
       ),

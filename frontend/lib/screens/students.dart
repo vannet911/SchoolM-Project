@@ -58,7 +58,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
       });
     } catch (e) {
       setState(() => _loading = false);
-      _showSnack('Failed to load students', isError: true);
+      if (!mounted) return;
+      final t = AppTranslations.translations[
+          context.read<LocaleProvider>().locale] ?? AppTranslations.translations['en']!;
+      _showSnack(t['failed_load'] ?? 'Failed to load students', isError: true);
     }
   }
 
@@ -136,22 +139,24 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   Future<void> _delete(Map<String, dynamic> s) async {
+    final t = AppTranslations.translations[
+        context.read<LocaleProvider>().locale] ?? AppTranslations.translations['en']!;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Confirm Delete'),
+        title: Text(t['confirm_delete'] ?? 'Confirm Delete'),
         content: Text(
-            "Are you sure ${s['code'] ?? ''} - ${s['firstName']} ${s['lastName']}?"),
+            "${s['code'] ?? ''} - ${s['firstName']} ${s['lastName']}?"),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(t['cancel'] ?? 'Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
                 foregroundColor: Colors.white),
-            child: const Text('Delete'),
+            child: Text(t['delete'] ?? 'Delete'),
           ),
         ],
       ),
@@ -159,10 +164,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
     if (ok == true) {
       try {
         await _api.deleteStudent(s['id']);
-        _showSnack('Student deleted');
+        _showSnack(t['student_deleted'] ?? 'Student deleted');
         _load();
       } catch (_) {
-        _showSnack('Delete failed', isError: true);
+        _showSnack(t['delete_failed'] ?? 'Delete failed', isError: true);
       }
     }
   }
@@ -210,15 +215,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
           try {
             if (_formStudent == null) {
               await _api.createStudent(data);
-              _showSnack('Student created!');
+              _showSnack(t['student_created'] ?? 'Student created!');
             } else {
               await _api.updateStudent(_formStudent!['id'], data);
-              _showSnack('Student updated!');
+              _showSnack(t['student_updated'] ?? 'Student updated!');
             }
             _closeForm();
             _load();
           } catch (_) {
-            _showSnack('Save failed', isError: true);
+            _showSnack(t['save_failed'] ?? 'Save failed', isError: true);
           }
         },
       );
@@ -232,11 +237,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
         onDelete: () async {
           try {
             await _api.deleteStudent(_detailStudent!['id']);
-            _showSnack('Student deleted');
+            _showSnack(t['student_deleted'] ?? 'Student deleted');
             _closeDetail();
             _load();
           } catch (_) {
-            _showSnack('Delete failed', isError: true);
+            _showSnack(t['delete_failed'] ?? 'Delete failed', isError: true);
           }
         },
       );
@@ -261,12 +266,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
             _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
             const SizedBox(width: 8),
             _EditButton(
-              label: t['edit'] ?? 'Update',
+              label: t['edit'] ?? 'Edit',
               onTap: () {
                 if (_selectedStudent != null) {
                   _openForm(student: _selectedStudent);
                 } else {
-                  _showSnack('Please select a row first', isError: true);
+                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isError: true);
                 }
               },
             ),
@@ -277,7 +282,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 if (_selectedStudent != null) {
                   _delete(_selectedStudent!);
                 } else {
-                  _showSnack('Please select a row first', isError: true);
+                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isError: true);
                 }
               },
             ),
@@ -415,6 +420,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             currentPage: _currentPage,
             totalPages: _totalPages,
             pageSize: _pageSize,
+            translations: t,
             onPageChanged: (p) => setState(() => _currentPage = p),
             onPageSizeChanged: (s) => setState(() {
               _pageSize = s;
@@ -444,7 +450,7 @@ class _SearchBox extends StatelessWidget {
 
     return SizedBox(
       width: 240,
-      height: 44,
+      height: 42,
       child: TextField(
         controller: controller,
         style: TextStyle(color: textColor),
@@ -735,6 +741,7 @@ class _PaginationRow extends StatelessWidget {
   final int currentPage;
   final int totalPages;
   final int pageSize;
+  final Map<String, String> translations;
   final ValueChanged<int> onPageChanged;
   final ValueChanged<int> onPageSizeChanged;
 
@@ -742,6 +749,7 @@ class _PaginationRow extends StatelessWidget {
     required this.currentPage,
     required this.totalPages,
     required this.pageSize,
+    required this.translations,
     required this.onPageChanged,
     required this.onPageSizeChanged,
   });
@@ -782,7 +790,7 @@ class _PaginationRow extends StatelessWidget {
         const SizedBox(width: 8),
         // X of Y
         Text(
-          '$currentPage of $totalPages',
+          '$currentPage ${translations['of'] ?? 'of'} $totalPages',
           style: AppTextStyles.body.copyWith(color: textColor),
         ),
         const SizedBox(width: 8),
@@ -803,7 +811,7 @@ class _PaginationRow extends StatelessWidget {
         const Spacer(),
 
         // Show label + dropdown
-        Text('Show', style: AppTextStyles.body.copyWith(color: textColor)),
+        Text(translations['show'] ?? 'Show', style: AppTextStyles.body.copyWith(color: textColor)),
         const SizedBox(width: 8),
         Container(
           height: 38,

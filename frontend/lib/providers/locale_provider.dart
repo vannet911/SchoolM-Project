@@ -37,6 +37,19 @@ class AppTranslations {
       'confirm': 'Confirm',
       'yes': 'Yes',
       'no': 'No',
+      'of': 'of',
+      'show': 'Show',
+      'other': 'Other',
+      'confirm_delete': 'Confirm Delete',
+      'select_row_first': 'Please select a row first',
+      'failed_load': 'Failed to load',
+
+      // Messages
+      'student_created': 'Student created!',
+      'student_updated': 'Student updated!',
+      'student_deleted': 'Student deleted',
+      'delete_failed': 'Delete failed',
+      'save_failed': 'Save failed',
 
       // Login
       'email': 'Email',
@@ -51,11 +64,13 @@ class AppTranslations {
       'students': 'Students',
       'teachers': 'Teachers',
       'classes': 'Classes',
+      'class & subject': 'Class & Subject',
       'subjects': 'Subjects',
       'users': 'Users',
       'roles': 'Roles',
       'logout': 'Logout',
       'settings': 'Settings',
+      'reports': 'Reports',
 
       // Dashboard
       'welcome': 'Welcome',
@@ -72,6 +87,9 @@ class AppTranslations {
       'student_list': 'Student List',
       'add_student': 'Add Student',
       'edit_student': 'Edit Student',
+      'code': 'Code',
+      'first_name': 'First Name',
+      'last_name': 'Last Name',
       'student_name': 'Full Name',
       'gender': 'Gender',
       'date_of_birth': 'Date of Birth',
@@ -116,6 +134,7 @@ class AppTranslations {
       'inactive': 'Inactive',
 
       // App
+      'version': 'Version',
       'app_name': 'KOMPONG PHNOM',
       'app_subtitle': 'School Management System',
       'developer': '@vannet.developer',
@@ -135,6 +154,19 @@ class AppTranslations {
       'confirm': 'បញ្ជាក់',
       'yes': 'បាទ/ចាស',
       'no': 'ទេ',
+      'of': 'នៃ',
+      'show': 'បង្ហាញ',
+      'other': 'ផ្សេងទៀត',
+      'confirm_delete': 'បញ្ជាក់ការលុប',
+      'select_row_first': 'សូមជ្រើសរើសជួរមុន',
+      'failed_load': 'បរាជ័យក្នុងការផ្ទុក',
+
+      // Messages
+      'student_created': 'បន្ថែមសិស្សបានជោគជ័យ!',
+      'student_updated': 'កែប្រែសិស្សបានជោគជ័យ!',
+      'student_deleted': 'លុបសិស្សបានជោគជ័យ',
+      'delete_failed': 'លុបមិនបានជោគជ័យ',
+      'save_failed': 'រក្សាទុកមិនបានជោគជ័យ',
 
       // Login
       'email': 'អ៊ីមែល',
@@ -147,14 +179,15 @@ class AppTranslations {
       // Navigation
       'dashboard': 'ផ្ទាំងគ្រប់គ្រង',
       'students': 'សិស្ស',
-      'teachers': 'គ្រូ',
+      'teachers': 'គ្រូបង្រៀន',
+      'class & subject': 'ថ្នាក់ & មុខវិជ្ជា',
       'classes': 'ថ្នាក់',
       'subjects': 'មុខវិជ្ជា',
       'users': 'អ្នកប្រើប្រាស់',
       'roles': 'តួនាទី',
       'logout': 'ចេញ',
       'settings': 'ការកំណត់',
-
+      'reports': 'របាយការណ៍',
       // Dashboard
       'welcome': 'សូមស្វាគមន៍',
       'total_students': 'ចំនួនសិស្ស',
@@ -170,6 +203,9 @@ class AppTranslations {
       'student_list': 'បញ្ជីសិស្ស',
       'add_student': 'បន្ថែមសិស្ស',
       'edit_student': 'កែប្រែសិស្ស',
+      'code': 'កូដ',
+      'first_name': 'នាមខ្លួន',
+      'last_name': 'នាមត្រកូល',
       'student_name': 'ឈ្មោះសិស្ស',
       'gender': 'ភេទ',
       'date_of_birth': 'ថ្ងៃខែឆ្នាំកំណើត',
@@ -214,6 +250,7 @@ class AppTranslations {
       'inactive': 'មិនសកម្ម',
 
       // App
+      'version': 'បច្ចុប្បន្នភាព',
       'app_name': 'កំពង់ភ្នំ',
       'app_subtitle': 'ប្រព័ន្ធគ្រប់គ្រងសាលា',
       'developer': '@វ៉ាន់នេត.អ្នកអភិវឌ្ឍន៍',

@@ -1,5 +1,7 @@
 // lib/widgets/table_widgets.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 
 /// Inline student detail panel — same visual style as StudentFormPanel.
@@ -71,12 +73,15 @@ class StudentDetailPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale] ?? AppTranslations.translations['en']!;
+
     final s = student;
     final statusRaw = s['status'];
     final isActive = statusRaw is bool
         ? statusRaw
         : (statusRaw?.toString().toLowerCase() == 'active');
-    final statusLabel = isActive ? 'Active' : 'Inactive';
+    final statusLabel = isActive ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive');
     final statusColor = isActive ? AppColors.success : AppColors.error;
 
     return Column(
@@ -105,7 +110,7 @@ class StudentDetailPanel extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onEdit,
               icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text('Edit'),
+              label: Text(t['edit'] ?? 'Edit'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primaryLight,
                 elevation: 0,
@@ -125,17 +130,16 @@ class StudentDetailPanel extends StatelessWidget {
                       final ok = await showDialog<bool>(
                         context: context,
                         builder: (_) => AlertDialog(
-                          title: const Text('Confirm Delete'),
+                          title: Text(t['confirm_delete'] ?? 'Confirm Delete'),
                           content: Text(
-                              'Are you sure '
-                              ' ${student['code'] ?? ''} -'
+                              '${student['code'] ?? ''} -'
                               ' ${student['firstName'] ?? ''}'
                               ' ${student['lastName'] ?? ''}?'),
                           actions: [
                             TextButton(
                               onPressed: () =>
                                   Navigator.pop(context, false),
-                              child: const Text('Cancel'),
+                              child: Text(t['cancel'] ?? 'Cancel'),
                             ),
                             ElevatedButton(
                               onPressed: () =>
@@ -143,7 +147,7 @@ class StudentDetailPanel extends StatelessWidget {
                               style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.error,
                                   foregroundColor: Colors.white),
-                              child: const Text('Delete'),
+                              child: Text(t['delete'] ?? 'Delete'),
                             ),
                           ],
                         ),
@@ -151,7 +155,7 @@ class StudentDetailPanel extends StatelessWidget {
                       if (ok == true) onDelete!();
                     },
               icon: const Icon(Icons.delete_outline, size: 16),
-              label: const Text('Delete'),
+              label: Text(t['delete'] ?? 'Delete'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primaryLight,
                 elevation: 0,
@@ -165,7 +169,6 @@ class StudentDetailPanel extends StatelessWidget {
             ),
           ]),
         ),
-        //const Divider(height: 1),
         // ── content ─────────────────────────────────────────────────
         Expanded(
           child: SingleChildScrollView(
@@ -186,12 +189,12 @@ class StudentDetailPanel extends StatelessWidget {
                             Row(children: [
                               Expanded(
                                 child: _readField(
-                                    'Code:', s['code']?.toString()),
+                                    '${t['code'] ?? 'Code'}:', s['code']?.toString()),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _labeled(
-                                  'Gender:',
+                                  '${t['gender'] ?? 'Gender'}:',
                                   TextField(
                                     readOnly: true,
                                     controller: TextEditingController(
@@ -209,20 +212,20 @@ class StudentDetailPanel extends StatelessWidget {
                             ]),
                             const SizedBox(height: 16),
                             _readField(
-                                'First Name:', s['firstName']?.toString()),
+                                '${t['first_name'] ?? 'First Name'}:', s['firstName']?.toString()),
                             const SizedBox(height: 16),
                             _readField(
-                                'Last Name:', s['lastName']?.toString()),
+                                '${t['last_name'] ?? 'Last Name'}:', s['lastName']?.toString()),
                             const SizedBox(height: 16),
                             _readField(
-                              'Date of Birth:',
+                              '${t['date_of_birth'] ?? 'Date of Birth'}:',
                               _fmtDate(s['dateOfBirth']),
                               suffix: const Icon(Icons.calendar_today_outlined,
                                   size: 16, color: AppColors.textSecondary),
                             ),
                             const SizedBox(height: 16),
                             _labeled(
-                              'Status:',
+                              '${t['status'] ?? 'Status'}:',
                               Row(children: [
                                 Switch(
                                   value: isActive,
@@ -244,13 +247,13 @@ class StudentDetailPanel extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _readField('Email:', s['email']?.toString()),
+                            _readField('${t['email'] ?? 'Email'}:', s['email']?.toString()),
                             const SizedBox(height: 16),
                             _readField(
-                                'Phone:', s['phoneNumber']?.toString()),
+                                '${t['phone'] ?? 'Phone'}:', s['phoneNumber']?.toString()),
                             const SizedBox(height: 16),
                             _labeled(
-                              'Address:',
+                              '${t['address'] ?? 'Address'}:',
                               TextField(
                                 readOnly: true,
                                 controller: TextEditingController(
@@ -412,6 +415,8 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale] ?? AppTranslations.translations['en']!;
     final isEdit = widget.student != null;
 
     return Column(
@@ -430,7 +435,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
             ),
             const SizedBox(width: 8),
             Text(
-              isEdit ? 'Edit Student' : 'Add Student',
+              isEdit ? (t['edit_student'] ?? 'Edit Student') : (t['add_student'] ?? 'Add Student'),
               style: AppTextStyles.body.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w700,
@@ -446,7 +451,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                       height: 14,
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.check, size: 16),
-              label: const Text('Save'),
+              label: Text(t['save'] ?? 'Save'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primaryLight,
                 elevation: 0,
@@ -481,7 +486,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                             Row(children: [
                               Expanded(
                                 child: _labeled(
-                                  'Code:',
+                                  '${t['code'] ?? 'Code'}:',
                                   TextField(
                                     controller: _codeCtrl,
                                     style: AppTextStyles.body,
@@ -493,18 +498,16 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _labeled(
-                                  'Gender:',
+                                  '${t['gender'] ?? 'Gender'}:',
                                   DropdownButtonFormField<String>(
-                                    value: _gender,
+                                    initialValue: _gender,
                                     style: AppTextStyles.body,
                                     decoration: _inputDecoration(),
-                                    items: ['Male', 'Female', 'Other']
-                                        .map((g) => DropdownMenuItem(
-                                            value: g,
-                                            child: Text(g,
-                                                style:
-                                                    AppTextStyles.body)))
-                                        .toList(),
+                                    items: [
+                                      DropdownMenuItem(value: 'Male', child: Text(t['male'] ?? 'Male', style: AppTextStyles.body)),
+                                      DropdownMenuItem(value: 'Female', child: Text(t['female'] ?? 'Female', style: AppTextStyles.body)),
+                                      DropdownMenuItem(value: 'Other', child: Text(t['other'] ?? 'Other', style: AppTextStyles.body)),
+                                    ],
                                     onChanged: (v) => setState(
                                         () => _gender = v ?? 'Male'),
                                   ),
@@ -513,27 +516,27 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                             ]),
                             const SizedBox(height: 16),
                             _labeled(
-                              'First Name:',
+                              '${t['first_name'] ?? 'First Name'}:',
                               TextField(
                                 controller: _firstCtrl,
                                 style: AppTextStyles.body,
                                 decoration: _inputDecoration(
-                                    hint: 'First name'),
+                                    hint: t['first_name'] ?? 'First name'),
                               ),
                             ),
                             const SizedBox(height: 16),
                             _labeled(
-                              'Last Name:',
+                              '${t['last_name'] ?? 'Last Name'}:',
                               TextField(
                                 controller: _lastCtrl,
                                 style: AppTextStyles.body,
                                 decoration: _inputDecoration(
-                                    hint: 'Last name'),
+                                    hint: t['last_name'] ?? 'Last name'),
                               ),
                             ),
                             const SizedBox(height: 16),
                             _labeled(
-                              'Date of Birth:',
+                              '${t['date_of_birth'] ?? 'Date of Birth'}:',
                               TextField(
                                 controller: _dobCtrl,
                                 readOnly: true,
@@ -550,7 +553,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                             ),
                             const SizedBox(height: 16),
                             _labeled(
-                              'Status:',
+                              '${t['status'] ?? 'Status'}:',
                               Row(children: [
                                 Switch(
                                   value: _status,
@@ -560,7 +563,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  _status ? 'Active' : 'Inactive',
+                                  _status ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive'),
                                   style: AppTextStyles.bodySmall,
                                 ),
                               ]),
@@ -575,7 +578,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _labeled(
-                              'Email:',
+                              '${t['email'] ?? 'Email'}:',
                               TextField(
                                 controller: _emailCtrl,
                                 keyboardType: TextInputType.emailAddress,
@@ -586,7 +589,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                             ),
                             const SizedBox(height: 16),
                             _labeled(
-                              'Phone:',
+                              '${t['phone'] ?? 'Phone'}:',
                               TextField(
                                 controller: _phoneCtrl,
                                 keyboardType: TextInputType.phone,
@@ -597,13 +600,13 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                             ),
                             const SizedBox(height: 16),
                             _labeled(
-                              'Address:',
+                              '${t['address'] ?? 'Address'}:',
                               TextField(
                                 controller: _addressCtrl,
                                 maxLines: 6,
                                 style: AppTextStyles.body,
                                 decoration:
-                                    _inputDecoration(hint: 'Enter address'),
+                                    _inputDecoration(hint: t['address'] ?? 'Enter address'),
                               ),
                             ),
                           ],

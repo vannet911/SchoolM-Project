@@ -142,31 +142,36 @@ class Sidebar extends StatelessWidget {
                 children: [
                   _NavItem(
                     icon: Icons.home_outlined,
+                    activeIcon: Icons.home,
                     label: t['dashboard'] ?? 'Dashboard',
                     isActive: nav.currentPage == NavPage.dashboard,
                     onTap: () => nav.navigate(NavPage.dashboard),
                   ),
                   _NavItem(
                     icon: Icons.school_outlined,
+                    activeIcon: Icons.school,
                     label: t['students'] ?? 'Students',
                     isActive: nav.currentPage == NavPage.students,
                     onTap: () => nav.navigate(NavPage.students),
                   ),
                   _NavItem(
-                    icon: Icons.person_outlined,
+                    icon: Icons.person_outline,
+                    activeIcon: Icons.person,
                     label: t['teachers'] ?? 'Teachers',
                     isActive: nav.currentPage == NavPage.teachers,
                     onTap: () => nav.navigate(NavPage.teachers),
                   ),
                   _NavItem(
                     icon: Icons.menu_book_outlined,
-                    label: t['classes'] ?? 'Class & Subject',
+                    activeIcon: Icons.menu_book,
+                    label: t['class & subject'] ?? 'Class & Subject',
                     isActive: nav.currentPage == NavPage.classSubject,
                     onTap: () => nav.navigate(NavPage.classSubject),
                   ),
                   _NavItem(
                     icon: Icons.bar_chart_outlined,
-                    label: 'Reports',
+                    activeIcon: Icons.bar_chart,
+                    label: t['reports'] ?? 'Reports',
                     isActive: nav.currentPage == NavPage.reports,
                     onTap: () => nav.navigate(NavPage.reports),
                   ),
@@ -185,8 +190,10 @@ class Sidebar extends StatelessWidget {
               children: [
                 Icon(Icons.refresh, size: 18, color: mutedColor),
                 const SizedBox(width: 8),
-                Text(AppConstants.appVersion,
-                    style: AppTextStyles.body.copyWith(color: mutedColor)),
+                Text(
+                  '${t['version'] ?? 'Version'} ${AppConstants.appVersion}',
+                  style: AppTextStyles.body.copyWith(color: mutedColor),
+                ),
               ],
             ),
           ),
@@ -242,12 +249,14 @@ class _SidebarActionButton extends StatelessWidget {
 
 class _NavItem extends StatefulWidget {
   final IconData icon;
+  final IconData activeIcon;
   final String label;
   final bool isActive;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.icon,
+    required this.activeIcon,
     required this.label,
     required this.isActive,
     required this.onTap,
@@ -278,7 +287,7 @@ class _NavItemState extends State<_NavItem> {
         },
         borderRadius: BorderRadius.circular(4),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 0),
           height: 44,
           margin: const EdgeInsets.symmetric(vertical: 1),
           decoration: BoxDecoration(
@@ -306,7 +315,7 @@ class _NavItemState extends State<_NavItem> {
               ),
               const SizedBox(width: 13),
               Icon(
-                widget.icon,
+                widget.isActive ? widget.activeIcon : widget.icon,
                 size: 20,
                 color: widget.isActive ? AppColors.primaryLight : textColor,
               ),

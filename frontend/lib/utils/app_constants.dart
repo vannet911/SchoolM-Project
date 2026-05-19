@@ -9,7 +9,7 @@ class AppConstants {
   // App Info
   static const String appName = 'SchoolMS Portal';
   static const String appSubtitle = 'School Management Portal';
-  static const String appVersion = 'Version 1.0.0';
+  static const String appVersion = '1.0.0';
   static const String developerTag = '@vannet.developer';
 
   // Layout
