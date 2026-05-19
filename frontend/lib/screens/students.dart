@@ -483,6 +483,8 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.add, size: 18),
@@ -491,7 +493,7 @@ class _AddButton extends StatelessWidget {
         foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(color: borderColor, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
@@ -505,6 +507,8 @@ class _EditButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.edit_outlined, size: 18),
@@ -513,7 +517,7 @@ class _EditButton extends StatelessWidget {
         foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(color: borderColor, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
@@ -527,6 +531,8 @@ class _DeleteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.delete_outline, size: 18),
@@ -535,7 +541,7 @@ class _DeleteButton extends StatelessWidget {
         foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(color: borderColor, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );

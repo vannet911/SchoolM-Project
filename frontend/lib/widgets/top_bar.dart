@@ -38,12 +38,16 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
       child: Row(
         children: [
           if (showMenuIcon) ...[
-            InkWell(
-              onTap: onMenuTap,
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(Icons.menu, size: 20, color: iconColor),
+            SizedBox(
+              width: 38,
+              height: 38,
+              child: InkWell(
+                onTap: onMenuTap,
+                borderRadius: BorderRadius.circular(18),
+                child: const Center(
+                  child: Icon(Icons.menu,
+                      size: 24, color: AppColors.textSecondary),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -126,7 +130,7 @@ class _LanguageSelectorState extends State<_LanguageSelector> {
 
     showMenu<String>(
       context: context,
-      position: const RelativeRect.fromLTRB(100, 50, 0, 0),
+      position: const RelativeRect.fromLTRB(100, 50, 12, 0),
       color: bgColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),

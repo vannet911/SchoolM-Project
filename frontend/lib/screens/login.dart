@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     showMenu<String>(
       context: context,
-      position: const RelativeRect.fromLTRB(100, 50, 0, 0),
+      position: const RelativeRect.fromLTRB(100, 50, 12, 0),
       color: bgColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
