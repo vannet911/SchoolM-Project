@@ -70,9 +70,21 @@ class ApiService {
     }
 
     if (response.statusCode == 204 || response.body.isEmpty) return null;
-    final decoded = jsonDecode(response.body);
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } catch (_) {
+      throw ApiException('Server error (${response.statusCode})',
+          statusCode: response.statusCode);
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) return decoded;
-    throw ApiException(decoded['message'] ?? 'Request failed',
+    // ASP.NET Core returns ProblemDetails with 'title' and 'errors'
+    final errors = decoded['errors'] as Map<String, dynamic>?;
+    final detail = errors?.entries
+        .map((e) => '${e.key}: ${(e.value as List).first}')
+        .join(', ');
+    throw ApiException(
+        detail ?? decoded['message'] ?? decoded['title'] ?? 'Request failed',
         statusCode: response.statusCode);
   }
 

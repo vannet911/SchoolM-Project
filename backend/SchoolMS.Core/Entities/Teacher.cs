@@ -1,4 +1,3 @@
-using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace SchoolMS.Core.Entities
@@ -8,24 +7,27 @@ namespace SchoolMS.Core.Entities
         public int Id { get; set; }
 
         [Required, MaxLength(100)]
-        public string Code { get; set; } = String.Empty;
+        public string Code { get; set; } = string.Empty;
 
         [Required, MaxLength(100)]
-        public string Name { get; set; } = String.Empty;
+        public string Name { get; set; } = string.Empty;
 
         [Required, MaxLength(100)]
-        public string Gender { get; set; } = String.Empty;
+        public string Gender { get; set; } = string.Empty;
 
         public DateTime DateOfBirth { get; set; }
 
-        [EmailAddress, MaxLength(255)]
-        public string Email { get; set; } = String.Empty;
+        [MaxLength(255)]
+        public string Email { get; set; } = string.Empty;
 
-        [Phone, MaxLength(20)]
-        public string PhoneNumber { get; set; } = String.Empty;
+        [MaxLength(20)]
+        public string PhoneNumber { get; set; } = string.Empty;
 
         [MaxLength(100)]
-        public string Subject { get; set; } = String.Empty;
+        public string Subject { get; set; } = string.Empty;
+
+        [MaxLength(500)]
+        public string Address { get; set; } = string.Empty;
 
         [Required]
         public DateTime CreateDate { get; set; }

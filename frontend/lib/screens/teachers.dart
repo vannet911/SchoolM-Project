@@ -19,6 +19,20 @@ class _TeachersScreenState extends State<TeachersScreen> {
   List<Map<String, dynamic>> _filtered = [];
   bool _loading = true;
   final _searchCtrl = TextEditingController();
+  Map<String, dynamic>? _selectedTeacher;
+  Map<String, dynamic>? _detailTeacher;
+  bool _showForm = false;
+  Map<String, dynamic>? _formTeacher;
+  String? _sortColumn;
+  bool _sortAscending = true;
+  int _currentPage = 1;
+  int _pageSize = 25;
+
+  int get _totalPages => (_filtered.length / _pageSize).ceil().clamp(1, 999);
+  List<Map<String, dynamic>> get _paginated {
+    final start = (_currentPage - 1) * _pageSize;
+    return _filtered.skip(start).take(_pageSize).toList();
+  }
 
   @override
   void initState() {
@@ -42,270 +56,379 @@ class _TeachersScreenState extends State<TeachersScreen> {
         _filtered = _teachers;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       setState(() => _loading = false);
-      _showSnack('Failed to load teachers', isError: true);
+      if (!mounted) return;
+      final t = AppTranslations.translations[
+              context.read<LocaleProvider>().locale] ??
+          AppTranslations.translations['en']!;
+      _showSnack(t['failed_load'] ?? 'Failed to load teachers', isError: true);
     }
   }
 
   void _filter() {
     final q = _searchCtrl.text.toLowerCase();
+    var list = q.isEmpty
+        ? List<Map<String, dynamic>>.from(_teachers)
+        : _teachers
+            .where((s) =>
+                '${s['name']} ${s['code']} ${s['email']} ${s['subject']}'
+                    .toLowerCase()
+                    .contains(q))
+            .toList();
+    if (_sortColumn != null) {
+      list.sort((a, b) {
+        final av = _sortValue(a, _sortColumn!);
+        final bv = _sortValue(b, _sortColumn!);
+        return _sortAscending ? av.compareTo(bv) : bv.compareTo(av);
+      });
+    }
     setState(() {
-      _filtered = q.isEmpty
-          ? _teachers
-          : _teachers
-              .where((t) => '${t['firstName']} ${t['lastName']} ${t['email']}'
-                  .toLowerCase()
-                  .contains(q))
-              .toList();
+      _filtered = list;
+      _currentPage = 1;
     });
+  }
+
+  String _sortValue(Map<String, dynamic> s, String col) {
+    switch (col) {
+      case 'code':
+        return s['code']?.toString().toLowerCase() ?? '';
+      case 'name':
+        return s['name']?.toString().toLowerCase() ?? '';
+      case 'subject':
+        return s['subject']?.toString().toLowerCase() ?? '';
+      case 'address':
+        return s['address']?.toString().toLowerCase() ?? '';
+      case 'status':
+        final st = s['status'];
+        return st is bool
+            ? (st ? 'active' : 'inactive')
+            : (st?.toString().toLowerCase() ?? '');
+      default:
+        return '';
+    }
+  }
+
+  void _sortBy(String col) {
+    setState(() {
+      if (_sortColumn == col) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortColumn = col;
+        _sortAscending = true;
+      }
+    });
+    _filter();
   }
 
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? AppColors.error : AppColors.success,
-    ));
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _ToastNotification(
+        message: msg,
+        isError: isError,
+        onDismiss: () {
+          if (entry.mounted) entry.remove();
+        },
+      ),
+    );
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 3), () {
+      if (entry.mounted) entry.remove();
+    });
   }
 
-  Future<void> _delete(Map<String, dynamic> t) async {
+  Future<void> _delete(Map<String, dynamic> s) async {
+    final t = AppTranslations.translations[
+            context.read<LocaleProvider>().locale] ??
+        AppTranslations.translations['en']!;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text("Delete ${t['firstName']} ${t['lastName']}?"),
+        title: Text(t['confirm_delete'] ?? 'Confirm Delete'),
+        content: Text("${s['code'] ?? ''} - ${s['name'] ?? ''}?"),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(t['cancel'] ?? 'Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
                 foregroundColor: Colors.white),
-            child: const Text('Delete'),
+            child: Text(t['delete'] ?? 'Delete'),
           ),
         ],
       ),
     );
     if (ok == true) {
       try {
-        await _api.deleteTeacher(t['id']);
-        _showSnack('Teacher deleted');
+        await _api.deleteTeacher(s['id']);
+        _showSnack(t['teacher_deleted'] ?? 'Teacher deleted');
         _load();
       } catch (_) {
-        _showSnack('Delete failed', isError: true);
+        _showSnack(t['delete_failed'] ?? 'Delete failed', isError: true);
       }
     }
   }
 
+  void _openTeacherDetail(Map<String, dynamic> teacher) {
+    setState(() => _selectedTeacher = teacher);
+  }
+
+  void _openDetail(Map<String, dynamic> teacher) {
+    setState(() {
+      _selectedTeacher = teacher;
+      _detailTeacher = teacher;
+    });
+  }
+
+  void _closeDetail() {
+    setState(() => _detailTeacher = null);
+  }
+
   void _openForm({Map<String, dynamic>? teacher}) {
-    showDialog(
-      context: context,
-      builder: (_) => TeacherFormDialog(
-        teacher: teacher,
-        onSave: (data) async {
-          try {
-            if (teacher == null) {
-              await _api.createTeacher(data);
-              _showSnack('Teacher created!');
-            } else {
-              await _api.updateTeacher(teacher['id'], data);
-              _showSnack('Teacher updated!');
-            }
-            _load();
-          } catch (_) {
-            _showSnack('Save failed', isError: true);
-          }
-        },
-      ),
-    );
+    setState(() {
+      _showForm = true;
+      _formTeacher = teacher;
+      _detailTeacher = null;
+    });
   }
 
-  String _initials(String? first, String? last) {
-    final f = (first ?? '').isNotEmpty ? first![0].toUpperCase() : '';
-    final l = (last ?? '').isNotEmpty ? last![0].toUpperCase() : '';
-    return '$f$l'.isEmpty ? '?' : '$f$l';
+  void _closeForm() {
+    setState(() {
+      _showForm = false;
+      _formTeacher = null;
+    });
   }
-
-  static const List<Color> _avatarColors = [
-    Color(0xFF1565C0),
-    Color(0xFF6A1B9A),
-    Color(0xFF00695C),
-    Color(0xFFE65100),
-  ];
-  Color _avatarColor(String name) =>
-      _avatarColors[name.hashCode.abs() % _avatarColors.length];
 
   @override
   Widget build(BuildContext context) {
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
 
+    if (_showForm) {
+      return TeacherFormPanel(
+        teacher: _formTeacher,
+        onCancel: _closeForm,
+        onSave: (data) async {
+          try {
+            if (_formTeacher == null) {
+              await _api.createTeacher(data);
+              _showSnack(t['teacher_created'] ?? 'Teacher created!');
+            } else {
+              await _api.updateTeacher(_formTeacher!['id'], data);
+              _showSnack(t['teacher_updated'] ?? 'Teacher updated!');
+            }
+            _closeForm();
+            _load();
+          } catch (_) {
+            _showSnack(t['save_failed'] ?? 'Save failed', isError: true);
+          }
+        },
+      );
+    }
+
+    if (_detailTeacher != null) {
+      return TeacherDetailPanel(
+        teacher: _detailTeacher!,
+        onBack: _closeDetail,
+        onEdit: () => _openForm(teacher: _detailTeacher),
+        onDelete: () async {
+          try {
+            await _api.deleteTeacher(_detailTeacher!['id']);
+            _showSnack(t['teacher_deleted'] ?? 'Teacher deleted');
+            _closeDetail();
+            _load();
+          } catch (_) {
+            _showSnack(t['delete_failed'] ?? 'Delete failed', isError: true);
+          }
+        },
+      );
+    }
+
+    return _buildTableView(t);
+  }
+
+  Widget _buildTableView(Map<String, String> t) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white70 : AppColors.textPrimary;
     return Padding(
       padding: const EdgeInsets.all(AppConstants.pagePadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            _TeacherSearchBox(controller: _searchCtrl),
+            _SearchBox(
+                controller: _searchCtrl,
+                hint: t['search'] ?? 'Search...'),
             const Spacer(),
             _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
             const SizedBox(width: 8),
-            _EditButton(onTap: () {
-              if (_filtered.length == 1) {
-                _openForm(teacher: _filtered[0]);
-              } else {
-                _showSnack(
-                    'Please search and narrow down to a single teacher to edit',
-                    isError: true);
-              }
-            }),
-            const SizedBox(width: 8),
-            _DeleteButton(onTap: () {
-              if (_filtered.length == 1) {
-                _delete(_filtered[0]);
-              } else {
-                _showSnack(
-                    'Please search and narrow down to a single teacher to delete',
-                    isError: true);
-              }
-            }),
-          ]),
-          const SizedBox(height: 16),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: _loading
-                  ? const Center(
-                      child:
-                          CircularProgressIndicator(color: AppColors.primary))
-                  : _filtered.isEmpty
-                      ? Center(
-                          child: Text(t['no_data'] ?? 'No teachers found',
-                              style: AppTextStyles.body
-                                  .copyWith(color: AppColors.textMuted)))
-                      : Column(children: [
-                          // Header
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF9FAFB),
-                              borderRadius: BorderRadius.vertical(
-                                  top:
-                                      Radius.circular(AppConstants.cardRadius)),
-                              border: Border(
-                                  bottom: BorderSide(color: AppColors.border)),
-                            ),
-                            child: Row(children: [
-                              TableHeader(
-                                  label: t['teacher_name'] ?? 'Name', flex: 3),
-                              TableHeader(
-                                  label: t['email'] ?? 'Email', flex: 3),
-                              TableHeader(
-                                  label: t['subject'] ?? 'Subject', flex: 2),
-                              TableHeader(
-                                  label: t['teachers'] ?? 'Hire Date', flex: 2),
-                              TableHeader(
-                                  label: t['actions'] ?? 'Actions', flex: 1),
-                            ]),
-                          ),
-                          // Rows
-                          Expanded(
-                            child: ListView.builder(
-                              itemCount: _filtered.length,
-                              itemBuilder: (_, i) {
-                                final t = _filtered[i];
-                                final name =
-                                    '${t['firstName'] ?? ''} ${t['lastName'] ?? ''}'
-                                        .trim();
-                                final c = _avatarColor(name);
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                        bottom: BorderSide(
-                                            color: AppColors.border
-                                                .withOpacity(0.5))),
-                                  ),
-                                  child: Row(children: [
-                                    Expanded(
-                                      flex: 3,
-                                      child: Row(children: [
-                                        CircleAvatar(
-                                          radius: 16,
-                                          backgroundColor: c.withOpacity(0.15),
-                                          child: Text(
-                                              _initials(t['firstName'],
-                                                  t['lastName']),
-                                              style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: c)),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(name.isEmpty ? '—' : name,
-                                              style: AppTextStyles.body
-                                                  .copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w500),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis),
-                                        ),
-                                      ]),
-                                    ),
-                                    Expanded(
-                                        flex: 3,
-                                        child: Text(t['email'] ?? '—',
-                                            style: AppTextStyles.bodySmall)),
-                                    Expanded(
-                                      flex: 2,
-                                      child: t['subject'] != null
-                                          ? Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 3),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF6A1B9A)
-                                                    .withOpacity(0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                              ),
-                                              child: Text(t['subject'],
-                                                  style: AppTextStyles.caption
-                                                      .copyWith(
-                                                    color:
-                                                        const Color(0xFF6A1B9A),
-                                                    fontWeight: FontWeight.w600,
-                                                  )))
-                                          : const Text('—',
-                                              style: AppTextStyles.bodySmall),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                          t['hireDate'] != null
-                                              ? (t['hireDate'] as String)
-                                                  .substring(0, 10)
-                                              : '—',
-                                          style: AppTextStyles.bodySmall),
-                                    ),
-                                  ]),
-                                );
-                              },
-                            ),
-                          ),
-                        ]),
+            _EditButton(
+              label: t['edit'] ?? 'Edit',
+              onTap: () {
+                if (_selectedTeacher != null) {
+                  _openForm(teacher: _selectedTeacher);
+                } else {
+                  _showSnack(
+                      t['select_row_first'] ?? 'Please select a row first',
+                      isError: true);
+                }
+              },
             ),
+            const SizedBox(width: 8),
+            _DeleteButton(
+              label: t['delete'] ?? 'Delete',
+              onTap: () {
+                if (_selectedTeacher != null) {
+                  _delete(_selectedTeacher!);
+                } else {
+                  _showSnack(
+                      t['select_row_first'] ?? 'Please select a row first',
+                      isError: true);
+                }
+              },
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _TableCard(
+              loading: _loading,
+              empty: _filtered.isEmpty,
+              emptyIcon: Icons.person_outline,
+              emptyLabel: t['no_data'] ?? 'No teachers found',
+              header: Row(children: [
+                const TableHeader(label: '#', flex: 1),
+                TableHeader(
+                  label: t['code'] ?? 'Code',
+                  flex: 2,
+                  onSort: () => _sortBy('code'),
+                  isSorted: _sortColumn == 'code',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
+                  label: t['teacher_name'] ?? 'Name',
+                  flex: 3,
+                  onSort: () => _sortBy('name'),
+                  isSorted: _sortColumn == 'name',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
+                  label: t['subject'] ?? 'Subject',
+                  flex: 3,
+                  onSort: () => _sortBy('subject'),
+                  isSorted: _sortColumn == 'subject',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
+                  label: t['email'] ?? 'Email', 
+                  flex: 3,
+                  onSort: () => _sortBy('email'),
+                  isSorted: _sortColumn == 'email',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
+                  label: t['address'] ?? 'Address',
+                  flex: 4,
+                  onSort: () => _sortBy('address'),
+                  isSorted: _sortColumn == 'address',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
+                  label: t['status'] ?? 'Status',
+                  flex: 1,
+                  onSort: () => _sortBy('status'),
+                  isSorted: _sortColumn == 'status',
+                  sortAscending: _sortAscending,
+                  textAlign: TextAlign.center,
+                ),
+              ]),
+              body: ListView.builder(
+                itemCount: _paginated.length,
+                itemBuilder: (_, i) {
+                  final s = _paginated[i];
+                  final globalIndex = (_currentPage - 1) * _pageSize + i;
+                  return _TableRow(
+                    index: i,
+                    isSelected: _selectedTeacher != null &&
+                        _selectedTeacher!['id'] == s['id'],
+                    onTap: () => _openTeacherDetail(s),
+                    onDoubleTap: () => _openDetail(s),
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: Text(
+                          (globalIndex + 1).toString(),
+                          style: AppTextStyles.body.copyWith(color: textColor),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          s['code'] ?? s['id']?.toString() ?? '—',
+                          style: AppTextStyles.body.copyWith(color: textColor),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          s['name'] ?? '—',
+                          style: AppTextStyles.body.copyWith(color: textColor),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          s['subject'] ?? '—',
+                          style: AppTextStyles.body.copyWith(color: textColor),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          s['email'] ?? '—',
+                          style: AppTextStyles.body.copyWith(color: textColor),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Expanded(
+                        flex: 4,
+                        child: Text(
+                          s['address'] ?? '—',
+                          style: AppTextStyles.body.copyWith(color: textColor),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Expanded(
+                        flex: 1,
+                        child: _StatusBadge(status: s['status'] ?? 'Active'),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PaginationRow(
+            currentPage: _currentPage,
+            totalPages: _totalPages,
+            pageSize: _pageSize,
+            translations: t,
+            onPageChanged: (p) => setState(() => _currentPage = p),
+            onPageSizeChanged: (s) => setState(() {
+              _pageSize = s;
+              _currentPage = 1;
+            }),
           ),
         ],
       ),
@@ -313,159 +436,12 @@ class _TeachersScreenState extends State<TeachersScreen> {
   }
 }
 
-// ── Teacher Form Dialog ───────────────────────────────────────────────────────
-class TeacherFormDialog extends StatefulWidget {
-  final Map<String, dynamic>? teacher;
-  final Future<void> Function(Map<String, dynamic>) onSave;
-  const TeacherFormDialog({super.key, this.teacher, required this.onSave});
+// ── Local helpers ─────────────────────────────────────────────────────────────
 
-  @override
-  State<TeacherFormDialog> createState() => _TeacherFormDialogState();
-}
-
-class _TeacherFormDialogState extends State<TeacherFormDialog> {
-  final _first = TextEditingController();
-  final _last = TextEditingController();
-  final _email = TextEditingController();
-  final _subject = TextEditingController();
-  final _hireDate = TextEditingController();
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final t = widget.teacher;
-    if (t != null) {
-      _first.text = t['firstName'] ?? '';
-      _last.text = t['lastName'] ?? '';
-      _email.text = t['email'] ?? '';
-      _subject.text = t['subject'] ?? '';
-      _hireDate.text = t['hireDate'] != null
-          ? (t['hireDate'] as String).substring(0, 10)
-          : '';
-    }
-  }
-
-  @override
-  void dispose() {
-    _first.dispose();
-    _last.dispose();
-    _email.dispose();
-    _subject.dispose();
-    _hireDate.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    await widget.onSave({
-      'firstName': _first.text.trim(),
-      'lastName': _last.text.trim(),
-      'email': _email.text.trim(),
-      'subject': _subject.text.trim(),
-      'hireDate': _hireDate.text.isNotEmpty ? _hireDate.text : null,
-    });
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final locale = context.watch<LocaleProvider>().locale;
-    final t = AppTranslations.translations[locale]!;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 440,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Text(
-                  widget.teacher == null
-                      ? (t['add_teacher'] ?? 'Add Teacher')
-                      : (t['edit_teacher'] ?? 'Edit Teacher'),
-                  style: AppTextStyles.heading3),
-              const Spacer(),
-              InkWell(
-                  onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close,
-                      size: 20, color: AppColors.textSecondary)),
-            ]),
-            const SizedBox(height: 20),
-            Row(children: [
-              Expanded(
-                  child: FormFieldInput(
-                      label: t['teacher_name'] ?? 'First Name',
-                      controller: _first,
-                      hint: 'First name')),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: FormFieldInput(
-                      label: t['teacher_name'] ?? 'Last Name',
-                      controller: _last,
-                      hint: 'Last name')),
-            ]),
-            const SizedBox(height: 14),
-            FormFieldInput(
-                label: t['email'] ?? 'Email',
-                controller: _email,
-                hint: 'teacher@school.edu',
-                keyboardType: TextInputType.emailAddress),
-            const SizedBox(height: 14),
-            Row(children: [
-              Expanded(
-                  child: FormFieldInput(
-                      label: t['subject'] ?? 'Subject',
-                      controller: _subject,
-                      hint: 'e.g. Mathematics')),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: FormFieldInput(
-                      label: t['teachers'] ?? 'Hire Date',
-                      controller: _hireDate,
-                      hint: 'YYYY-MM-DD')),
-            ]),
-            const SizedBox(height: 24),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(t['cancel'] ?? 'Cancel',
-                    style: const TextStyle(color: AppColors.textSecondary)),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _saving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : Text(t['save'] ?? 'Save Changes'),
-              ),
-            ]),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TeacherSearchBox extends StatelessWidget {
+class _SearchBox extends StatelessWidget {
   final TextEditingController controller;
-  const _TeacherSearchBox({required this.controller});
+  final String hint;
+  const _SearchBox({required this.controller, required this.hint});
 
   @override
   Widget build(BuildContext context) {
@@ -477,13 +453,13 @@ class _TeacherSearchBox extends StatelessWidget {
 
     return SizedBox(
       width: 240,
-      height: 44,
+      height: 42,
       child: TextField(
         controller: controller,
         style: TextStyle(color: textColor),
         decoration: InputDecoration(
-          hintText: 'Search teachers...',
-          hintStyle: AppTextStyles.bodySmall.copyWith(color: mutedColor),
+          hintText: hint,
+          hintStyle: AppTextStyles.body.copyWith(color: mutedColor),
           prefixIcon: Icon(Icons.search, size: 18, color: mutedColor),
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
@@ -510,15 +486,17 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.add, size: 18),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        side: BorderSide(color: borderColor, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
@@ -527,19 +505,22 @@ class _AddButton extends StatelessWidget {
 
 class _EditButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _EditButton({required this.onTap});
+  final String label;
+  const _EditButton({required this.onTap, required this.label});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.edit_outlined, size: 18),
-      label: const Text('Update'),
+      label: Text(label),
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        side: BorderSide(color: borderColor, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
@@ -548,43 +529,311 @@ class _EditButton extends StatelessWidget {
 
 class _DeleteButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _DeleteButton({required this.onTap});
+  final String label;
+  const _DeleteButton({required this.onTap, required this.label});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     return OutlinedButton.icon(
       onPressed: onTap,
-      icon: const Icon(Icons.delete_outlined, size: 18),
-      label: const Text('Delete'),
+      icon: const Icon(Icons.delete_outline, size: 18),
+      label: Text(label),
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryLight,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.primarySurface, width: 1),
+        side: BorderSide(color: borderColor, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
   }
 }
 
-class _FilterButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _FilterButton({required this.label, required this.onTap});
+class _TableCard extends StatelessWidget {
+  final bool loading;
+  final bool empty;
+  final IconData emptyIcon;
+  final String emptyLabel;
+  final Widget header;
+  final Widget body;
+  const _TableCard({
+    required this.loading,
+    required this.empty,
+    required this.emptyIcon,
+    required this.emptyLabel,
+    required this.header,
+    required this.body,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.filter_list, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: const BorderSide(color: AppColors.primary, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(AppConstants.cardRadius),
       ),
+      child: loading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
+          : empty
+              ? Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(emptyIcon, size: 48, color: mutedColor),
+                    const SizedBox(height: 12),
+                    Text(emptyLabel,
+                        style: AppTextStyles.body.copyWith(color: mutedColor)),
+                  ]),
+                )
+              : Column(children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: header,
+                  ),
+                  Expanded(child: body),
+                ]),
+    );
+  }
+}
+
+class _TableRow extends StatefulWidget {
+  final List<Widget> children;
+  final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
+  final bool isSelected;
+  final int index;
+  const _TableRow({
+    required this.children,
+    required this.index,
+    this.onTap,
+    this.onDoubleTap,
+    this.isSelected = false,
+  });
+
+  @override
+  State<_TableRow> createState() => _TableRowState();
+}
+
+class _TableRowState extends State<_TableRow> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEven = widget.index % 2 == 0;
+    Color rowColor;
+    if (widget.isSelected) {
+      rowColor = AppColors.primary.withValues(alpha: 0.10);
+    } else if (_isHovering) {
+      rowColor = isDark ? const Color(0xFF1E2D50) : AppColors.primarySurface;
+    } else if (isDark) {
+      rowColor =
+          isEven ? const Color(0xFF16213E) : const Color(0xFF1C2A4A);
+    } else {
+      rowColor = isEven ? Colors.white : const Color(0xFFF5F7FA);
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onDoubleTap: widget.onDoubleTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(color: rowColor),
+          child: Row(children: widget.children),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final dynamic status;
+  const _StatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final statusStr =
+        status is bool ? (status ? 'Active' : 'Inactive') : status.toString();
+    final isActive = statusStr.toLowerCase() == 'active';
+    final color = isActive ? AppColors.success : AppColors.error;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Text(
+        textAlign: TextAlign.center,
+        statusStr.replaceFirstMapped(
+            RegExp(r'^.'), (m) => m.group(0)!.toUpperCase()),
+        style: AppTextStyles.body.copyWith(color: color),
+      ),
+    );
+  }
+}
+
+class _ToastNotification extends StatelessWidget {
+  final String message;
+  final bool isError;
+  final VoidCallback onDismiss;
+  const _ToastNotification(
+      {required this.message,
+      required this.isError,
+      required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isError ? AppColors.error : AppColors.success;
+    final icon = isError ? Icons.error_outline : Icons.check_circle_outline;
+
+    return Positioned(
+      top: 24,
+      right: 24,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 300,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.10),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4)),
+            ],
+          ),
+          child: Row(children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+                child: Text(message,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textPrimary))),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onDismiss,
+              child: const Icon(Icons.close,
+                  size: 16, color: AppColors.textSecondary),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaginationRow extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final int pageSize;
+  final Map<String, String> translations;
+  final ValueChanged<int> onPageChanged;
+  final ValueChanged<int> onPageSizeChanged;
+
+  const _PaginationRow({
+    required this.currentPage,
+    required this.totalPages,
+    required this.pageSize,
+    required this.translations,
+    required this.onPageChanged,
+    required this.onPageSizeChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+
+    final btnStyle = OutlinedButton.styleFrom(
+      foregroundColor: textColor,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      minimumSize: const Size(44, 44),
+      padding: EdgeInsets.zero,
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+    );
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        OutlinedButton(
+          onPressed: currentPage > 1 ? () => onPageChanged(1) : null,
+          style: btnStyle,
+          child: const Icon(Icons.first_page, size: 18),
+        ),
+        const SizedBox(width: 4),
+        OutlinedButton(
+          onPressed:
+              currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+          style: btnStyle,
+          child: const Icon(Icons.chevron_left, size: 18),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$currentPage ${translations['of'] ?? 'of'} $totalPages',
+          style: AppTextStyles.body.copyWith(color: textColor),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton(
+          onPressed: currentPage < totalPages
+              ? () => onPageChanged(currentPage + 1)
+              : null,
+          style: btnStyle,
+          child: const Icon(Icons.chevron_right, size: 18),
+        ),
+        const SizedBox(width: 4),
+        OutlinedButton(
+          onPressed: currentPage < totalPages
+              ? () => onPageChanged(totalPages)
+              : null,
+          style: btnStyle,
+          child: const Icon(Icons.last_page, size: 18),
+        ),
+        const Spacer(),
+        Text(translations['show'] ?? 'Show',
+            style: AppTextStyles.body.copyWith(color: textColor)),
+        const SizedBox(width: 8),
+        Container(
+          height: 38,
+          width: 84,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: bgColor,
+            border: Border.all(color: borderColor),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: pageSize,
+              isDense: true,
+              style: AppTextStyles.body.copyWith(color: textColor),
+              dropdownColor: bgColor,
+              items: [25, 50, 100]
+                  .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
+                  .toList(),
+              onChanged: (v) => onPageSizeChanged(v!),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

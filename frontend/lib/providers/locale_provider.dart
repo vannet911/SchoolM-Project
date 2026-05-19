@@ -48,6 +48,9 @@ class AppTranslations {
       'student_created': 'Student created!',
       'student_updated': 'Student updated!',
       'student_deleted': 'Student deleted',
+      'teacher_created': 'Teacher created!',
+      'teacher_updated': 'Teacher updated!',
+      'teacher_deleted': 'Teacher deleted',
       'delete_failed': 'Delete failed',
       'save_failed': 'Save failed',
 
@@ -166,6 +169,9 @@ class AppTranslations {
       'student_created': 'បន្ថែមសិស្សបានជោគជ័យ!',
       'student_updated': 'កែប្រែសិស្សបានជោគជ័យ!',
       'student_deleted': 'លុបសិស្សបានជោគជ័យ',
+      'teacher_created': 'បន្ថែមគ្រូបានជោគជ័យ!',
+      'teacher_updated': 'កែប្រែគ្រូបានជោគជ័យ!',
+      'teacher_deleted': 'លុបគ្រូបានជោគជ័យ',
       'delete_failed': 'លុបមិនបានជោគជ័យ',
       'save_failed': 'រក្សាទុកមិនបានជោគជ័យ',
 

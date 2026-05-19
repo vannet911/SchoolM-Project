@@ -1,8 +1,6 @@
-// filepath: d:\My Personal\API Projects\SchoolMAPI\controllers\TeachersController.cs
 using Microsoft.AspNetCore.Mvc;
 using SchoolMS.Core.Entities;
 using SchoolMS.Core.Interfaces;
-using SchoolMS.Infrastructure.Services;
 
 namespace SchoolMS.API.Controllers
 {
