@@ -12,7 +12,7 @@ namespace SchoolMS.Core.Entities
         [Required, MaxLength(100)]
         public string Name { get; set; } = string.Empty;
 
-        [Required, MaxLength(100)]
+        [MaxLength(100)]
         public string Gender { get; set; } = string.Empty;
 
         public DateTime DateOfBirth { get; set; }

@@ -51,14 +51,15 @@ class _TeachersScreenState extends State<TeachersScreen> {
     setState(() => _loading = true);
     try {
       final data = await _api.getTeachers();
+      if (!mounted) return;
       setState(() {
         _teachers = data.cast<Map<String, dynamic>>();
-        _filtered = _teachers;
         _loading = false;
       });
+      _filter();
     } catch (e) {
-      setState(() => _loading = false);
       if (!mounted) return;
+      setState(() => _loading = false);
       final t = AppTranslations.translations[
               context.read<LocaleProvider>().locale] ??
           AppTranslations.translations['en']!;
@@ -223,7 +224,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
               _showSnack(t['teacher_updated'] ?? 'Teacher updated!');
             }
             _closeForm();
-            _load();
+            await _load();
           } catch (_) {
             _showSnack(t['save_failed'] ?? 'Save failed', isError: true);
           }
@@ -648,7 +649,10 @@ class _TableRowState extends State<_TableRow> {
         onDoubleTap: widget.onDoubleTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(color: rowColor),
+          decoration: BoxDecoration(
+            color: rowColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
           child: Row(children: widget.children),
         ),
       ),

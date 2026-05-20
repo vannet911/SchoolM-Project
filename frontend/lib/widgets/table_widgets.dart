@@ -311,6 +311,8 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
   String _gender = 'Male';
   bool _status = true;
   bool _saving = false;
+  bool _codeError = false;
+  bool _firstError = false;
 
   @override
   void initState() {
@@ -346,7 +348,16 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
   }
 
   Future<void> _save() async {
-    setState(() => _saving = true);
+    final codeEmpty = _codeCtrl.text.trim().isEmpty;
+    final firstEmpty = _firstCtrl.text.trim().isEmpty;
+    if (codeEmpty || firstEmpty) {
+      setState(() {
+        _codeError = codeEmpty;
+        _firstError = firstEmpty;
+      });
+      return;
+    }
+    setState(() { _saving = true; _codeError = false; _firstError = false; });
     try {
       await widget.onSave({
         'code': _codeCtrl.text.trim(),
@@ -382,11 +393,19 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
     }
   }
 
-  InputDecoration _inputDecoration({String? hint, Widget? suffix, bool multiline = false, bool isDark = false}) {
+  InputDecoration _inputDecoration({String? hint, Widget? suffix, bool multiline = false, bool isDark = false, bool hasError = false}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: AppTextStyles.body.copyWith(color: isDark ? Colors.white70 : AppColors.textMuted),
       suffixIcon: suffix,
+      enabledBorder: hasError ? OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.error),
+      ) : null,
+      focusedBorder: hasError ? OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+      ) : null,
       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: multiline ? 16 : 0),
     );
   }
@@ -395,8 +414,23 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+        Text(label, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+        const SizedBox(height: 6),
+        child,
+      ],
+    );
+  }
+
+  Widget _requiredLabeled(String label, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(children: [
+            TextSpan(text: label, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+            TextSpan(text: ' *', style: AppTextStyles.body.copyWith(color: AppColors.error)),
+          ]),
+        ),
         const SizedBox(height: 6),
         child,
       ],
@@ -486,7 +520,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                           children: [
                             Row(children: [
                               Expanded(
-                                child: _labeled(
+                                child: _requiredLabeled(
                                   '${t['code'] ?? 'Code'}:',
                                   SizedBox(
                                     height: 44,
@@ -494,7 +528,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                                       controller: _codeCtrl,
                                       style: AppTextStyles.body.copyWith(color: textColor),
                                       decoration: _inputDecoration(
-                                          hint: 'Enter code', isDark: isDark),
+                                          hint: 'Code', isDark: isDark, hasError: _codeError),
                                     ),
                                   ),
                                 ),
@@ -532,7 +566,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                               ),
                             ]),
                             const SizedBox(height: 16),
-                            _labeled(
+                            _requiredLabeled(
                               '${t['first_name'] ?? 'First Name'}:',
                               SizedBox(
                                 height: 44,
@@ -540,7 +574,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                                   controller: _firstCtrl,
                                   style: AppTextStyles.body.copyWith(color: textColor),
                                   decoration: _inputDecoration(
-                                      hint: t['first_name'] ?? 'First name', isDark: isDark),
+                                      hint: t['first_name'] ?? 'First name', isDark: isDark, hasError: _firstError),
                                 ),
                               ),
                             ),
@@ -909,7 +943,7 @@ class TeacherDetailPanel extends StatelessWidget {
                               ),
                             ]),
                             const SizedBox(height: 16),
-                            _readField('${t['teacher_name'] ?? 'Teacher Name'}:', s['name']?.toString(), isDark: isDark),
+                            _readField('${t['full_name'] ?? 'Full Name'}:', s['name']?.toString(), isDark: isDark),
                             const SizedBox(height: 16),
                             _readField(
                               '${t['date_of_birth'] ?? 'Date of Birth'}:',
@@ -993,6 +1027,8 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
   String _gender = 'Male';
   bool _status = true;
   bool _saving = false;
+  bool _codeError = false;
+  bool _nameError = false;
 
   @override
   void initState() {
@@ -1027,7 +1063,16 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
   }
 
   Future<void> _save() async {
-    setState(() => _saving = true);
+    final codeEmpty = _codeCtrl.text.trim().isEmpty;
+    final nameEmpty = _nameCtrl.text.trim().isEmpty;
+    if (codeEmpty || nameEmpty) {
+      setState(() {
+        _codeError = codeEmpty;
+        _nameError = nameEmpty;
+      });
+      return;
+    }
+    setState(() { _saving = true; _codeError = false; _nameError = false; });
     try {
       await widget.onSave({
         'code': _codeCtrl.text.trim(),
@@ -1064,11 +1109,19 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
     }
   }
 
-  InputDecoration _inputDecoration({String? hint, Widget? suffix, bool multiline = false, bool isDark = false}) {
+  InputDecoration _inputDecoration({String? hint, Widget? suffix, bool multiline = false, bool isDark = false, bool hasError = false}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: AppTextStyles.body.copyWith(color: isDark ? Colors.white70 : AppColors.textMuted),
       suffixIcon: suffix,
+      enabledBorder: hasError ? OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.error),
+      ) : null,
+      focusedBorder: hasError ? OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+      ) : null,
       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: multiline ? 16 : 0),
     );
   }
@@ -1078,6 +1131,22 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+        const SizedBox(height: 6),
+        child,
+      ],
+    );
+  }
+
+  Widget _requiredLabeled(String label, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(children: [
+            TextSpan(text: label, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+            TextSpan(text: ' *', style: AppTextStyles.body.copyWith(color: AppColors.error)),
+          ]),
+        ),
         const SizedBox(height: 6),
         child,
       ],
@@ -1152,14 +1221,14 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
                           children: [
                             Row(children: [
                               Expanded(
-                                child: _labeled(
+                                child: _requiredLabeled(
                                   '${t['code'] ?? 'Code'}:',
                                   SizedBox(
                                     height: 44,
                                     child: TextField(
                                       controller: _codeCtrl,
                                       style: AppTextStyles.body.copyWith(color: textColor),
-                                      decoration: _inputDecoration(hint: 'Enter code', isDark: isDark),
+                                      decoration: _inputDecoration(hint: 'Code', isDark: isDark, hasError: _codeError),
                                     ),
                                   ),
                                 ),
@@ -1186,14 +1255,14 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
                               ),
                             ]),
                             const SizedBox(height: 16),
-                            _labeled(
-                              '${t['teacher_name'] ?? 'Teacher Name'}:',
+                            _requiredLabeled(
+                              '${t['full_name'] ?? 'Full Name'}:',
                               SizedBox(
                                 height: 44,
                                 child: TextField(
                                   controller: _nameCtrl,
                                   style: AppTextStyles.body.copyWith(color: textColor),
-                                  decoration: _inputDecoration(hint: t['teacher_name'] ?? 'Full name', isDark: isDark),
+                                  decoration: _inputDecoration(hint: t['full_name'] ?? 'Full name', isDark: isDark, hasError: _nameError),
                                 ),
                               ),
                             ),
@@ -1224,7 +1293,7 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
                                   controller: _subjectCtrl,
                                   style: AppTextStyles.body.copyWith(color: textColor),
                                   decoration: _inputDecoration(
-                                      hint: t['subject'] ?? 'Enter subject',
+                                      hint: t['subject'] ?? 'Subject',
                                       isDark: isDark),
                                 ),
                               ),

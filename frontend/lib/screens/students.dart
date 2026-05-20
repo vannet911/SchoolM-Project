@@ -648,7 +648,10 @@ class _TableRowState extends State<_TableRow> {
         onDoubleTap: widget.onDoubleTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(color: rowColor),
+          decoration: BoxDecoration(
+            color: rowColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
           child: Row(children: widget.children),
         ),
       ),

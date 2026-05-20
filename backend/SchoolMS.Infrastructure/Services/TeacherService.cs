@@ -36,6 +36,7 @@ namespace SchoolMS.Infrastructure.Services
             var existing = await _context.Teachers.FindAsync(id)
                 ?? throw new KeyNotFoundException($"Teacher with id {id} not found.");
 
+            existing.Code = teacher.Code;
             existing.Name = teacher.Name;
             existing.Gender = teacher.Gender;
             existing.DateOfBirth = teacher.DateOfBirth;
