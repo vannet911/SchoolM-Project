@@ -1,4 +1,4 @@
-// lib/screens/teachers_screen.dart
+// lib/screens/teachers.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/locale_provider.dart';
@@ -43,6 +43,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
 
   @override
   void dispose() {
+    _searchCtrl.removeListener(_filter);
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -67,7 +68,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
     }
   }
 
-  void _filter() {
+  void _filter({bool resetPage = true}) {
     final q = _searchCtrl.text.toLowerCase();
     var list = q.isEmpty
         ? List<Map<String, dynamic>>.from(_teachers)
@@ -86,7 +87,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
     }
     setState(() {
       _filtered = list;
-      _currentPage = 1;
+      if (resetPage) _currentPage = 1;
     });
   }
 
@@ -98,6 +99,8 @@ class _TeachersScreenState extends State<TeachersScreen> {
         return s['name']?.toString().toLowerCase() ?? '';
       case 'subject':
         return s['subject']?.toString().toLowerCase() ?? '';
+      case 'email':
+        return s['email']?.toString().toLowerCase() ?? '';
       case 'address':
         return s['address']?.toString().toLowerCase() ?? '';
       case 'status':
@@ -111,15 +114,13 @@ class _TeachersScreenState extends State<TeachersScreen> {
   }
 
   void _sortBy(String col) {
-    setState(() {
-      if (_sortColumn == col) {
-        _sortAscending = !_sortAscending;
-      } else {
-        _sortColumn = col;
-        _sortAscending = true;
-      }
-    });
-    _filter();
+    if (_sortColumn == col) {
+      _sortAscending = !_sortAscending;
+    } else {
+      _sortColumn = col;
+      _sortAscending = true;
+    }
+    _filter(resetPage: false);
   }
 
   void _showSnack(String msg, {bool isError = false}) {

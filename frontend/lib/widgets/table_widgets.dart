@@ -1082,7 +1082,7 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
         'gender': _gender,
         'dateOfBirth': _dobCtrl.text.isNotEmpty
             ? _dobCtrl.text.replaceAll('/', '-')
-            : '1990-01-01',
+            : null,
         'subject': _subjectCtrl.text.trim(),
         'address': _addressCtrl.text.trim(),
         'status': _status,

@@ -23,16 +23,8 @@ class ApiService {
   };
 
   // ── Auth token support ──────────────────────────────────────────
-  String? _token;
-  void setToken(String token) {
-    _token = token;
-    _headers['Authorization'] = 'Bearer $token';
-  }
-
-  void clearToken() {
-    _token = null;
-    _headers.remove('Authorization');
-  }
+  void setToken(String token) => _headers['Authorization'] = 'Bearer $token';
+  void clearToken() => _headers.remove('Authorization');
 
   // ── Generic request ─────────────────────────────────────────────
   Future<dynamic> _request(String method, String path,

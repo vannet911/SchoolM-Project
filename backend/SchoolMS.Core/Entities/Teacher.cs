@@ -15,7 +15,7 @@ namespace SchoolMS.Core.Entities
         [MaxLength(100)]
         public string Gender { get; set; } = string.Empty;
 
-        public DateTime DateOfBirth { get; set; }
+        public DateTime? DateOfBirth { get; set; }
 
         [MaxLength(255)]
         public string Email { get; set; } = string.Empty;

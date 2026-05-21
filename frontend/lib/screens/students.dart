@@ -1,4 +1,4 @@
-// lib/screens/students_screen.dart
+// lib/screens/students.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/locale_provider.dart';
@@ -43,6 +43,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   @override
   void dispose() {
+    _searchCtrl.removeListener(_filter);
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -51,21 +52,22 @@ class _StudentsScreenState extends State<StudentsScreen> {
     setState(() => _loading = true);
     try {
       final data = await _api.getStudents();
+      if (!mounted) return;
       setState(() {
         _students = data.cast<Map<String, dynamic>>();
-        _filtered = _students;
         _loading = false;
       });
+      _filter();
     } catch (e) {
-      setState(() => _loading = false);
       if (!mounted) return;
+      setState(() => _loading = false);
       final t = AppTranslations.translations[
           context.read<LocaleProvider>().locale] ?? AppTranslations.translations['en']!;
       _showSnack(t['failed_load'] ?? 'Failed to load students', isError: true);
     }
   }
 
-  void _filter() {
+  void _filter({bool resetPage = true}) {
     final q = _searchCtrl.text.toLowerCase();
     var list = q.isEmpty
         ? List<Map<String, dynamic>>.from(_students)
@@ -83,7 +85,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     }
     setState(() {
       _filtered = list;
-      _currentPage = 1;
+      if (resetPage) _currentPage = 1;
     });
   }
 
@@ -108,15 +110,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   void _sortBy(String col) {
-    setState(() {
-      if (_sortColumn == col) {
-        _sortAscending = !_sortAscending;
-      } else {
-        _sortColumn = col;
-        _sortAscending = true;
-      }
-    });
-    _filter();
+    if (_sortColumn == col) {
+      _sortAscending = !_sortAscending;
+    } else {
+      _sortColumn = col;
+      _sortAscending = true;
+    }
+    _filter(resetPage: false);
   }
 
   void _showSnack(String msg, {bool isError = false}) {
@@ -660,7 +660,7 @@ class _TableRowState extends State<_TableRow> {
 }
 
 class _StatusBadge extends StatelessWidget {
-  final dynamic status; // Can be bool or String
+  final dynamic status;
   const _StatusBadge({required this.status});
 
   @override
@@ -745,7 +745,6 @@ class _ToastNotification extends StatelessWidget {
   }
 }
 
-// Pagination controls with page size selector and next/prev buttons
 class _PaginationRow extends StatelessWidget {
   final int currentPage;
   final int totalPages;
@@ -783,43 +782,35 @@ class _PaginationRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        // |< first
         OutlinedButton(
           onPressed: currentPage > 1 ? () => onPageChanged(1) : null,
           style: btnStyle,
           child: const Icon(Icons.first_page, size: 18),
         ),
         const SizedBox(width: 4),
-        // < prev
         OutlinedButton(
           onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
           style: btnStyle,
           child: const Icon(Icons.chevron_left, size: 18),
         ),
         const SizedBox(width: 8),
-        // X of Y
         Text(
           '$currentPage ${translations['of'] ?? 'of'} $totalPages',
           style: AppTextStyles.body.copyWith(color: textColor),
         ),
         const SizedBox(width: 8),
-        // > next
         OutlinedButton(
           onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
           style: btnStyle,
           child: const Icon(Icons.chevron_right, size: 18),
         ),
         const SizedBox(width: 4),
-        // >| last
         OutlinedButton(
           onPressed: currentPage < totalPages ? () => onPageChanged(totalPages) : null,
           style: btnStyle,
           child: const Icon(Icons.last_page, size: 18),
         ),
-
         const Spacer(),
-
-        // Show label + dropdown
         Text(translations['show'] ?? 'Show', style: AppTextStyles.body.copyWith(color: textColor)),
         const SizedBox(width: 8),
         Container(
