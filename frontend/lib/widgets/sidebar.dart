@@ -31,13 +31,11 @@ class Sidebar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── User profile section ──────────────────────────────────
           Container(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
             color: isDark ? const Color(0xFF1A1A2E) : AppColors.background,
             child: Column(
               children: [
-                // Avatar
                 Container(
                   width: 90,
                   height: 90,
@@ -88,7 +86,6 @@ class Sidebar extends StatelessWidget {
                     color:
                         isDark ? const Color(0xFF2A2A4A) : AppColors.divider),
                 const SizedBox(height: 4),
-                // Profile & Logout buttons
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 0),
                   child: Row(
@@ -96,7 +93,7 @@ class Sidebar extends StatelessWidget {
                       Expanded(
                         child: _SidebarActionButton(
                           icon: Icons.edit_outlined,
-                          onTap: () {},
+                          onTap: () => context.read<NavProvider>().navigateToProfile(),
                           borderRadius: BorderRadius.only(
                             topLeft: Radius.circular(24),
                             topRight: Radius.circular(0),
@@ -134,7 +131,6 @@ class Sidebar extends StatelessWidget {
             ),
           ),
 
-          // ── Navigation items ──────────────────────────────────────
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -180,7 +176,6 @@ class Sidebar extends StatelessWidget {
             ),
           ),
 
-          // ── Version ───────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -207,14 +202,12 @@ class _SidebarActionButton extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  final EdgeInsetsGeometry margin;
   final BorderRadius borderRadius;
 
   const _SidebarActionButton({
     required this.icon,
     this.color = AppColors.textSecondary,
     required this.onTap,
-    this.margin = EdgeInsets.zero,
     this.borderRadius = const BorderRadius.all(Radius.circular(20)),
   });
 
@@ -224,9 +217,7 @@ class _SidebarActionButton extends StatelessWidget {
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
 
-    return Padding(
-      padding: margin,
-      child: Material(
+    return Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
@@ -242,7 +233,6 @@ class _SidebarActionButton extends StatelessWidget {
             child: Icon(icon, size: 18, color: color),
           ),
         ),
-      ),
     );
   }
 }

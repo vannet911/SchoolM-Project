@@ -10,6 +10,7 @@ import 'package:schoolms_portal/screens/dashboard.dart';
 import 'package:schoolms_portal/screens/students.dart';
 import 'package:schoolms_portal/screens/teachers.dart';
 import 'package:schoolms_portal/screens/class_subject.dart';
+import 'package:schoolms_portal/screens/profile.dart';
 
 class MainShell extends StatelessWidget {
   const MainShell({super.key});
@@ -63,6 +64,8 @@ class MainShell extends StatelessWidget {
         return const ClassSubjectScreen();
       case NavPage.reports:
         return const _ReportsPlaceholder();
+      case NavPage.profile:
+        return const ProfileScreen();
     }
   }
 }

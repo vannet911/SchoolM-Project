@@ -74,6 +74,7 @@ class AppTranslations {
       'logout': 'Logout',
       'settings': 'Settings',
       'reports': 'Reports',
+      'profile': 'Profile',
 
       // Dashboard
       'welcome': 'Welcome',
@@ -195,6 +196,7 @@ class AppTranslations {
       'logout': 'ចេញ',
       'settings': 'ការកំណត់',
       'reports': 'របាយការណ៍',
+      'profile': 'ប្រវត្តិ',
       // Dashboard
       'welcome': 'សូមស្វាគមន៍',
       'total_students': 'ចំនួនសិស្ស',

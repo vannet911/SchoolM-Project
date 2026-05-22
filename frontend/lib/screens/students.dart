@@ -665,17 +665,19 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final statusStr =
         status is bool ? (status ? 'Active' : 'Inactive') : status.toString();
     final isActive = statusStr.toLowerCase() == 'active';
-    final color = isActive ? AppColors.success : AppColors.error;
+    final color = isActive ? AppColors.primaryLight : AppColors.error;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color, width: 1),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor, width: 1),
       ),
       child: Text(
         textAlign: TextAlign.center,

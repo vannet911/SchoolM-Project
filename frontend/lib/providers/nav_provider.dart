@@ -1,10 +1,11 @@
 // lib/providers/nav_provider.dart
 import 'package:flutter/material.dart';
 
-enum NavPage { dashboard, students, teachers, classSubject, reports }
+enum NavPage { dashboard, students, teachers, classSubject, reports, profile }
 
 class NavProvider extends ChangeNotifier {
   NavPage _currentPage = NavPage.dashboard;
+  NavPage? _previousPage;
   bool _sidebarCollapsed = false;
 
   NavPage get currentPage => _currentPage;
@@ -12,6 +13,18 @@ class NavProvider extends ChangeNotifier {
 
   void navigate(NavPage page) {
     _currentPage = page;
+    notifyListeners();
+  }
+
+  void navigateToProfile() {
+    _previousPage = _currentPage;
+    _currentPage = NavPage.profile;
+    notifyListeners();
+  }
+
+  void goBack() {
+    _currentPage = _previousPage ?? NavPage.dashboard;
+    _previousPage = null;
     notifyListeners();
   }
 
@@ -27,6 +40,7 @@ class NavProvider extends ChangeNotifier {
       case NavPage.teachers: return 'teachers';
       case NavPage.classSubject: return 'class & subject';
       case NavPage.reports: return 'reports';
+      case NavPage.profile: return 'profile';
     }
   }
 }

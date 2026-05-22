@@ -25,7 +25,6 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    final iconColor = isDark ? Colors.white : AppColors.textPrimary;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
 
     return Container(
@@ -54,13 +53,11 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
           ],
           Text(title, style: AppTextStyles.heading3.copyWith(color: textColor)),
           const Spacer(),
-          // Info icon
           _TopBarIconButton(
             icon: Icons.info_outline,
             onTap: () {},
           ),
           const SizedBox(width: 8),
-          // Settings icon - Theme toggle
           Consumer<ThemeProvider>(
             builder: (context, themeProvider, _) {
               return _TopBarIconButton(
@@ -72,7 +69,6 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
             },
           ),
           const SizedBox(width: 12),
-          // Language selector
           _LanguageSelector(),
         ],
       ),
