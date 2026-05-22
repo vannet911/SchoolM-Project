@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/auth_provider.dart';
+import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/providers/nav_provider.dart';
 import 'package:schoolms_portal/services/api_service.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
@@ -65,7 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  Future<void> _saveProfile() async {
+  Future<void> _saveProfile(Map<String, String> t) async {
     if (_nameCtrl.text.trim().isEmpty) return;
     setState(() => _savingProfile = true);
     try {
@@ -77,12 +78,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'email': _emailCtrl.text.trim(),
         });
       }
-      _showSnack('Profile updated!');
+      _showSnack(t['profile_updated']!);
     } catch (e) {
       _showSnack(
         e.toString().contains('Network error') || e.toString().contains('Connection')
-            ? 'Cannot connect to server'
-            : 'Save failed',
+            ? t['cannot_connect_server']!
+            : t['save_failed']!,
         isError: true,
       );
     } finally {
@@ -90,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _changePassword() async {
+  Future<void> _changePassword(Map<String, String> t) async {
     final newPwd = _newPwdCtrl.text;
     final newEmpty = newPwd.isEmpty;
     final mismatch = newPwd != _confirmPwdCtrl.text;
@@ -107,14 +108,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _currentPwdCtrl.clear();
       _newPwdCtrl.clear();
       _confirmPwdCtrl.clear();
-      _showSnack('Password changed!');
+      _showSnack(t['password_changed']!);
     } catch (e) {
       _showSnack(
         e.toString().contains('Network error') || e.toString().contains('Connection')
-            ? 'Cannot connect to server'
+            ? t['cannot_connect_server']!
             : e.toString().contains('401')
-                ? 'Current password is incorrect'
-                : 'Failed to change password',
+                ? t['current_password_incorrect']!
+                : t['failed_change_password']!,
         isError: true,
       );
     } finally {
@@ -210,11 +211,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white60 : AppColors.textSecondary;
-    final borderColor =
-        isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
 
     return Padding(
       padding: const EdgeInsets.all(AppConstants.pagePadding),
@@ -230,9 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 24, vertical: 20),
                   decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF16213E)
-                        : AppColors.white,
+                    color: isDark ? const Color(0xFF16213E) : AppColors.white,
                     borderRadius:
                         BorderRadius.circular(AppConstants.cardRadius),
                     border: Border.all(color: borderColor),
@@ -278,7 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onPressed: () =>
                           context.read<NavProvider>().goBack(),
                       icon: const Icon(Icons.arrow_back, size: 16),
-                      label: const Text('Back'),
+                      label: Text(t['back'] ?? 'Back'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primaryLight,
                         elevation: 0,
@@ -300,12 +300,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Profile info
                     Expanded(
                       child: _card(
-                        title: 'Profile Information',
+                        title: t['profile_information'] ?? 'Profile Information',
                         icon: Icons.person_outline,
                         isDark: isDark,
                         children: [
                           _labeled(
-                            'Display Name:',
+                            '${t['display_name'] ?? 'Display Name'}:',
                             SizedBox(
                               height: 44,
                               child: TextField(
@@ -313,14 +313,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: AppTextStyles.body
                                     .copyWith(color: textColor),
                                 decoration: _inputDecoration(
-                                    hint: 'Enter display name',
+                                    hint: t['enter_display_name'],
                                     isDark: isDark),
                               ),
                             ),
                           ),
                           const SizedBox(height: 14),
                           _labeled(
-                            'Email:',
+                            '${t['email'] ?? 'Email'}:',
                             SizedBox(
                               height: 44,
                               child: TextField(
@@ -335,7 +335,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 14),
                           _labeled(
-                            'Username:',
+                            '${t['username'] ?? 'Username'}:',
                             SizedBox(
                               height: 44,
                               child: TextField(
@@ -356,7 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             height: 44,
                             child: ElevatedButton.icon(
                               onPressed:
-                                  _savingProfile ? null : _saveProfile,
+                                  _savingProfile ? null : () => _saveProfile(t),
                               icon: _savingProfile
                                   ? const SizedBox(
                                       width: 14,
@@ -364,16 +364,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       child: CircularProgressIndicator(
                                           color: Colors.white,
                                           strokeWidth: 2))
-                                  : const Icon(Icons.save_outlined,
-                                      size: 18),
-                              label: const Text('Save Profile'),
+                                  : const Icon(Icons.save_outlined, size: 18),
+                              label: Text(t['save_profile'] ?? 'Save Profile'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(8)),
+                                    borderRadius: BorderRadius.circular(24)),
                               ),
                             ),
                           ),
@@ -386,12 +384,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Change password
                     Expanded(
                       child: _card(
-                        title: 'Change Password',
+                        title: t['change_password'] ?? 'Change Password',
                         icon: Icons.lock_outline,
                         isDark: isDark,
                         children: [
                           _labeled(
-                            'Current Password:',
+                            '${t['current_password'] ?? 'Current Password'}:',
                             SizedBox(
                               height: 44,
                               child: TextField(
@@ -419,7 +417,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 14),
                           _labeled(
-                            'New Password:',
+                            '${t['new_password'] ?? 'New Password'}:',
                             SizedBox(
                               height: 44,
                               child: TextField(
@@ -452,7 +450,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 14),
                           _labeled(
-                            'Confirm New Password:',
+                            '${t['confirm_new_password'] ?? 'Confirm New Password'}:',
                             SizedBox(
                               height: 44,
                               child: TextField(
@@ -484,7 +482,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           if (_confirmPwdError) ...[
                             const SizedBox(height: 4),
                             Text(
-                              'Passwords do not match',
+                              t['passwords_not_match'] ?? 'Passwords do not match',
                               style: AppTextStyles.bodySmall
                                   .copyWith(color: AppColors.error),
                             ),
@@ -496,7 +494,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: ElevatedButton.icon(
                               onPressed: _changingPassword
                                   ? null
-                                  : _changePassword,
+                                  : () => _changePassword(t),
                               icon: _changingPassword
                                   ? const SizedBox(
                                       width: 14,
@@ -504,16 +502,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       child: CircularProgressIndicator(
                                           color: Colors.white,
                                           strokeWidth: 2))
-                                  : const Icon(Icons.lock_reset_outlined,
-                                      size: 18),
-                              label: const Text('Change Password'),
+                                  : const Icon(Icons.lock_reset_outlined, size: 18),
+                              label: Text(t['change_password'] ?? 'Change Password'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryDark,
+                                backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(8)),
+                                    borderRadius: BorderRadius.circular(24)),
                               ),
                             ),
                           ),
@@ -531,53 +527,120 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _Toast extends StatelessWidget {
+class _Toast extends StatefulWidget {
   final String message;
   final bool isError;
   final VoidCallback onDismiss;
-  const _Toast(
-      {required this.message,
-      required this.isError,
-      required this.onDismiss});
+  const _Toast({
+    required this.message,
+    required this.isError,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_Toast> createState() => _ToastState();
+}
+
+class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
+  late final AnimationController _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _progress = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _progress.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final color = isError ? AppColors.error : AppColors.success;
-    final icon = isError ? Icons.error_outline : Icons.check_circle_outline;
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = widget.isError ? AppColors.error : AppColors.primary;
+    final icon = widget.isError ? Icons.close : Icons.check;
+    final title = widget.isError ? (t['error'] ?? 'Error') : (t['success'] ?? 'Success');
+    final bgColor = isDark ? const Color(0xFF1C2A4A) : AppColors.white;
+    final titleColor = isDark ? Colors.white : AppColors.textPrimary;
+    final msgColor = isDark ? Colors.white60 : AppColors.textSecondary;
+    final closeColor = isDark ? Colors.white54 : AppColors.textSecondary;
+
     return Positioned(
       top: 24,
       right: 24,
       child: Material(
         color: Colors.transparent,
         child: Container(
-          width: 300,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          width: 360,
           decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.35)),
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 14,
+                color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.10),
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Row(children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-                child: Text(message,
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textPrimary))),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: onDismiss,
-              child: const Icon(Icons.close,
-                  size: 16, color: AppColors.textSecondary),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle, color: color),
+                      child: Icon(icon, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: AppTextStyles.heading3
+                                  .copyWith(color: titleColor)),
+                          const SizedBox(height: 2),
+                          Text(widget.message,
+                              style: AppTextStyles.body
+                                  .copyWith(color: msgColor)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: widget.onDismiss,
+                      child: Icon(Icons.close, size: 20, color: closeColor),
+                    ),
+                  ]),
+                ),
+                AnimatedBuilder(
+                  animation: _progress,
+                  builder: (_, __) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: 1.0 - _progress.value,
+                      child: Container(height: 4, color: color),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
+          ),
         ),
       ),
     );

@@ -43,6 +43,8 @@ class AppTranslations {
       'confirm_delete': 'Confirm Delete',
       'select_row_first': 'Please select a row first',
       'failed_load': 'Failed to load',
+      'success': 'Success',
+      'error': 'Error',
 
       // Messages
       'student_created': 'Student created!',
@@ -138,6 +140,23 @@ class AppTranslations {
       'active': 'Active',
       'inactive': 'Inactive',
 
+      // Profile
+      'back': 'Back',
+      'profile_information': 'Profile Information',
+      'display_name': 'Display Name',
+      'enter_display_name': 'Enter display name',
+      'save_profile': 'Save Profile',
+      'change_password': 'Change Password',
+      'current_password': 'Current Password',
+      'new_password': 'New Password',
+      'confirm_new_password': 'Confirm New Password',
+      'passwords_not_match': 'Passwords do not match',
+      'profile_updated': 'Profile updated!',
+      'cannot_connect_server': 'Cannot connect to server',
+      'password_changed': 'Password changed!',
+      'current_password_incorrect': 'Current password is incorrect',
+      'failed_change_password': 'Failed to change password',
+
       // App
       'version': 'Version',
       'app_name': 'KOMPONG PHNOM',
@@ -165,6 +184,8 @@ class AppTranslations {
       'confirm_delete': 'បញ្ជាក់ការលុប',
       'select_row_first': 'សូមជ្រើសរើសជួរមុន',
       'failed_load': 'បរាជ័យក្នុងការផ្ទុក',
+      'success': 'ជោគជ័យ',
+      'error': 'កំហុស',
 
       // Messages
       'student_created': 'បន្ថែមសិស្សបានជោគជ័យ!',
@@ -258,6 +279,23 @@ class AppTranslations {
       'status': 'ស្ថានភាព',
       'active': 'សកម្ម',
       'inactive': 'មិនសកម្ម',
+
+      // Profile
+      'back': 'ត្រឡប់',
+      'profile_information': 'ព័ត៌មានប្រវត្តិ',
+      'display_name': 'ឈ្មោះបង្ហាញ',
+      'enter_display_name': 'បញ្ចូលឈ្មោះបង្ហាញ',
+      'save_profile': 'រក្សាប្រវត្តិ',
+      'change_password': 'ប្តូរពាក្យសម្ងាត់',
+      'current_password': 'ពាក្យសម្ងាត់បច្ចុប្បន្ន',
+      'new_password': 'ពាក្យសម្ងាត់ថ្មី',
+      'confirm_new_password': 'បញ្ជាក់ពាក្យសម្ងាត់ថ្មី',
+      'passwords_not_match': 'ពាក្យសម្ងាត់មិនត្រូវគ្នា',
+      'profile_updated': 'ប្រវត្តិបានអាប់ដេត!',
+      'cannot_connect_server': 'មិនអាចភ្ជាប់ម៉ាស៊ីនបម្រើ',
+      'password_changed': 'ពាក្យសម្ងាត់បានប្តូរ!',
+      'current_password_incorrect': 'ពាក្យសម្ងាត់បច្ចុប្បន្នមិនត្រឹមត្រូវ',
+      'failed_change_password': 'ការប្តូរពាក្យសម្ងាត់បរាជ័យ',
 
       // App
       'version': 'បច្ចុប្បន្នភាព',

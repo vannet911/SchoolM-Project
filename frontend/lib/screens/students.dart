@@ -665,10 +665,13 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final statusStr =
-        status is bool ? (status ? 'Active' : 'Inactive') : status.toString();
-    final isActive = statusStr.toLowerCase() == 'active';
+    final isActive = status is bool
+        ? status as bool
+        : status.toString().toLowerCase() == 'active';
+    final statusStr = isActive ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive');
     final color = isActive ? AppColors.primaryLight : AppColors.error;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
 
@@ -680,31 +683,59 @@ class _StatusBadge extends StatelessWidget {
         border: Border.all(color: borderColor, width: 1),
       ),
       child: Text(
+        statusStr,
         textAlign: TextAlign.center,
-        statusStr.replaceFirstMapped(
-            RegExp(r'^.'), (m) => m.group(0)!.toUpperCase()),
-        style: AppTextStyles.body.copyWith(
-          color: color,
-        ),
+        style: AppTextStyles.body.copyWith(color: color),
       ),
     );
   }
 }
 
-class _ToastNotification extends StatelessWidget {
+class _ToastNotification extends StatefulWidget {
   final String message;
   final bool isError;
   final VoidCallback onDismiss;
-  const _ToastNotification(
-      {required this.message,
-      required this.isError,
-      required this.onDismiss});
+  const _ToastNotification({
+    required this.message,
+    required this.isError,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_ToastNotification> createState() => _ToastNotificationState();
+}
+
+class _ToastNotificationState extends State<_ToastNotification>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _progress = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _progress.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final color = isError ? AppColors.error : AppColors.success;
-    final icon =
-        isError ? Icons.error_outline : Icons.check_circle_outline;
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = widget.isError ? AppColors.error : AppColors.primary;
+    final icon = widget.isError ? Icons.close : Icons.check;
+    final title = widget.isError ? (t['error'] ?? 'Error') : (t['success'] ?? 'Success');
+    final bgColor = isDark ? const Color(0xFF1C2A4A) : AppColors.white;
+    final titleColor = isDark ? Colors.white : AppColors.textPrimary;
+    final msgColor = isDark ? Colors.white60 : AppColors.textSecondary;
+    final closeColor = isDark ? Colors.white54 : AppColors.textSecondary;
 
     return Positioned(
       top: 24,
@@ -712,35 +743,69 @@ class _ToastNotification extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: Container(
-          width: 300,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          width: 360,
           decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.35)),
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 14,
+                color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.10),
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Row(children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-                child: Text(message,
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textPrimary))),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: onDismiss,
-              child: const Icon(Icons.close,
-                  size: 16, color: AppColors.textSecondary),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle, color: color),
+                      child: Icon(icon, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: AppTextStyles.heading3
+                                  .copyWith(color: titleColor)),
+                          const SizedBox(height: 2),
+                          Text(widget.message,
+                              style: AppTextStyles.body
+                                  .copyWith(color: msgColor)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: widget.onDismiss,
+                      child: Icon(Icons.close, size: 20, color: closeColor),
+                    ),
+                  ]),
+                ),
+                AnimatedBuilder(
+                  animation: _progress,
+                  builder: (_, __) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: 1.0 - _progress.value,
+                      child: Container(height: 4, color: color),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
+          ),
         ),
       ),
     );
