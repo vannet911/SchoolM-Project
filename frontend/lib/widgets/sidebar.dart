@@ -6,192 +6,435 @@ import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/providers/nav_provider.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 
+const double _collapsedWidth = 90;
+
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
     final nav = context.watch<NavProvider>();
+    final isCollapsed = nav.sidebarCollapsed;
+    final auth = context.watch<AuthProvider>();
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.sidebarBg;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white70 : AppColors.textSecondary;
 
-    return Container(
-      width: AppConstants.sidebarWidth,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 0),
+      curve: Curves.easeInOut,
+      width: isCollapsed ? _collapsedWidth : AppConstants.sidebarWidth,
       decoration: BoxDecoration(
         color: bgColor,
         border: Border(right: BorderSide(color: borderColor, width: 1)),
       ),
+      child: ClipRect(
+        child: isCollapsed
+            ? _CollapsedSidebar(
+                auth: auth,
+                nav: nav,
+                t: t,
+                isDark: isDark,
+                borderColor: borderColor,
+                mutedColor: mutedColor,
+              )
+            : _ExpandedSidebar(
+                auth: auth,
+                nav: nav,
+                t: t,
+                isDark: isDark,
+                borderColor: borderColor,
+                mutedColor: mutedColor,
+              ),
+      ),
+    );
+  }
+}
+
+// ── Collapsed sidebar (90px) ──────────────────────────────────────────────────
+
+class _CollapsedSidebar extends StatelessWidget {
+  final AuthProvider auth;
+  final NavProvider nav;
+  final Map<String, String> t;
+  final bool isDark;
+  final Color borderColor;
+  final Color mutedColor;
+
+  const _CollapsedSidebar({
+    required this.auth,
+    required this.nav,
+    required this.t,
+    required this.isDark,
+    required this.borderColor,
+    required this.mutedColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: Column(
+        children: [
+        // Avatar
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          color: isDark ? const Color(0xFF1A1A2E) : AppColors.background,
+          alignment: Alignment.center,
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primarySurface,
+              border: Border.all(color: borderColor, width: 2),
+            ),
+            child: ClipOval(
+              child: Image.network(
+                'https://www.shutterstock.com/image-vector/default-avatar-photo-placeholder-grey-600nw-2007531536.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.person,
+                  size: 28,
+                  color: mutedColor,
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        Divider(color: borderColor, height: 1),
+
+        // Nav items
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _CollapsedNavItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home,
+                  label: t['dashboard'] ?? 'Dashboard',
+                  isActive: nav.currentPage == NavPage.dashboard,
+                  onTap: () => nav.navigate(NavPage.dashboard),
+                ),
+                _CollapsedNavItem(
+                  icon: Icons.school_outlined,
+                  activeIcon: Icons.school,
+                  label: t['students'] ?? 'Students',
+                  isActive: nav.currentPage == NavPage.students,
+                  onTap: () => nav.navigate(NavPage.students),
+                ),
+                _CollapsedNavItem(
+                  icon: Icons.person_outline,
+                  activeIcon: Icons.person,
+                  label: t['teachers'] ?? 'Teachers',
+                  isActive: nav.currentPage == NavPage.teachers,
+                  onTap: () => nav.navigate(NavPage.teachers),
+                ),
+                _CollapsedNavItem(
+                  icon: Icons.menu_book_outlined,
+                  activeIcon: Icons.menu_book,
+                  label: t['class & subject'] ?? 'Class & Subject',
+                  isActive: nav.currentPage == NavPage.classSubject,
+                  onTap: () => nav.navigate(NavPage.classSubject),
+                ),
+                _CollapsedNavItem(
+                  icon: Icons.bar_chart_outlined,
+                  activeIcon: Icons.bar_chart,
+                  label: t['reports'] ?? 'Reports',
+                  isActive: nav.currentPage == NavPage.reports,
+                  onTap: () => nav.navigate(NavPage.reports),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Version refresh icon
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: borderColor, width: 1)),
+          ),
+          alignment: Alignment.center,
+          child: Icon(Icons.refresh, size: 20, color: mutedColor),
+        ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CollapsedNavItem extends StatefulWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _CollapsedNavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  State<_CollapsedNavItem> createState() => _CollapsedNavItemState();
+}
+
+class _CollapsedNavItemState extends State<_CollapsedNavItem> {
+  bool isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hoverColor = isDark
+        ? Colors.white.withValues(alpha: 0.00)
+        : Colors.black.withValues(alpha: 0.00);
+    final activeBg = isDark
+        ? AppColors.primaryLight.withValues(alpha: 0.0)
+        : AppColors.primaryLight.withValues(alpha: 0.0);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.onTap,
+        onHover: (v) => setState(() => isHovering = v),
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isHovering
+                ? hoverColor
+                : widget.isActive
+                    ? activeBg
+                    : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.isActive ? widget.activeIcon : widget.icon,
+                size: 22,
+                color: widget.isActive
+                    ? AppColors.primaryLight
+                    : isDark
+                        ? Colors.white70
+                        : AppColors.textSecondary,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.label,
+                style: AppTextStyles.caption.copyWith(
+                  color: widget.isActive
+                      ? AppColors.primaryLight
+                      : isDark
+                          ? Colors.white70
+                          : AppColors.textSecondary,
+                  fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w400,
+                  fontSize: 10,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Expanded sidebar (250px) ──────────────────────────────────────────────────
+
+class _ExpandedSidebar extends StatelessWidget {
+  final AuthProvider auth;
+  final NavProvider nav;
+  final Map<String, String> t;
+  final bool isDark;
+  final Color borderColor;
+  final Color mutedColor;
+
+  const _ExpandedSidebar({
+    required this.auth,
+    required this.nav,
+    required this.t,
+    required this.isDark,
+    required this.borderColor,
+    required this.mutedColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
+    return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-            color: isDark ? const Color(0xFF1A1A2E) : AppColors.background,
-            child: Column(
-              children: [
-                Container(
-                  width: 90,
-                  height: 90,
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.primarySurface,
-                    border: Border.all(color: borderColor, width: 2),
-                  ),
-                  child: ClipOval(
-                    child: Image.network(
-                      'https://www.shutterstock.com/image-vector/default-avatar-photo-placeholder-grey-600nw-2007531536.jpg',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(
-                        Icons.person,
-                        size: 40,
-                        color: mutedColor,
-                      ),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          color: isDark ? const Color(0xFF1A1A2E) : AppColors.background,
+          child: Column(
+            children: [
+              Container(
+                width: 90,
+                height: 90,
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primarySurface,
+                  border: Border.all(color: borderColor, width: 2),
+                ),
+                child: ClipOval(
+                  child: Image.network(
+                    'https://www.shutterstock.com/image-vector/default-avatar-photo-placeholder-grey-600nw-2007531536.jpg',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.person,
+                      size: 40,
+                      color: mutedColor,
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Column(
-                    children: [
-                      Text(
-                        auth.displayName,
-                        style: AppTextStyles.heading3.copyWith(
-                            fontWeight: FontWeight.w600, color: textColor),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        auth.displayEmail,
-                        style: AppTextStyles.body.copyWith(color: mutedColor),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
+              ),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  children: [
+                    Text(
+                      auth.displayName,
+                      style: AppTextStyles.heading3.copyWith(
+                          fontWeight: FontWeight.w600, color: textColor),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      auth.displayEmail,
+                      style: AppTextStyles.body.copyWith(color: mutedColor),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Divider(
-                    color:
-                        isDark ? const Color(0xFF2A2A4A) : AppColors.divider),
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _SidebarActionButton(
-                          icon: Icons.edit_outlined,
-                          onTap: () => context.read<NavProvider>().navigateToProfile(),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(24),
-                            topRight: Radius.circular(0),
-                            bottomLeft: Radius.circular(24),
-                            bottomRight: Radius.circular(0),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 1,
-                        height: 38,
-                        color: borderColor,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _SidebarActionButton(
-                          icon: Icons.logout,
-                          color: AppColors.error,
-                          onTap: () {
-                            context.read<AuthProvider>().logout();                            
-                          },
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(0),
-                            topRight: Radius.circular(24),
-                            bottomLeft: Radius.circular(0),
-                            bottomRight: Radius.circular(24),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
+              ),
+              const SizedBox(height: 2),
+              Divider(
+                  color: isDark ? const Color(0xFF2A2A4A) : AppColors.divider),
+              const SizedBox(height: 4),
+              Row(
                 children: [
-                  _NavItem(
-                    icon: Icons.home_outlined,
-                    activeIcon: Icons.home,
-                    label: t['dashboard'] ?? 'Dashboard',
-                    isActive: nav.currentPage == NavPage.dashboard,
-                    onTap: () => nav.navigate(NavPage.dashboard),
+                  Expanded(
+                    child: _SidebarActionButton(
+                      icon: Icons.edit_outlined,
+                      onTap: () =>
+                          context.read<NavProvider>().navigateToProfile(),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        bottomLeft: Radius.circular(24),
+                      ),
+                    ),
                   ),
-                  _NavItem(
-                    icon: Icons.school_outlined,
-                    activeIcon: Icons.school,
-                    label: t['students'] ?? 'Students',
-                    isActive: nav.currentPage == NavPage.students,
-                    onTap: () => nav.navigate(NavPage.students),
-                  ),
-                  _NavItem(
-                    icon: Icons.person_outline,
-                    activeIcon: Icons.person,
-                    label: t['teachers'] ?? 'Teachers',
-                    isActive: nav.currentPage == NavPage.teachers,
-                    onTap: () => nav.navigate(NavPage.teachers),
-                  ),
-                  _NavItem(
-                    icon: Icons.menu_book_outlined,
-                    activeIcon: Icons.menu_book,
-                    label: t['class & subject'] ?? 'Class & Subject',
-                    isActive: nav.currentPage == NavPage.classSubject,
-                    onTap: () => nav.navigate(NavPage.classSubject),
-                  ),
-                  _NavItem(
-                    icon: Icons.bar_chart_outlined,
-                    activeIcon: Icons.bar_chart,
-                    label: t['reports'] ?? 'Reports',
-                    isActive: nav.currentPage == NavPage.reports,
-                    onTap: () => nav.navigate(NavPage.reports),
+                  const SizedBox(width: 8),
+                  Container(width: 1, height: 38, color: borderColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _SidebarActionButton(
+                      icon: Icons.logout,
+                      color: AppColors.error,
+                      onTap: () {
+                        context.read<AuthProvider>().logout();
+                      },
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
+        ),
 
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: borderColor, width: 1)),
-            ),
-            child: Row(
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
               children: [
-                Icon(Icons.refresh, size: 18, color: mutedColor),
-                const SizedBox(width: 8),
-                Text(
-                  '${t['version'] ?? 'Version'} ${AppConstants.appVersion}',
-                  style: AppTextStyles.body.copyWith(color: mutedColor),
+                _NavItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home,
+                  label: t['dashboard'] ?? 'Dashboard',
+                  isActive: nav.currentPage == NavPage.dashboard,
+                  onTap: () => nav.navigate(NavPage.dashboard),
+                ),
+                _NavItem(
+                  icon: Icons.school_outlined,
+                  activeIcon: Icons.school,
+                  label: t['students'] ?? 'Students',
+                  isActive: nav.currentPage == NavPage.students,
+                  onTap: () => nav.navigate(NavPage.students),
+                ),
+                _NavItem(
+                  icon: Icons.person_outline,
+                  activeIcon: Icons.person,
+                  label: t['teachers'] ?? 'Teachers',
+                  isActive: nav.currentPage == NavPage.teachers,
+                  onTap: () => nav.navigate(NavPage.teachers),
+                ),
+                _NavItem(
+                  icon: Icons.menu_book_outlined,
+                  activeIcon: Icons.menu_book,
+                  label: t['class & subject'] ?? 'Class & Subject',
+                  isActive: nav.currentPage == NavPage.classSubject,
+                  onTap: () => nav.navigate(NavPage.classSubject),
+                ),
+                _NavItem(
+                  icon: Icons.bar_chart_outlined,
+                  activeIcon: Icons.bar_chart,
+                  label: t['reports'] ?? 'Reports',
+                  isActive: nav.currentPage == NavPage.reports,
+                  onTap: () => nav.navigate(NavPage.reports),
                 ),
               ],
             ),
           ),
+        ),
+
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: borderColor, width: 1)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.refresh, size: 18, color: mutedColor),
+              const SizedBox(width: 8),
+              Text(
+                '${t['version'] ?? 'Version'} ${AppConstants.appVersion}',
+                style: AppTextStyles.body.copyWith(color: mutedColor),
+              ),
+            ],
+          ),
+        ),
         ],
       ),
     );
@@ -218,21 +461,21 @@ class _SidebarActionButton extends StatelessWidget {
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
 
     return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: borderRadius,
-          child: Container(
-            height: 38,
-            decoration: BoxDecoration(
-              border: Border.all(color: borderColor),
-              borderRadius: borderRadius,
-              color: bgColor,
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: color),
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: borderRadius,
+        child: Container(
+          height: 38,
+          decoration: BoxDecoration(
+            border: Border.all(color: borderColor),
+            borderRadius: borderRadius,
+            color: bgColor,
           ),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 18, color: color),
         ),
+      ),
     );
   }
 }
@@ -263,8 +506,8 @@ class _NavItemState extends State<_NavItem> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final hoverColor = isDark
-        ? Colors.white.withOpacity(0.05)
-        : Colors.black.withOpacity(0.02);
+        ? Colors.white.withValues(alpha: 0.0)
+        : Colors.black.withValues(alpha: 0.0);
     final activeBg = isDark ? const Color(0xFF1A1A2E) : AppColors.background;
     final textColor = isDark ? Colors.white : AppColors.textSecondary;
 
