@@ -63,6 +63,8 @@ class AppTranslations {
       'forgot_password': 'Forgot Password?',
       'email_required': 'Email is required',
       'password_required': 'Password is required',
+      'email_not_found': 'Email is incorrect',
+      'wrong_password': 'Password is incorrect',
 
       // Navigation
       'dashboard': 'Dashboard',
@@ -204,6 +206,8 @@ class AppTranslations {
       'forgot_password': 'ភ្លេចពាក្យសម្ងាត់?',
       'email_required': 'ត្រូវបំពេញអ៊ីមែល',
       'password_required': 'ត្រូវបំពេញពាក្យសម្ងាត់',
+      'email_not_found': 'រកមិនឃើញអ៊ីមែល',
+      'wrong_password': 'ពាក្យសម្ងាត់មិនត្រឹមត្រូវ',
 
       // Navigation
       'dashboard': 'ផ្ទាំងគ្រប់គ្រង',

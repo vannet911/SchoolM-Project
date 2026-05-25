@@ -56,6 +56,13 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateCurrentUser(Map<String, dynamic> updates) {
+    if (_currentUser != null) {
+      _currentUser = {..._currentUser!, ...updates};
+      notifyListeners();
+    }
+  }
+
   void clearError() {
     _errorMessage = null;
     if (_status == AuthStatus.error) _status = AuthStatus.unauthenticated;

@@ -71,13 +71,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _savingProfile = true);
     try {
       final auth = context.read<AuthProvider>();
+      final newName = _nameCtrl.text.trim();
       final id = auth.currentUser?['id'];
       if (id != null) {
         await _api.updateUser(id, {
-          'username': _nameCtrl.text.trim(),
+          'username': newName,
           'email': _emailCtrl.text.trim(),
         });
       }
+      auth.updateCurrentUser({'username': newName});
       _showSnack(t['profile_updated']!);
     } catch (e) {
       _showSnack(
@@ -101,7 +103,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     setState(() { _changingPassword = true; _newPwdError = false; _confirmPwdError = false; });
     try {
+      final auth = context.read<AuthProvider>();
+      final userId = auth.currentUser?['id'];
+      if (userId == null) {
+        _showSnack(t['failed_change_password']!, isError: true);
+        return;
+      }
       await _api.post('/auth/change-password', {
+        'userId': userId,
         'currentPassword': _currentPwdCtrl.text,
         'newPassword': newPwd,
       });
@@ -110,10 +119,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _confirmPwdCtrl.clear();
       _showSnack(t['password_changed']!);
     } catch (e) {
+      final msg = e.toString();
       _showSnack(
-        e.toString().contains('Network error') || e.toString().contains('Connection')
+        msg.contains('Network error') || msg.contains('Connection')
             ? t['cannot_connect_server']!
-            : e.toString().contains('401')
+            : msg.contains('401') || msg.contains('incorrect')
                 ? t['current_password_incorrect']!
                 : t['failed_change_password']!,
         isError: true,

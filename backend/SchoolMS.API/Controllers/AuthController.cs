@@ -23,9 +23,13 @@ namespace SchoolMS.API.Controllers
             try
             {
                 var user = await _userService.GetByEmailAsync(request.Email);
-                if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
+                if (user == null)
                 {
-                    return Unauthorized(new { message = "Invalid email or password" });
+                    return Unauthorized(new { message = "Email not found" });
+                }
+                if (!VerifyPassword(request.Password, user.PasswordHash))
+                {
+                    return Unauthorized(new { message = "Invalid password" });
                 }
 
                 if (!user.Status)
@@ -89,6 +93,28 @@ namespace SchoolMS.API.Controllers
             }
         }
 
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            try
+            {
+                await _userService.ChangePasswordAsync(request.UserId, request.CurrentPassword, request.NewPassword);
+                return Ok(new { message = "Password changed successfully" });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized(new { message = "Current password is incorrect" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Failed to change password: {ex.Message}" });
+            }
+        }
+
         private bool VerifyPassword(string password, string passwordHash)
         {
             return HashPassword(password) == passwordHash;
@@ -116,5 +142,12 @@ namespace SchoolMS.API.Controllers
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public int RoleId { get; set; }
+    }
+
+    public class ChangePasswordRequest
+    {
+        public int UserId { get; set; }
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
     }
 }

@@ -69,6 +69,19 @@ namespace SchoolMS.Infrastructure.Services
             return true;
         }
 
+        public async Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) throw new KeyNotFoundException($"User with id {userId} not found");
+
+            if (user.PasswordHash != HashPassword(currentPassword))
+                throw new UnauthorizedAccessException("Current password is incorrect");
+
+            user.PasswordHash = HashPassword(newPassword);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         private string HashPassword(string password)
         {
             using (var sha256 = SHA256.Create())

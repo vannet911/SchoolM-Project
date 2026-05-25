@@ -106,7 +106,7 @@ class _CollapsedSidebar extends StatelessWidget {
           ),
         ),
 
-        Divider(color: borderColor, height: 1),
+        //Divider(color: borderColor, height: 1),
 
         // Nav items
         Expanded(

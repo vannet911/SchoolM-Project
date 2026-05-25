@@ -10,5 +10,6 @@ namespace SchoolMS.Core.Interfaces
         Task<User> CreateAsync(User user);
         Task<User> UpdateAsync(int id, User user);
         Task<bool> DeleteAsync(int id);
+        Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
     }
 }
