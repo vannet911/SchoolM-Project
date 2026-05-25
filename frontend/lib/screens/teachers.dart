@@ -312,7 +312,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
                   sortAscending: _sortAscending,
                 ),
                 TableHeader(
-                  label: t['teacher_name'] ?? 'Name',
+                  label: t['full_name'] ?? 'Full Name',
                   flex: 3,
                   onSort: () => _sortBy('name'),
                   isSorted: _sortColumn == 'name',

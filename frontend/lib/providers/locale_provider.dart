@@ -82,6 +82,13 @@ class AppTranslations {
 
       // Dashboard
       'welcome': 'Welcome',
+      'good_morning': 'Good Morning',
+      'good_afternoon': 'Good Afternoon',
+      'good_evening': 'Good Evening',
+      'welcome_back': 'Welcome back to School Management Portal.',
+      'students_by_gender': 'Students by Gender',
+      'students_by_class': 'Students per Class',
+      'school_overview': 'School Overview',
       'total_students': 'Total Students',
       'total_teachers': 'Total Teachers',
       'total_classes': 'Total Classes',
@@ -122,6 +129,9 @@ class AppTranslations {
       'class_name': 'Class Name',
       'grade_level': 'Grade Level',
       'academic_year': 'Academic Year',
+      'description': 'Description',
+      'class_teacher': 'Class Teacher',
+      'teacher_name': 'Teacher Name',
 
       // Subjects
       'subject_list': 'Subject List',
@@ -224,6 +234,13 @@ class AppTranslations {
       'profile': 'ប្រវត្តិ',
       // Dashboard
       'welcome': 'សូមស្វាគមន៍',
+      'good_morning': 'អរុណសួស្តី',
+      'good_afternoon': 'ទិវាសួស្តី',
+      'good_evening': 'សាយណ្ហសួស្តី',
+      'welcome_back': 'សូមស្វាគមន៍មកកាន់ប្រព័ន្ធគ្រប់គ្រងសាលា!',
+      'students_by_gender': 'សិស្សតាមភេទ',
+      'students_by_class': 'សិស្សតាមថ្នាក់',
+      'school_overview': 'ទិដ្ឋភាពរួមសាលា',
       'total_students': 'ចំនួនសិស្ស',
       'total_teachers': 'ចំនួនគ្រូ',
       'total_classes': 'ចំនួនថ្នាក់',
@@ -264,6 +281,9 @@ class AppTranslations {
       'class_name': 'ឈ្មោះថ្នាក់',
       'grade_level': 'កម្រិតថ្នាក់',
       'academic_year': 'ឆ្នាំសិក្សា',
+      'description': 'ការពិពណ៌នា',
+      'class_teacher': 'គ្រូប្រចាំថ្នាក់',
+      'teacher_name': 'ឈ្មោះគ្រូ',
 
       // Subjects
       'subject_list': 'បញ្ជីមុខវិជ្ជា',

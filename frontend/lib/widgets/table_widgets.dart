@@ -391,7 +391,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final bgColor = isDark ? const Color(0xFF1A1A2E) : AppColors.white;
     final isEdit = widget.student != null;
 
     return Column(
@@ -453,6 +453,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                                   SizedBox(height: 44, child: DropdownButtonFormField<String>(
                                     initialValue: _gender,
                                     style: AppTextStyles.body.copyWith(color: textColor),
+                                    dropdownColor: bgColor,
                                     decoration: _inputDecoration(isDark: isDark),
                                     items: [
                                       DropdownMenuItem(value: 'Male', child: Text(t['male'] ?? 'Male', style: AppTextStyles.body.copyWith(color: textColor))),
@@ -476,6 +477,26 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                                 style: AppTextStyles.body.copyWith(color: textColor),
                                 decoration: _inputDecoration(hint: 'YYYY/MM/DD', isDark: isDark, suffix: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary)),
                               ))),
+                            const SizedBox(height: 16),
+                            _labeled('${t['status'] ?? 'Status'}:',
+                              Row(children: [
+                                Switch(value: _status, onChanged: (v) => setState(() => _status = v), activeThumbColor: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Text(_status ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive'), style: AppTextStyles.bodySmall),
+                              ])),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _labeled('${t['email'] ?? 'Email'}:',
+                              SizedBox(height: 44, child: TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: 'student@school.edu', isDark: isDark)))),
+                            const SizedBox(height: 16),
+                            _labeled('${t['phone'] ?? 'Phone'}:',
+                              SizedBox(height: 44, child: TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: '+855 XX XXX XXX', isDark: isDark)))),
                             const SizedBox(height: 16),
                             _labeled('${t['classes'] ?? 'Class'}:',
                               SizedBox(
@@ -508,26 +529,6 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                                       ),
                                     ),
                               )),
-                            const SizedBox(height: 16),
-                            _labeled('${t['status'] ?? 'Status'}:',
-                              Row(children: [
-                                Switch(value: _status, onChanged: (v) => setState(() => _status = v), activeThumbColor: AppColors.primary),
-                                const SizedBox(width: 8),
-                                Text(_status ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive'), style: AppTextStyles.bodySmall),
-                              ])),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _labeled('${t['email'] ?? 'Email'}:',
-                              SizedBox(height: 44, child: TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: 'student@school.edu', isDark: isDark)))),
-                            const SizedBox(height: 16),
-                            _labeled('${t['phone'] ?? 'Phone'}:',
-                              SizedBox(height: 44, child: TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: '+855 XX XXX XXX', isDark: isDark)))),
                             const SizedBox(height: 16),
                             _labeled('${t['address'] ?? 'Address'}:',
                               TextField(controller: _addressCtrl, maxLines: 5, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: t['address'] ?? 'Enter address', multiline: true, isDark: isDark))),
@@ -1012,6 +1013,7 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF1A1A2E) : AppColors.white;
     final chipBg = isDark ? const Color(0xFF1C2A4A) : AppColors.primarySurface;
     final isEdit = widget.teacher != null;
 
@@ -1071,6 +1073,7 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
                                   SizedBox(height: 44, child: DropdownButtonFormField<String>(
                                     initialValue: _gender,
                                     style: AppTextStyles.body.copyWith(color: textColor),
+                                    dropdownColor: bgColor,
                                     decoration: _inputDecoration(isDark: isDark),
                                     items: [
                                       DropdownMenuItem(value: 'Male', child: Text(t['male'] ?? 'Male', style: AppTextStyles.body.copyWith(color: textColor))),
@@ -1098,7 +1101,7 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
                                 child: Container(
                                   width: double.infinity,
                                   constraints: const BoxConstraints(minHeight: 44),
-                                  decoration: BoxDecoration(border: Border.all(color: borderColor), borderRadius: BorderRadius.circular(8)),
+                                  decoration: BoxDecoration(color: bgColor, border: Border.all(color: borderColor), borderRadius: BorderRadius.circular(8)),
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                   child: _loadingSubjects
                                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))

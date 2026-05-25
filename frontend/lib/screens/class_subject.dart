@@ -528,7 +528,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                 sortAscending: _classSortAscending,
               ),
               TableHeader(
-                label: 'Description',
+                label: t['description'] ?? 'Description',
                 flex: 4,
                 onSort: () => _sortClasses('description'),
                 isSorted: _classSortColumn == 'description',
@@ -678,7 +678,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                 sortAscending: _subjectSortAscending,
               ),
               TableHeader(
-                label: 'Description',
+                label: t['description'] ?? 'Description',
                 flex: 4,
                 onSort: () => _sortSubjects('description'),
                 isSorted: _subjectSortColumn == 'description',
@@ -1552,7 +1552,7 @@ class _ClassFormPanelState extends State<_ClassFormPanel> {
                             ),
                             const SizedBox(height: 16),
                             _labeled(
-                              'Description:',
+                              '${t['description'] ?? 'Description'}:',
                               TextField(
                                 controller: _descCtrl,
                                 maxLines: 4,
@@ -1852,7 +1852,7 @@ class _ClassDetailPanel extends StatelessWidget {
                                 isDark: isDark),
                             const SizedBox(height: 16),
                             _labeled(
-                              'Description:',
+                              '${t['description'] ?? 'Description'}:',
                               TextField(
                                 readOnly: true,
                                 controller: TextEditingController(
@@ -2181,7 +2181,7 @@ class _SubjectFormPanelState extends State<_SubjectFormPanel> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _labeled(
-                              'Description:',
+                              '${t['description'] ?? 'Description'}:',
                               TextField(
                                 controller: _descCtrl,
                                 maxLines: 4,
@@ -2423,7 +2423,7 @@ class _SubjectDetailPanel extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _labeled(
-                              'Description:',
+                              '${t['description'] ?? 'Description'}:',
                               TextField(
                                 readOnly: true,
                                 controller: TextEditingController(
