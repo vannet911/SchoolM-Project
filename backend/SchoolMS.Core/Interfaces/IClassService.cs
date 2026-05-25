@@ -6,8 +6,8 @@ namespace SchoolMS.Core.Interfaces
     {
         Task<List<Class>> GetAllClassesAsync();
         Task<Class?> GetClassByIdAsync(int id);
-        Task<Class> CreateClassAsync(Class @class);
-        Task<Class?> UpdateClassAsync(int id, Class @class);
+        Task<Class> CreateClassAsync(Class @class, List<int> subjectIds);
+        Task<Class?> UpdateClassAsync(int id, Class @class, List<int> subjectIds);
         Task<bool> DeleteClassAsync(int id);
     }
 }

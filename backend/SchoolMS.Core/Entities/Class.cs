@@ -20,14 +20,13 @@ namespace SchoolMS.Core.Entities
 
         public int? ClassTeacherId { get; set; }
 
-        public int? SubjectId { get; set; }
-
         public DateTime CreateDate { get; set; }
 
         public bool Status { get; set; }
 
         // Navigation properties
         public Teacher? ClassTeacher { get; set; }
-        public Subject? Subject { get; set; }
+        public ICollection<ClassSubject> ClassSubjects { get; set; } = [];
+        public ICollection<Student> Students { get; set; } = [];
     }
 }

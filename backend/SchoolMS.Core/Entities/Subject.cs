@@ -19,5 +19,9 @@ namespace SchoolMS.Core.Entities
         public DateTime CreateDate { get; set; }
 
         public bool Status { get; set; }
+
+        // Navigation
+        public ICollection<TeacherSubject> TeacherSubjects { get; set; } = [];
+        public ICollection<ClassSubject> ClassSubjects { get; set; } = [];
     }
 }

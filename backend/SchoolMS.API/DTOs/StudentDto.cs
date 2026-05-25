@@ -11,6 +11,8 @@ namespace SchoolMS.API.DTOs
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
         public string? Address { get; set; }
+        public int? ClassId { get; set; }
+        public string? ClassName { get; set; }
         public DateTime? CreateDate { get; set; }
         public bool? Status { get; set; } = true;
     }
@@ -25,6 +27,7 @@ namespace SchoolMS.API.DTOs
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
         public string? Address { get; set; }
+        public int? ClassId { get; set; }
         public bool? Status { get; set; } = true;
     }
 
@@ -38,6 +41,7 @@ namespace SchoolMS.API.DTOs
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
         public string? Address { get; set; }
+        public int? ClassId { get; set; }
         public bool? Status { get; set; }
     }
 }

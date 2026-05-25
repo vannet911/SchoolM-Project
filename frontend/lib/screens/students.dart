@@ -72,7 +72,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     var list = q.isEmpty
         ? List<Map<String, dynamic>>.from(_students)
         : _students
-            .where((s) => '${s['firstName']} ${s['lastName']} ${s['email']}'
+            .where((s) => '${s['firstName']} ${s['lastName']} ${s['email']} ${s['className'] ?? ''}'
                 .toLowerCase()
                 .contains(q))
             .toList();
@@ -97,6 +97,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
         return '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.toLowerCase();
       case 'dob':
         return s['dateOfBirth']?.toString() ?? '';
+      case 'class':
+        return s['className']?.toString().toLowerCase() ?? '';
       case 'email':
         return s['email']?.toString().toLowerCase() ?? '';
       case 'address':
@@ -311,6 +313,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   sortAscending: _sortAscending,
                 ),
                 TableHeader(
+                  label: t['class_name'] ?? 'Class',
+                  flex: 2,
+                  onSort: () => _sortBy('class'),
+                  isSorted: _sortColumn == 'class',
+                  sortAscending: _sortAscending,
+                ),
+                TableHeader(
                   label: t['date_of_birth'] ?? 'Date of Birth',
                   flex: 3,
                   onSort: () => _sortBy('dob'),
@@ -373,6 +382,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           flex: 3,
                           child: Text(
                             name.isEmpty ? '—' : name,
+                            style: AppTextStyles.body.copyWith(color: textColor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            s['className'] ?? '—',
                             style: AppTextStyles.body.copyWith(color: textColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

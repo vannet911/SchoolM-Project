@@ -23,9 +23,6 @@ namespace SchoolMS.Core.Entities
         [MaxLength(20)]
         public string PhoneNumber { get; set; } = string.Empty;
 
-        [MaxLength(100)]
-        public string Subject { get; set; } = string.Empty;
-
         [MaxLength(500)]
         public string Address { get; set; } = string.Empty;
 
@@ -33,5 +30,8 @@ namespace SchoolMS.Core.Entities
         public DateTime CreateDate { get; set; }
 
         public bool Status { get; set; }
+
+        // Navigation
+        public ICollection<TeacherSubject> TeacherSubjects { get; set; } = [];
     }
 }

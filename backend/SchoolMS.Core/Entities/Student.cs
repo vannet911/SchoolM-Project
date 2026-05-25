@@ -20,12 +20,17 @@ namespace SchoolMS.Core.Entities
         public DateTime? CreateDate { get; set; }
         public bool? Status { get; set; }
 
+        public int? ClassId { get; set; }
+
         // Backward compatibility
-        public string? Name 
-        { 
-            get => string.IsNullOrEmpty(FirstName) && string.IsNullOrEmpty(LastName) 
-                ? string.Empty 
+        public string? Name
+        {
+            get => string.IsNullOrEmpty(FirstName) && string.IsNullOrEmpty(LastName)
+                ? string.Empty
                 : $"{FirstName} {LastName}".Trim();
         }
+
+        // Navigation
+        public Class? Class { get; set; }
     }
 }

@@ -14,21 +14,21 @@ namespace SchoolMS.Infrastructure.Services
             _context = context;
         }
 
-        public async Task<List<Student>> GetAllStudentsAsync()
-        {
-            return await _context.Students.ToListAsync();
-        }
+        public async Task<List<Student>> GetAllStudentsAsync() =>
+            await _context.Students
+                .Include(s => s.Class)
+                .ToListAsync();
 
-        public async Task<Student?> GetStudentByIdAsync(int id)
-        {
-            return await _context.Students.FindAsync(id);
-        }
+        public async Task<Student?> GetStudentByIdAsync(int id) =>
+            await _context.Students
+                .Include(s => s.Class)
+                .FirstOrDefaultAsync(s => s.Id == id);
 
         public async Task<Student> CreateStudentAsync(Student student)
         {
             _context.Students.Add(student);
             await _context.SaveChangesAsync();
-            return student;
+            return (await GetStudentByIdAsync(student.Id))!;
         }
 
         public async Task<Student?> UpdateStudentAsync(int id, Student student)
@@ -44,17 +44,17 @@ namespace SchoolMS.Infrastructure.Services
             existingStudent.Email = student.Email;
             existingStudent.PhoneNumber = student.PhoneNumber;
             existingStudent.Address = student.Address;
+            existingStudent.ClassId = student.ClassId;
             existingStudent.Status = student.Status;
 
             await _context.SaveChangesAsync();
-            return existingStudent;
+            return (await GetStudentByIdAsync(id))!;
         }
 
         public async Task<bool> DeleteStudentAsync(int id)
         {
             var student = await _context.Students.FindAsync(id);
             if (student == null) return false;
-
             _context.Students.Remove(student);
             await _context.SaveChangesAsync();
             return true;

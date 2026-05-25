@@ -74,7 +74,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
         ? List<Map<String, dynamic>>.from(_teachers)
         : _teachers
             .where((s) =>
-                '${s['name']} ${s['code']} ${s['email']} ${s['subject']}'
+                '${s['name']} ${s['code']} ${s['email']} ${(s['subjects'] as List?)?.map((sub) => sub['name']).join(' ') ?? ''}'
                     .toLowerCase()
                     .contains(q))
             .toList();
@@ -98,7 +98,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
       case 'name':
         return s['name']?.toString().toLowerCase() ?? '';
       case 'subject':
-        return s['subject']?.toString().toLowerCase() ?? '';
+        return (s['subjects'] as List?)?.map((sub) => sub['name'] as String).join(', ').toLowerCase() ?? '';
       case 'email':
         return s['email']?.toString().toLowerCase() ?? '';
       case 'address':
@@ -386,7 +386,9 @@ class _TeachersScreenState extends State<TeachersScreen> {
                       Expanded(
                         flex: 3,
                         child: Text(
-                          s['subject'] ?? '—',
+                          (s['subjects'] as List?)?.isNotEmpty == true
+                              ? (s['subjects'] as List).map((sub) => sub['name']).join(', ')
+                              : '—',
                           style: AppTextStyles.body.copyWith(color: textColor),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

@@ -1266,6 +1266,9 @@ class _ClassFormPanelState extends State<_ClassFormPanel> {
   bool _saving = false;
   bool _codeError = false;
   bool _nameError = false;
+  List<int> _selectedSubjectIds = [];
+  List<Map<String, dynamic>> _availableSubjects = [];
+  bool _loadingSubjects = false;
 
   @override
   void initState() {
@@ -1278,7 +1281,12 @@ class _ClassFormPanelState extends State<_ClassFormPanel> {
       _gradeCtrl.text = s['gradeLevel']?.toString() ?? '';
       final st = s['status'];
       _status = st is bool ? st : true;
+      final existing = s['subjects'] as List?;
+      if (existing != null) {
+        _selectedSubjectIds = existing.map<int>((sub) => sub['id'] as int).toList();
+      }
     }
+    _loadSubjects();
   }
 
   @override
@@ -1288,6 +1296,64 @@ class _ClassFormPanelState extends State<_ClassFormPanel> {
     _descCtrl.dispose();
     _gradeCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSubjects() async {
+    setState(() => _loadingSubjects = true);
+    try {
+      final data = await ApiService().getSubjects();
+      if (!mounted) return;
+      setState(() {
+        _availableSubjects = data.cast<Map<String, dynamic>>();
+        _loadingSubjects = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingSubjects = false);
+    }
+  }
+
+  Future<void> _showSubjectPicker() async {
+    final picked = List<int>.from(_selectedSubjectIds);
+    await showDialog<void>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Select Subjects'),
+          content: SizedBox(
+            width: 320,
+            child: _availableSubjects.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    shrinkWrap: true,
+                    children: _availableSubjects.map((sub) {
+                      final id = sub['id'] as int;
+                      return CheckboxListTile(
+                        value: picked.contains(id),
+                        title: Text('${sub['code']} - ${sub['name']}'),
+                        onChanged: (v) => setDialogState(() {
+                          v == true ? picked.add(id) : picked.remove(id);
+                        }),
+                      );
+                    }).toList(),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() => _selectedSubjectIds = picked);
+                Navigator.pop(ctx);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _save() async {
@@ -1305,6 +1371,7 @@ class _ClassFormPanelState extends State<_ClassFormPanel> {
         'description': _descCtrl.text.trim(),
         'gradeLevel': int.tryParse(_gradeCtrl.text.trim()),
         'status': _status,
+        'subjectIds': _selectedSubjectIds,
         'createDate': DateTime.now().toUtc().toIso8601String(),
       });
     } finally {
@@ -1518,6 +1585,48 @@ class _ClassFormPanelState extends State<_ClassFormPanel> {
                                       hint: 'e.g. 10',
                                       isDark: isDark),
                                 ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _labeled(
+                              '${t['subjects'] ?? 'Subjects'}:',
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: _loadingSubjects ? null : _showSubjectPicker,
+                                    icon: const Icon(Icons.book_outlined, size: 16),
+                                    label: Text(_selectedSubjectIds.isEmpty
+                                        ? 'Select subjects'
+                                        : '${_selectedSubjectIds.length} selected'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.primaryLight,
+                                      side: BorderSide(
+                                          color: isDark ? const Color(0xFF2A2A4A) : AppColors.border),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                  if (_selectedSubjectIds.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      children: _availableSubjects
+                                          .where((sub) => _selectedSubjectIds.contains(sub['id']))
+                                          .map((sub) => Chip(
+                                                label: Text(sub['name'] as String,
+                                                    style: AppTextStyles.bodySmall),
+                                                deleteIcon: const Icon(Icons.close, size: 14),
+                                                onDeleted: () => setState(() =>
+                                                    _selectedSubjectIds.remove(sub['id'] as int)),
+                                                materialTapTargetSize:
+                                                    MaterialTapTargetSize.shrinkWrap,
+                                              ))
+                                          .toList(),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -1773,6 +1882,30 @@ class _ClassDetailPanel extends StatelessWidget {
                                 '${t['grade_level'] ?? 'Grade Level'}:',
                                 item['gradeLevel']?.toString(),
                                 isDark: isDark),
+                            const SizedBox(height: 16),
+                            _labeled(
+                              '${t['subjects'] ?? 'Subjects'}:',
+                              Builder(builder: (_) {
+                                final subjects = item['subjects'] as List?;
+                                if (subjects == null || subjects.isEmpty) {
+                                  return Text('—',
+                                      style: AppTextStyles.body.copyWith(
+                                          color: isDark ? Colors.white70 : AppColors.textMuted));
+                                }
+                                return Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: subjects
+                                      .map((sub) => Chip(
+                                            label: Text(sub['name'] as String,
+                                                style: AppTextStyles.bodySmall),
+                                            materialTapTargetSize:
+                                                MaterialTapTargetSize.shrinkWrap,
+                                          ))
+                                      .toList(),
+                                );
+                              }),
+                            ),
                             const SizedBox(height: 16),
                             _labeled(
                               '${t['status'] ?? 'Status'}:',

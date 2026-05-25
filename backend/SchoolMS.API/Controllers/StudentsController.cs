@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SchoolMS.Core.Entities;
 using SchoolMS.Core.Interfaces;
-using SchoolMS.Infrastructure.Services;
 using SchoolMS.API.DTOs;
 
 namespace SchoolMS.API.Controllers
@@ -21,16 +20,14 @@ namespace SchoolMS.API.Controllers
         public async Task<ActionResult<List<StudentDto>>> GetAllStudents()
         {
             var students = await _studentService.GetAllStudentsAsync();
-            var dtos = students.Select(s => MapToDto(s)).ToList();
-            return Ok(dtos);
+            return Ok(students.Select(MapToDto));
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<StudentDto>> GetStudentById(int id)
         {
             var student = await _studentService.GetStudentByIdAsync(id);
-            if (student == null)
-                return NotFound();
+            if (student == null) return NotFound();
             return Ok(MapToDto(student));
         }
 
@@ -47,12 +44,12 @@ namespace SchoolMS.API.Controllers
                 Email = createDto.Email,
                 PhoneNumber = createDto.PhoneNumber,
                 Address = createDto.Address,
+                ClassId = createDto.ClassId,
                 Status = createDto.Status ?? true,
                 CreateDate = DateTime.UtcNow
             };
-            
-            var createdStudent = await _studentService.CreateStudentAsync(student);
-            return CreatedAtAction(nameof(GetStudentById), new { id = createdStudent.Id }, MapToDto(createdStudent));
+            var created = await _studentService.CreateStudentAsync(student);
+            return CreatedAtAction(nameof(GetStudentById), new { id = created.Id }, MapToDto(created));
         }
 
         [HttpPut("{id}")]
@@ -69,40 +66,37 @@ namespace SchoolMS.API.Controllers
                 Email = updateDto.Email,
                 PhoneNumber = updateDto.PhoneNumber,
                 Address = updateDto.Address,
+                ClassId = updateDto.ClassId,
                 Status = updateDto.Status
             };
-            
-            var updatedStudent = await _studentService.UpdateStudentAsync(id, student);
-            if (updatedStudent == null)
-                return NotFound();
-            return Ok(MapToDto(updatedStudent));
+            var updated = await _studentService.UpdateStudentAsync(id, student);
+            if (updated == null) return NotFound();
+            return Ok(MapToDto(updated));
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteStudent(int id)
         {
             var success = await _studentService.DeleteStudentAsync(id);
-            if (!success)
-                return NotFound();
+            if (!success) return NotFound();
             return NoContent();
         }
 
-        private StudentDto MapToDto(Student student)
+        private static StudentDto MapToDto(Student s) => new()
         {
-            return new StudentDto
-            {
-                Id = student.Id,
-                Code = student.Code,
-                FirstName = student.FirstName,
-                LastName = student.LastName,
-                Gender = student.Gender,
-                DateOfBirth = student.DateOfBirth,
-                Email = student.Email,
-                PhoneNumber = student.PhoneNumber,
-                Address = student.Address,
-                CreateDate = student.CreateDate,
-                Status = student.Status ?? true
-            };
-        }
+            Id = s.Id,
+            Code = s.Code,
+            FirstName = s.FirstName,
+            LastName = s.LastName,
+            Gender = s.Gender,
+            DateOfBirth = s.DateOfBirth,
+            Email = s.Email,
+            PhoneNumber = s.PhoneNumber,
+            Address = s.Address,
+            ClassId = s.ClassId,
+            ClassName = s.Class?.Name,
+            CreateDate = s.CreateDate,
+            Status = s.Status ?? true
+        };
     }
 }

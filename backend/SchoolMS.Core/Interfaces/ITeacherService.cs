@@ -5,9 +5,9 @@ namespace SchoolMS.Core.Interfaces
     public interface ITeacherService
     {
         Task<List<Teacher>> GetAllAsync();
-        Task<Teacher> GetByIdAsync(int id);
-        Task<Teacher> CreateAsync(Teacher teacher);
-        Task<Teacher> UpdateAsync(int id, Teacher teacher);
+        Task<Teacher?> GetByIdAsync(int id);
+        Task<Teacher> CreateAsync(Teacher teacher, List<int> subjectIds);
+        Task<Teacher?> UpdateAsync(int id, Teacher teacher, List<int> subjectIds);
         Task<bool> DeleteAsync(int id);
     }
 }
