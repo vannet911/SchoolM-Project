@@ -29,6 +29,7 @@ class AppTranslations {
       'delete': 'Delete',
       'edit': 'Edit',
       'add': 'Add',
+      'export': 'Export',
       'search': 'Search',
       'filter': 'Filter',
       'actions': 'Actions',
@@ -169,6 +170,15 @@ class AppTranslations {
       'current_password_incorrect': 'Current password is incorrect',
       'failed_change_password': 'Failed to change password',
 
+      // Reports
+      'school_reports': 'School Reports',
+      'reports_subtitle': 'School data reports and summaries',
+      'student_report': 'Student Report',
+      'teacher_report': 'Teacher Report',
+      'class_report': 'Class Summary',
+      'subjects_taught': 'Subjects Taught',
+      'avg_subjects': 'Avg Subjects',
+
       // App
       'version': 'Version',
       'app_name': 'KOMPONG PHNOM',
@@ -182,6 +192,7 @@ class AppTranslations {
       'delete': 'លុប',
       'edit': 'កែប្រែ',
       'add': 'បន្ថែម',
+      'export': 'នាំចេញ',
       'search': 'ស្វែងរក',
       'filter': 'តម្រង',
       'actions': 'សកម្មភាព',
@@ -320,6 +331,15 @@ class AppTranslations {
       'password_changed': 'ពាក្យសម្ងាត់បានប្តូរ!',
       'current_password_incorrect': 'ពាក្យសម្ងាត់បច្ចុប្បន្នមិនត្រឹមត្រូវ',
       'failed_change_password': 'ការប្តូរពាក្យសម្ងាត់បរាជ័យ',
+
+      // Reports
+      'school_reports': 'របាយការណ៍សាលា',
+      'reports_subtitle': 'របាយការណ៍ and សង្ខេបទិន្ន័យសាលា',
+      'student_report': 'របាយការណ៍សិស្ស',
+      'teacher_report': 'របាយការណ៍គ្រូ',
+      'class_report': 'សង្ខេបថ្នាក់',
+      'subjects_taught': 'មុខវិជ្ជាបង្រៀន',
+      'avg_subjects': 'មធ្យមមុខវិជ្ជា',
 
       // App
       'version': 'បច្ចុប្បន្នភាព',

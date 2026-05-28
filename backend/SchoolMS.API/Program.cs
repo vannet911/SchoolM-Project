@@ -1,16 +1,57 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using SchoolMS.Core.Interfaces;
 using SchoolMS.Infrastructure.Services;
 using SchoolMS.Core.Entities;
 using SchoolMS.Infrastructure.Data;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "SchoolMS API",
+        Version = "v1",
+        Description = "REST API for the School Management System — manages students, teachers, classes, subjects, users, and roles.",
+        Contact = new OpenApiContact
+        {
+            Name = "SchoolMS Support",
+            Email = "vannet.sony911@gmail.com"
+        }
+    });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "Token",
+        In = ParameterLocation.Header,
+        Description = "Enter the token returned by POST /api/auth/login. Example: Bearer user_1_xxxx"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+        c.IncludeXmlComments(xmlPath);
+});
 
 // Register DbContext
 builder.Services.AddDbContext<SchoolDbContext>(options =>
@@ -52,13 +93,17 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+// Swagger — always enabled
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SchoolMS API v1");
+    c.RoutePrefix = "swagger";
+    c.DocumentTitle = "SchoolMS API";
+    c.DefaultModelsExpandDepth(-1);
+});
 
+// Configure the HTTP request pipeline
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("AllowAll");

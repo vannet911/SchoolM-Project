@@ -11,6 +11,7 @@ import 'package:schoolms_portal/screens/students.dart';
 import 'package:schoolms_portal/screens/teachers.dart';
 import 'package:schoolms_portal/screens/class_subject.dart';
 import 'package:schoolms_portal/screens/profile.dart';
+import 'package:schoolms_portal/screens/reports.dart';
 
 class MainShell extends StatelessWidget {
   const MainShell({super.key});
@@ -63,33 +64,9 @@ class MainShell extends StatelessWidget {
       case NavPage.classSubject:
         return const ClassSubjectScreen();
       case NavPage.reports:
-        return const _ReportsPlaceholder();
+        return const ReportsScreen();
       case NavPage.profile:
         return const ProfileScreen();
     }
-  }
-}
-
-class _ReportsPlaceholder extends StatelessWidget {
-  const _ReportsPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final locale = context.watch<LocaleProvider>().locale;
-    final t = AppTranslations.translations[locale]!;
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.bar_chart_outlined, size: 64, color: AppColors.textMuted),
-          const SizedBox(height: 16),
-          Text(t['reports'] ?? 'Reports', style: AppTextStyles.heading2),
-          const SizedBox(height: 8),
-          Text(t['chart_coming_soon'] ?? 'Coming soon...',
-              style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),
-        ],
-      ),
-    );
   }
 }

@@ -5,33 +5,41 @@ using SchoolMS.API.DTOs;
 
 namespace SchoolMS.API.Controllers
 {
+    /// <summary>Manage student records.</summary>
     [ApiController]
     [Route("api/[controller]")]
-    public class StudentsController : ControllerBase
+    [Produces("application/json")]
+    public class StudentsController(IStudentService studentService) : ControllerBase
     {
-        private readonly IStudentService _studentService;
-
-        public StudentsController(IStudentService studentService)
-        {
-            _studentService = studentService;
-        }
-
+        /// <summary>Get all students.</summary>
+        /// <response code="200">Returns the list of all students.</response>
         [HttpGet]
+        [ProducesResponseType(typeof(List<StudentDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<List<StudentDto>>> GetAllStudents()
         {
-            var students = await _studentService.GetAllStudentsAsync();
+            var students = await studentService.GetAllStudentsAsync();
             return Ok(students.Select(MapToDto));
         }
 
+        /// <summary>Get a student by ID.</summary>
+        /// <param name="id">Student ID.</param>
+        /// <response code="200">Returns the matching student.</response>
+        /// <response code="404">Student not found.</response>
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(StudentDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<StudentDto>> GetStudentById(int id)
         {
-            var student = await _studentService.GetStudentByIdAsync(id);
+            var student = await studentService.GetStudentByIdAsync(id);
             if (student == null) return NotFound();
             return Ok(MapToDto(student));
         }
 
+        /// <summary>Create a new student.</summary>
+        /// <param name="createDto">Student details.</param>
+        /// <response code="201">Student created successfully.</response>
         [HttpPost]
+        [ProducesResponseType(typeof(StudentDto), StatusCodes.Status201Created)]
         public async Task<ActionResult<StudentDto>> CreateStudent([FromBody] CreateStudentDto createDto)
         {
             var student = new Student
@@ -48,11 +56,18 @@ namespace SchoolMS.API.Controllers
                 Status = createDto.Status ?? true,
                 CreateDate = DateTime.UtcNow
             };
-            var created = await _studentService.CreateStudentAsync(student);
+            var created = await studentService.CreateStudentAsync(student);
             return CreatedAtAction(nameof(GetStudentById), new { id = created.Id }, MapToDto(created));
         }
 
+        /// <summary>Update an existing student.</summary>
+        /// <param name="id">Student ID.</param>
+        /// <param name="updateDto">Updated student details.</param>
+        /// <response code="200">Student updated successfully.</response>
+        /// <response code="404">Student not found.</response>
         [HttpPut("{id}")]
+        [ProducesResponseType(typeof(StudentDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<StudentDto>> UpdateStudent(int id, [FromBody] UpdateStudentDto updateDto)
         {
             var student = new Student
@@ -69,15 +84,21 @@ namespace SchoolMS.API.Controllers
                 ClassId = updateDto.ClassId,
                 Status = updateDto.Status
             };
-            var updated = await _studentService.UpdateStudentAsync(id, student);
+            var updated = await studentService.UpdateStudentAsync(id, student);
             if (updated == null) return NotFound();
             return Ok(MapToDto(updated));
         }
 
+        /// <summary>Delete a student.</summary>
+        /// <param name="id">Student ID.</param>
+        /// <response code="204">Student deleted successfully.</response>
+        /// <response code="404">Student not found.</response>
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteStudent(int id)
         {
-            var success = await _studentService.DeleteStudentAsync(id);
+            var success = await studentService.DeleteStudentAsync(id);
             if (!success) return NotFound();
             return NoContent();
         }
