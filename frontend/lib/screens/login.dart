@@ -5,7 +5,7 @@ import 'package:schoolms_portal/providers/auth_provider.dart';
 import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/providers/theme_provider.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
-//import 'package:schoolms_portal/widgets/top_bar.dart';
+import 'package:schoolms_portal/widgets/top_bar.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -117,7 +117,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Row(
               children: [
                 const Spacer(),
-                const _TopIconBtn(icon: Icons.info_outline),
+                _TopIconBtn(
+                  icon: Icons.info_outline,
+                  onTap: () => showAppAboutDialog(context),
+                ),
                 const SizedBox(width: 8),
                 Consumer<ThemeProvider>(
                   builder: (context, themeProvider, _) {
@@ -349,7 +352,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.only(bottom: 20),
             child: Text(
               t['developer'] ?? AppConstants.developerTag,
-              style: AppTextStyles.caption.copyWith(color: mutedColor),
+              style: AppTextStyles.body.copyWith(color: mutedColor),
             ),
           ),
         ],

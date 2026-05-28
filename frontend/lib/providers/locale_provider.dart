@@ -184,6 +184,15 @@ class AppTranslations {
       'app_name': 'KOMPONG PHNOM',
       'app_subtitle': 'School Management System',
       'developer': '@vannet.developer',
+
+      // About dialog
+      'about_description':
+          'A centralized platform for schools to manage students, teachers, '
+          'classes, subjects, and reports — all in one place.',
+      'modules': 'Modules',
+      'developer_label': 'Developer',
+      'contact': 'Contact',
+      'contact_email': 'vannet.sony911@gmail.com',
     },
     'km': {
       // Common
@@ -346,6 +355,15 @@ class AppTranslations {
       'app_name': 'កំពង់ភ្នំ',
       'app_subtitle': 'ប្រព័ន្ធគ្រប់គ្រងសាលា',
       'developer': '@វ៉ាន់នេត.អ្នកអភិវឌ្ឍន៍',
+
+      // About dialog
+      'about_description':
+          'វេទិកាកណ្តាលសម្រាប់សាលារៀន ដើម្បីគ្រប់គ្រងសិស្ស គ្រូ ថ្នាក់ '
+          'មុខវិជ្ជា និងរបាយការណ៍ — ក្នុងទីតាំងតែមួយ។',
+      'modules': 'ម៉ូឌុល',
+      'developer_label': 'អ្នកអភិវឌ្ឍន៍',
+      'contact': 'ទំនាក់ទំនង',
+      'contact_email': 'vannet.sony911@gmail.com',
     },
   };
 
