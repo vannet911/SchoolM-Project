@@ -184,6 +184,9 @@ class AppTranslations {
       'app_name': 'KOMPONG PHNOM',
       'app_subtitle': 'School Management System',
       'developer': '@vannet.developer',
+      'all_genders': 'All Genders',
+      'all_classes': 'All Classes',
+      'all_status': 'All Status',
 
       // About dialog
       'about_description':
@@ -355,6 +358,9 @@ class AppTranslations {
       'app_name': 'កំពង់ភ្នំ',
       'app_subtitle': 'ប្រព័ន្ធគ្រប់គ្រងសាលា',
       'developer': '@វ៉ាន់នេត.អ្នកអភិវឌ្ឍន៍',
+      'all_genders': 'គ្រប់ភេទ',
+      'all_classes': 'គ្រប់ថ្នាក់',
+      'all_status': 'គ្រប់ស្ថានភាព',
 
       // About dialog
       'about_description':
