@@ -82,6 +82,15 @@ namespace SchoolMS.Infrastructure.Services
             return true;
         }
 
+        public async Task<User> UpdatePhotoAsync(int id, string? photoUrl)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) throw new KeyNotFoundException($"User with id {id} not found");
+            user.PhotoUrl = photoUrl;
+            await _context.SaveChangesAsync();
+            return user;
+        }
+
         private string HashPassword(string password)
         {
             using (var sha256 = SHA256.Create())

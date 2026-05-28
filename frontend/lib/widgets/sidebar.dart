@@ -94,7 +94,7 @@ class _CollapsedSidebar extends StatelessWidget {
             ),
             child: ClipOval(
               child: Image.network(
-                'https://www.shutterstock.com/image-vector/default-avatar-photo-placeholder-grey-600nw-2007531536.jpg',
+                auth.photoUrl ?? AuthProvider.defaultPhotoUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Icon(
                   Icons.person,
@@ -301,7 +301,7 @@ class _ExpandedSidebar extends StatelessWidget {
                 ),
                 child: ClipOval(
                   child: Image.network(
-                    'https://www.shutterstock.com/image-vector/default-avatar-photo-placeholder-grey-600nw-2007531536.jpg',
+                    auth.photoUrl ?? AuthProvider.defaultPhotoUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Icon(
                       Icons.person,

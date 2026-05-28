@@ -1,6 +1,5 @@
 // lib/screens/reports.dart
 import 'dart:html' as html;
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:excel/excel.dart' hide Border;
 import 'package:flutter/material.dart';
@@ -224,7 +223,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: InkWell(
                   onTap: _load,
                   borderRadius: BorderRadius.circular(18),
-                  child: const Center(child: Icon(Icons.refresh_rounded, size: 24, color: AppColors.textSecondary)),
+                  child: const Center(
+                    child: Icon(Icons.refresh_rounded,
+                        size: 24, color: AppColors.textSecondary),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -242,6 +244,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       width: 1),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24)),
+                  overlayColor: AppColors.primaryLight.withValues(alpha: 0.08),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -311,7 +314,7 @@ class _TabItem {
   const _TabItem(this.icon, this.label);
 }
 
-class _IconTabBar extends StatelessWidget {
+class _IconTabBar extends StatefulWidget {
   final List<_TabItem> tabs;
   final int activeIndex;
   final ValueChanged<int> onTap;
@@ -325,64 +328,98 @@ class _IconTabBar extends StatelessWidget {
   });
 
   @override
+  State<_IconTabBar> createState() => _IconTabBarState();
+}
+
+class _IconTabBarState extends State<_IconTabBar> {
+  late List<bool> _hovered;
+
+  @override
+  void initState() {
+    super.initState();
+    _hovered = List.filled(widget.tabs.length, false);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final hoverBg = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : AppColors.primaryLight.withValues(alpha: 0.06);
+
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF16213E) : AppColors.cardBg,
         borderRadius: BorderRadius.circular(12),
-        border:
-            Border.all(color: isDark ? const Color(0xFF2A2A4A) : AppColors.border),
+        border: Border.all(
+            color: isDark ? const Color(0xFF2A2A4A) : AppColors.border),
       ),
       child: Row(
-        children: List.generate(tabs.length, (i) {
-          final active = i == activeIndex;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onTap(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                decoration: BoxDecoration(
-                  gradient: active
-                      ? const LinearGradient(
-                          colors: [AppColors.primaryLight, AppColors.primary],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : null,
+        children: [
+          for (int i = 0; i < widget.tabs.length; i++) ...[
+            if (i > 0) const SizedBox(width: 4),
+            Expanded(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => widget.onTap(i),
+                  onHover: (v) => setState(() => _hovered[i] = v),
                   borderRadius: BorderRadius.circular(9),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(tabs[i].icon,
-                        size: 16,
-                        color: active
-                            ? Colors.white
-                            : (isDark
-                                ? Colors.white54
-                                : AppColors.textSecondary)),
-                    const SizedBox(width: 6),
-                    Text(
-                      tabs[i].label,
-                      style: AppTextStyles.label.copyWith(
-                        color: active
-                            ? Colors.white
-                            : (isDark
-                                ? Colors.white54
-                                : AppColors.textSecondary),
-                        fontWeight:
-                            active ? FontWeight.w600 : FontWeight.w400,
-                      ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 8),
+                    decoration: BoxDecoration(
+                      gradient: i == widget.activeIndex
+                          ? const LinearGradient(
+                              colors: [
+                                AppColors.primaryLight,
+                                AppColors.primary
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: i != widget.activeIndex && _hovered[i]
+                          ? hoverBg
+                          : null,
+                      borderRadius: BorderRadius.circular(9),
                     ),
-                  ],
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          widget.tabs[i].icon,
+                          size: 16,
+                          color: i == widget.activeIndex
+                              ? Colors.white
+                              : (isDark
+                                  ? Colors.white54
+                                  : AppColors.textSecondary),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          widget.tabs[i].label,
+                          style: AppTextStyles.label.copyWith(
+                            color: i == widget.activeIndex
+                                ? Colors.white
+                                : (isDark
+                                    ? Colors.white54
+                                    : AppColors.textSecondary),
+                            fontWeight: i == widget.activeIndex
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          );
-        }),
+          ],
+        ],
       ),
     );
   }
@@ -453,149 +490,6 @@ class _StatCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-// Horizontal split bar (gender)
-class _SplitBar extends StatelessWidget {
-  final int left;
-  final int right;
-  final Color leftColor;
-  final Color rightColor;
-  final String leftLabel;
-  final String rightLabel;
-
-  const _SplitBar({
-    required this.left,
-    required this.right,
-    required this.leftColor,
-    required this.rightColor,
-    required this.leftLabel,
-    required this.rightLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final total = left + right;
-    final leftPct = total == 0 ? 0 : ((left / total) * 100).round();
-    final rightPct = 100 - leftPct;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
-    final mutedColor = isDark ? Colors.white60 : AppColors.textSecondary;
-
-    return Column(
-      children: [
-        Row(children: [
-          _Dot(leftColor),
-          const SizedBox(width: 6),
-          Text(leftLabel,
-              style: AppTextStyles.caption.copyWith(color: mutedColor)),
-          const SizedBox(width: 4),
-          Text('$left ($leftPct%)',
-              style: AppTextStyles.label.copyWith(
-                  fontWeight: FontWeight.w700, color: textColor)),
-          const Spacer(),
-          Text('$right ($rightPct%)',
-              style: AppTextStyles.label.copyWith(
-                  fontWeight: FontWeight.w700, color: textColor)),
-          const SizedBox(width: 4),
-          Text(rightLabel,
-              style: AppTextStyles.caption.copyWith(color: mutedColor)),
-          const SizedBox(width: 6),
-          _Dot(rightColor),
-        ]),
-        const SizedBox(height: 10),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: SizedBox(
-            height: 14,
-            child: Row(children: [
-              if (left > 0) Flexible(flex: left, child: Container(color: leftColor)),
-              if (right > 0)
-                Flexible(flex: right, child: Container(color: rightColor)),
-            ]),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  final Color color;
-  const _Dot(this.color);
-  @override
-  Widget build(BuildContext context) => Container(
-      width: 8,
-      height: 8,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle));
-}
-
-// Mini horizontal bar row used in insight panels
-class _MiniBarRow extends StatelessWidget {
-  final String label;
-  final int value;
-  final int maxValue;
-  final Color color;
-  final bool isDark;
-  final Color mutedColor;
-  final Color textColor;
-
-  const _MiniBarRow({
-    required this.label,
-    required this.value,
-    required this.maxValue,
-    required this.color,
-    required this.isDark,
-    required this.mutedColor,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ratio = maxValue == 0 ? 0.0 : (value / maxValue).clamp(0.0, 1.0);
-    final barBg =
-        isDark ? const Color(0xFF2A2A4A) : const Color(0xFFE5E7EB);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(children: [
-        SizedBox(
-          width: 70,
-          child: Text(label,
-              style: AppTextStyles.caption.copyWith(color: mutedColor),
-              overflow: TextOverflow.ellipsis),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Stack(children: [
-            Container(
-                height: 10,
-                decoration: BoxDecoration(
-                    color: barBg, borderRadius: BorderRadius.circular(5))),
-            FractionallySizedBox(
-              widthFactor: ratio,
-              child: Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                      colors: [color, color.withValues(alpha: 0.75)]),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-            ),
-          ]),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 22,
-          child: Text('$value',
-              style: AppTextStyles.caption.copyWith(
-                  fontWeight: FontWeight.w700, color: textColor),
-              textAlign: TextAlign.end),
-        ),
-      ]),
     );
   }
 }
@@ -864,8 +758,6 @@ class _StudentReportState extends State<_StudentReport> {
   Widget build(BuildContext context) {
     final t = widget.t;
     final isDark = widget.isDark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
-    final mutedColor = isDark ? Colors.white60 : AppColors.textSecondary;
 
     final male = widget.students
         .where((s) => (s['gender'] as String?)?.toLowerCase() == 'male')
@@ -883,19 +775,6 @@ class _StudentReportState extends State<_StudentReport> {
           .toList()
         ..sort(),
     ];
-
-    // Students per class for insight
-    final Map<String, int> byClass = {};
-    for (final s in widget.students) {
-      final cls = (s['className'] as String?) ?? 'Unassigned';
-      byClass[cls] = (byClass[cls] ?? 0) + 1;
-    }
-    final topClasses = (byClass.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(4)
-        .toList();
-    final maxClassCount =
-        topClasses.isEmpty ? 1 : topClasses.first.value;
 
     // Filtered rows
     final filtered = widget.students.where((s) {
@@ -1020,8 +899,6 @@ class _TeacherReportState extends State<_TeacherReport> {
   Widget build(BuildContext context) {
     final t = widget.t;
     final isDark = widget.isDark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
-    final mutedColor = isDark ? Colors.white60 : AppColors.textSecondary;
 
     final uniqueSubs = widget.teachers
         .expand((tc) => (tc['subjects'] as List?) ?? [])
@@ -1033,25 +910,6 @@ class _TeacherReportState extends State<_TeacherReport> {
     final avg = widget.teachers.isEmpty
         ? 0.0
         : totalSubCount / widget.teachers.length;
-
-    // Subject frequency for insight
-    final Map<String, int> subFreq = {};
-    for (final tc in widget.teachers) {
-      for (final s in (tc['subjects'] as List?) ?? []) {
-        final name = s['name'] as String? ?? 'Unknown';
-        subFreq[name] = (subFreq[name] ?? 0) + 1;
-      }
-    }
-    final topSubs = (subFreq.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(4)
-        .toList();
-    final maxSubFreq = topSubs.isEmpty ? 1 : topSubs.first.value;
-
-    // Teachers with/without subjects for split bar
-    final withSubs =
-        widget.teachers.where((tc) => ((tc['subjects'] as List?)?.isNotEmpty == true)).length;
-    final withoutSubs = widget.teachers.length - withSubs;
 
     final filtered = widget.teachers.where((tc) {
       final name =
@@ -1139,8 +997,6 @@ class _ClassReportState extends State<_ClassReport> {
   Widget build(BuildContext context) {
     final t = widget.t;
     final isDark = widget.isDark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
-    final mutedColor = isDark ? Colors.white60 : AppColors.textSecondary;
 
     // Students per class
     final Map<String, int> byClass = {};
@@ -1148,24 +1004,6 @@ class _ClassReportState extends State<_ClassReport> {
       final cls = (s['className'] as String?) ?? 'Unassigned';
       byClass[cls] = (byClass[cls] ?? 0) + 1;
     }
-    final topClasses = (byClass.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(4)
-        .toList();
-    final maxStudents = topClasses.isEmpty ? 1 : topClasses.first.value;
-
-    // Subjects per class for insight
-    final Map<String, int> subsByClass = {};
-    for (final c in widget.classes) {
-      final name = (c['name'] as String?) ?? '?';
-      subsByClass[name] = (c['subjects'] as List?)?.length ?? 0;
-    }
-    final topSubsClasses = (subsByClass.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(4)
-        .toList();
-    final maxSubsPerClass =
-        topSubsClasses.isEmpty ? 1 : math.max(1, topSubsClasses.first.value);
 
     final uniqueSubs = widget.classes
         .expand((c) => (c['subjects'] as List?) ?? [])

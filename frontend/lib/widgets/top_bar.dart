@@ -37,18 +37,7 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
       child: Row(
         children: [
           if (showMenuIcon) ...[
-            SizedBox(
-              width: 38,
-              height: 38,
-              child: InkWell(
-                onTap: onMenuTap,
-                borderRadius: BorderRadius.circular(18),
-                child: const Center(
-                  child: Icon(Icons.menu,
-                      size: 24, color: AppColors.textSecondary),
-                ),
-              ),
-            ),
+            _MenuButton(onTap: onMenuTap, isDark: isDark),
             const SizedBox(width: 12),
           ],
           Text(title, style: AppTextStyles.heading3.copyWith(color: textColor)),
@@ -71,6 +60,48 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
           const SizedBox(width: 12),
           _LanguageSelector(),
         ],
+      ),
+    );
+  }
+}
+
+class _MenuButton extends StatefulWidget {
+  final VoidCallback? onTap;
+  final bool isDark;
+  const _MenuButton({required this.onTap, required this.isDark});
+
+  @override
+  State<_MenuButton> createState() => _MenuButtonState();
+}
+
+class _MenuButtonState extends State<_MenuButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hoverBg = widget.isDark
+        ? Colors.white.withValues(alpha: 0)
+        : AppColors.primarySurface;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.onTap,
+        onHover: (v) => setState(() => _hovered = v),
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 0),
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: _hovered ? hoverBg : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Center(
+            child: Icon(Icons.menu_open_outlined,
+                size: 24, color: AppColors.textSecondary),
+          ),
+        ),
       ),
     );
   }

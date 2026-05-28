@@ -192,7 +192,7 @@ class AppTranslations {
       'delete': 'លុប',
       'edit': 'កែប្រែ',
       'add': 'បន្ថែម',
-      'export': 'នាំចេញ',
+      'export': 'ទាញយក',
       'search': 'ស្វែងរក',
       'filter': 'តម្រង',
       'actions': 'សកម្មភាព',
@@ -334,7 +334,7 @@ class AppTranslations {
 
       // Reports
       'school_reports': 'របាយការណ៍សាលា',
-      'reports_subtitle': 'របាយការណ៍ and សង្ខេបទិន្ន័យសាលា',
+      'reports_subtitle': 'របាយការណ៍ និងសង្ខេបទិន្ន័យសាលា',
       'student_report': 'របាយការណ៍សិស្ស',
       'teacher_report': 'របាយការណ៍គ្រូ',
       'class_report': 'សង្ខេបថ្នាក់',

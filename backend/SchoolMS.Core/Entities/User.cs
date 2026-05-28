@@ -7,6 +7,7 @@ namespace SchoolMS.Core.Entities
         public string Email { get; set; } = String.Empty;
         public string PasswordHash { get; set; } = String.Empty;
         public int RoleId { get; set; }
+        public string? PhotoUrl { get; set; }
         public DateTime CreateDate { get; set; }
         public bool Status { get; set; }
 

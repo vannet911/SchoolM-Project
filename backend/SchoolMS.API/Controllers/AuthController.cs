@@ -10,14 +10,8 @@ namespace SchoolMS.API.Controllers
     [ApiController]
     [Route("api/auth")]
     [Produces("application/json")]
-    public class AuthController : ControllerBase
+    public class AuthController(IUserService userService) : ControllerBase
     {
-        private readonly IUserService _userService;
-
-        public AuthController(IUserService userService)
-        {
-            _userService = userService;
-        }
 
         /// <summary>Authenticate a user and return a bearer token.</summary>
         /// <param name="request">Email and password credentials.</param>
@@ -33,7 +27,7 @@ namespace SchoolMS.API.Controllers
         {
             try
             {
-                var user = await _userService.GetByEmailAsync(request.Email);
+                var user = await userService.GetByEmailAsync(request.Email);
                 if (user == null)
                     return Unauthorized(new { message = "Email not found" });
 
@@ -52,7 +46,8 @@ namespace SchoolMS.API.Controllers
                         username = user.Username,
                         email = user.Email,
                         roleId = user.RoleId,
-                        roleName = user.Role?.Name
+                        roleName = user.Role?.Name,
+                        photoUrl = user.PhotoUrl
                     }
                 });
             }
@@ -76,7 +71,7 @@ namespace SchoolMS.API.Controllers
         {
             try
             {
-                var existingUser = await _userService.GetByEmailAsync(request.Email);
+                var existingUser = await userService.GetByEmailAsync(request.Email);
                 if (existingUser != null)
                     return BadRequest(new { message = "Email already registered" });
 
@@ -90,7 +85,7 @@ namespace SchoolMS.API.Controllers
                     Status = true
                 };
 
-                var createdUser = await _userService.CreateAsync(user);
+                var createdUser = await userService.CreateAsync(user);
                 return Ok(new
                 {
                     id = createdUser.Id,
@@ -119,7 +114,7 @@ namespace SchoolMS.API.Controllers
         {
             try
             {
-                await _userService.ChangePasswordAsync(request.UserId, request.CurrentPassword, request.NewPassword);
+                await userService.ChangePasswordAsync(request.UserId, request.CurrentPassword, request.NewPassword);
                 return Ok(new { message = "Password changed successfully" });
             }
             catch (UnauthorizedAccessException)

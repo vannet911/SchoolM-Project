@@ -16,6 +16,10 @@ class AuthProvider extends ChangeNotifier {
 
   String get displayName => _currentUser?['username'] ?? _currentUser?['firstName'] ?? 'Vannet SONY';
   String get displayEmail => _currentUser?['email'] ?? 'vannet.sony@gmail.com';
+  String? get photoUrl => _currentUser?['photoUrl'] as String?;
+
+  static const String defaultPhotoUrl =
+      'https://www.shutterstock.com/image-vector/default-avatar-photo-placeholder-grey-600nw-2007531536.jpg';
 
   final ApiService _api = ApiService();
 

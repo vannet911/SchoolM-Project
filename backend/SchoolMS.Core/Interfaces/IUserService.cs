@@ -11,5 +11,6 @@ namespace SchoolMS.Core.Interfaces
         Task<User> UpdateAsync(int id, User user);
         Task<bool> DeleteAsync(int id);
         Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
+        Task<User> UpdatePhotoAsync(int id, string? photoUrl);
     }
 }

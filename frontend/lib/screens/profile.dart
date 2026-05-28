@@ -1,4 +1,5 @@
 // lib/screens/profile.dart
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/auth_provider.dart';
@@ -20,6 +21,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   bool _savingProfile = false;
+  bool _uploadingPhoto = false;
 
   final _currentPwdCtrl = TextEditingController();
   final _newPwdCtrl = TextEditingController();
@@ -64,6 +66,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Future.delayed(const Duration(seconds: 3), () {
       if (entry.mounted) entry.remove();
     });
+  }
+
+  void _pickAndUploadPhoto() {
+    final input = html.FileUploadInputElement()..accept = 'image/*';
+    input.onChange.listen((_) async {
+      final files = input.files;
+      if (files == null || files.isEmpty) return;
+      final file = files.first;
+      if (!mounted) return;
+      setState(() => _uploadingPhoto = true);
+      try {
+        final auth = context.read<AuthProvider>();
+        final id = auth.currentUser?['id'];
+        if (id == null) {
+          _showSnack('User ID not found', isError: true);
+          return;
+        }
+        final data = await _api.uploadUserPhoto(id, file);
+        auth.updateCurrentUser({'photoUrl': data['photoUrl'] as String?});
+        _showSnack('Photo updated successfully');
+      } catch (e) {
+        _showSnack(
+          e.toString().contains('Network error') || e.toString().contains('Connection')
+              ? 'Cannot connect to server'
+              : e.toString(),
+          isError: true,
+        );
+      } finally {
+        if (mounted) setState(() => _uploadingPhoto = false);
+      }
+    });
+    input.click();
   }
 
   Future<void> _saveProfile(Map<String, String> t) async {
@@ -248,24 +282,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     border: Border.all(color: borderColor),
                   ),
                   child: Row(children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primarySurface,
-                        border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            width: 2),
-                      ),
-                      child: ClipOval(
-                        child: Image.network(
-                          'https://www.shutterstock.com/image-vector/default-avatar-photo-placeholder-grey-600nw-2007531536.jpg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                              Icons.person,
-                              size: 36,
-                              color: AppColors.primary),
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: _uploadingPhoto ? null : _pickAndUploadPhoto,
+                        child: Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.primarySurface,
+                            border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                width: 2),
+                          ),
+                          child: ClipOval(
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (_uploadingPhoto)
+                                  Container(
+                                    color: AppColors.primarySurface,
+                                    child: const Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.primary),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Image.network(
+                                    auth.photoUrl ?? AuthProvider.defaultPhotoUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.person,
+                                        size: 36,
+                                        color: AppColors.primary),
+                                  ),
+                                if (!_uploadingPhoto)
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                      height: 22,
+                                      color: Colors.black.withValues(alpha: 0.45),
+                                      child: const Icon(Icons.camera_alt,
+                                          size: 13, color: Colors.white),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),

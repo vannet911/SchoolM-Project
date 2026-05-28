@@ -1,5 +1,7 @@
 // lib/services/api_service.dart
+import 'dart:async';
 import 'dart:convert';
+import 'dart:html' as html;
 import 'package:http/http.dart' as http;
 import 'package:schoolms_portal/utils/app_constants.dart';
 
@@ -141,6 +143,48 @@ class ApiService {
   Future<dynamic> updateRole(int id, Map<String, dynamic> data) =>
       put('/roles/$id', {...data, 'id': id});
   Future<void> deleteRole(int id) async => await delete('/roles/$id');
+
+  // ── Photo upload ─────────────────────────────────────────────────
+  Future<Map<String, dynamic>> uploadUserPhoto(int userId, html.File file) async {
+    final completer = Completer<Map<String, dynamic>>();
+    final formData = html.FormData();
+    formData.appendBlob('file', file, file.name);
+
+    final request = html.HttpRequest();
+    request.open('POST', '$_base/users/$userId/photo');
+    if (_headers.containsKey('Authorization')) {
+      request.setRequestHeader('Authorization', _headers['Authorization']!);
+    }
+
+    request.onLoad.listen((_) {
+      final status = request.status ?? 0;
+      final body = request.responseText ?? '';
+      if (status >= 200 && status < 300) {
+        try {
+          completer.complete(jsonDecode(body) as Map<String, dynamic>);
+        } catch (_) {
+          completer.completeError(ApiException('Invalid server response'));
+        }
+      } else {
+        String message;
+        try {
+          final decoded = jsonDecode(body) as Map<String, dynamic>;
+          message = decoded['message'] as String?
+              ?? decoded['title'] as String?
+              ?? 'Upload failed (HTTP $status)';
+        } catch (_) {
+          message = 'Upload failed (HTTP $status)';
+        }
+        completer.completeError(ApiException(message, statusCode: status));
+      }
+    });
+
+    request.onError.listen((_) =>
+        completer.completeError(ApiException('Network error: upload failed')));
+
+    request.send(formData);
+    return completer.future;
+  }
 
   // ── Dashboard Stats ───────────────────────────────────────────────
   Future<Map<String, int>> getDashboardStats() async {

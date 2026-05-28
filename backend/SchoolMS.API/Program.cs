@@ -1,9 +1,9 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using SchoolMS.Core.Interfaces;
 using SchoolMS.Infrastructure.Services;
-using SchoolMS.Core.Entities;
 using SchoolMS.Infrastructure.Data;
 using System.Reflection;
 
@@ -104,6 +104,15 @@ app.UseSwaggerUI(c =>
 });
 
 // Configure the HTTP request pipeline
+// Create wwwroot at startup so WebRootPath is never null, then serve with CORS headers
+var wwwrootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(wwwrootPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(wwwrootPath),
+    OnPrepareResponse = ctx =>
+        ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*")
+});
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("AllowAll");
