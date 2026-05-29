@@ -119,6 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Spacer(),
                 _TopIconBtn(
                   icon: Icons.info_outline,
+                  tooltip: 'About',
                   onTap: () => showAppAboutDialog(context),
                 ),
                 const SizedBox(width: 8),
@@ -128,6 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: themeProvider.isDarkMode
                           ? Icons.light_mode_outlined
                           : Icons.dark_mode_outlined,
+                      tooltip: themeProvider.isDarkMode ? 'Light Mode' : 'Dark Mode',
                       onTap: () => themeProvider.toggleTheme(),
                     );
                   },
@@ -364,7 +366,9 @@ class _LoginScreenState extends State<LoginScreen> {
 class _TopIconBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
-  const _TopIconBtn({required this.icon, this.onTap});
+  final String? tooltip;
+
+  const _TopIconBtn({required this.icon, this.onTap, this.tooltip});
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +377,7 @@ class _TopIconBtn extends StatelessWidget {
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
     final iconColor = isDark ? Colors.white70 : AppColors.textSecondary;
 
-    return InkWell(
+    final button = InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
@@ -387,6 +391,9 @@ class _TopIconBtn extends StatelessWidget {
         child: Icon(icon, size: 18, color: iconColor),
       ),
     );
+
+    if (tooltip == null) return button;
+    return Tooltip(message: tooltip!, preferBelow: true, child: button);
   }
 }
 
