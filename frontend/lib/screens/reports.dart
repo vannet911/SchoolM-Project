@@ -591,11 +591,14 @@ class _DropField extends StatelessWidget {
       Offset.zero & overlay.size,
     );
 
+    final buttonWidth = renderBox.size.width;
+
     showMenu<String>(
       context: context,
       position: rect,
       elevation: 4,
       color: bgColor,
+      constraints: BoxConstraints(minWidth: buttonWidth, maxWidth: buttonWidth),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: borderColor),

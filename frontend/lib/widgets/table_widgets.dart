@@ -274,7 +274,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
       _dobCtrl.text = dob.length >= 10 ? dob.substring(0, 10).replaceAll('-', '/') : dob;
       _addressCtrl.text = s['address'] ?? '';
       final g = s['gender']?.toString() ?? '';
-      _gender = ['Male', 'Female', 'Other'].contains(g) ? g : 'Male';
+      _gender = ['Male', 'Female'].contains(g) ? g : 'Male';
       final st = s['status'];
       _status = st is bool ? st : true;
       _selectedClassId = s['classId'] as int?;
@@ -390,8 +390,6 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
     final t = AppTranslations.translations[locale] ?? AppTranslations.translations['en']!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
-    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    final bgColor = isDark ? const Color(0xFF1A1A2E) : AppColors.white;
     final isEdit = widget.student != null;
 
     return Column(
@@ -450,18 +448,14 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _labeled('${t['gender'] ?? 'Gender'}:',
-                                  SizedBox(height: 44, child: DropdownButtonFormField<String>(
-                                    initialValue: _gender,
-                                    style: AppTextStyles.body.copyWith(color: textColor),
-                                    dropdownColor: bgColor,
-                                    decoration: _inputDecoration(isDark: isDark),
-                                    items: [
-                                      DropdownMenuItem(value: 'Male', child: Text(t['male'] ?? 'Male', style: AppTextStyles.body.copyWith(color: textColor))),
-                                      DropdownMenuItem(value: 'Female', child: Text(t['female'] ?? 'Female', style: AppTextStyles.body.copyWith(color: textColor))),
-                                      DropdownMenuItem(value: 'Other', child: Text(t['other'] ?? 'Other', style: AppTextStyles.body.copyWith(color: textColor))),
-                                    ],
-                                    onChanged: (v) => setState(() => _gender = v ?? 'Male'),
-                                  ))),
+                                  _StyledDropdown<String>(
+                                    value: _gender,
+                                    items: const ['Male', 'Female'],
+                                    labels: [t['male'] ?? 'Male', t['female'] ?? 'Female'],
+                                    hint: t['gender'] ?? 'Gender',
+                                    isDark: isDark,
+                                    onChanged: (v) => setState(() => _gender = v),
+                                  )),
                               ),
                             ]),
                             const SizedBox(height: 16),
@@ -503,30 +497,13 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                                 height: 44,
                                 child: _loadingClasses
                                   ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
-                                  : DropdownButtonHideUnderline(
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          border: Border.all(color: borderColor),
-                                          borderRadius: BorderRadius.circular(8),
-                                          color: bgColor,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                                        child: DropdownButton<int?>(
-                                          value: _selectedClassId,
-                                          isExpanded: true,
-                                          style: AppTextStyles.body.copyWith(color: textColor),
-                                          dropdownColor: bgColor,
-                                          hint: Text(t['classes'] ?? 'Select class', style: AppTextStyles.body.copyWith(color: isDark ? Colors.white70 : AppColors.textMuted)),
-                                          items: [
-                                            DropdownMenuItem<int?>(value: null, child: Text('— ${t['no_data'] ?? 'None'} —', style: AppTextStyles.body.copyWith(color: isDark ? Colors.white70 : AppColors.textMuted))),
-                                            ..._availableClasses.map((c) => DropdownMenuItem<int?>(
-                                              value: c['id'] as int?,
-                                              child: Text(c['name']?.toString() ?? '', style: AppTextStyles.body.copyWith(color: textColor)),
-                                            )),
-                                          ],
-                                          onChanged: (v) => setState(() => _selectedClassId = v),
-                                        ),
-                                      ),
+                                  : _StyledDropdown<int?>(
+                                      value: _selectedClassId,
+                                      items: [null, ..._availableClasses.map((c) => c['id'] as int?)],
+                                      labels: [t['select_class'] ?? 'Select Class', ..._availableClasses.map((c) => c['name']?.toString() ?? '')],
+                                      hint: t['select_class'] ?? 'Select Class',
+                                      isDark: isDark,
+                                      onChanged: (v) => setState(() => _selectedClassId = v),
                                     ),
                               )),
                             const SizedBox(height: 16),
@@ -583,6 +560,7 @@ class TableHeader extends StatelessWidget {
             Text(label, textAlign: textAlign, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600, color: textColor)),
             if (onSort != null) ...[
               const SizedBox(width: 4),
+              //const Spacer(),
               Icon(
                 isSorted ? (sortAscending ? Icons.arrow_upward : Icons.arrow_downward) : Icons.unfold_more,
                 size: 14,
@@ -848,7 +826,7 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
       _dobCtrl.text = dob.length >= 10 ? dob.substring(0, 10).replaceAll('-', '/') : dob;
       _addressCtrl.text = s['address'] ?? '';
       final g = s['gender']?.toString() ?? '';
-      _gender = ['Male', 'Female', 'Other'].contains(g) ? g : 'Male';
+      _gender = ['Male', 'Female'].contains(g) ? g : 'Male';
       final st = s['status'];
       _status = st is bool ? st : true;
       // Parse existing subject IDs
@@ -1070,18 +1048,14 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _labeled('${t['gender'] ?? 'Gender'}:',
-                                  SizedBox(height: 44, child: DropdownButtonFormField<String>(
-                                    initialValue: _gender,
-                                    style: AppTextStyles.body.copyWith(color: textColor),
-                                    dropdownColor: bgColor,
-                                    decoration: _inputDecoration(isDark: isDark),
-                                    items: [
-                                      DropdownMenuItem(value: 'Male', child: Text(t['male'] ?? 'Male', style: AppTextStyles.body.copyWith(color: textColor))),
-                                      DropdownMenuItem(value: 'Female', child: Text(t['female'] ?? 'Female', style: AppTextStyles.body.copyWith(color: textColor))),
-                                      DropdownMenuItem(value: 'Other', child: Text(t['other'] ?? 'Other', style: AppTextStyles.body.copyWith(color: textColor))),
-                                    ],
-                                    onChanged: (v) => setState(() => _gender = v ?? 'Male'),
-                                  ))),
+                                  _StyledDropdown<String>(
+                                    value: _gender,
+                                    items: const ['Male', 'Female'],
+                                    labels: [t['male'] ?? 'Male', t['female'] ?? 'Female'],
+                                    hint: t['gender'] ?? 'Gender',
+                                    isDark: isDark,
+                                    onChanged: (v) => setState(() => _gender = v),
+                                  )),
                               ),
                             ]),
                             const SizedBox(height: 16),
@@ -1206,6 +1180,125 @@ class FormFieldInput extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Styled dropdown — matches language selector style ─────────────────────────
+class _Option<T> {
+  final T value;
+  const _Option(this.value);
+}
+
+class _StyledDropdown<T> extends StatelessWidget {
+  final T value;
+  final List<T> items;
+  final List<String> labels;
+  final String hint;
+  final bool isDark;
+  final ValueChanged<T> onChanged;
+
+  const _StyledDropdown({
+    required this.value,
+    required this.items,
+    required this.labels,
+    required this.hint,
+    required this.isDark,
+    required this.onChanged,
+  });
+
+  void _open(BuildContext context) {
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final activeColor = isDark ? const Color(0xFF6DBF67) : AppColors.primary;
+
+    final renderBox = context.findRenderObject() as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final rect = RelativeRect.fromRect(
+      Rect.fromPoints(
+        renderBox.localToGlobal(
+            Offset(0, renderBox.size.height), ancestor: overlay),
+        renderBox.localToGlobal(
+            renderBox.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    final buttonWidth = renderBox.size.width;
+
+    showMenu<_Option<T>>(
+      context: context,
+      position: rect,
+      elevation: 4,
+      color: bgColor,
+      constraints: BoxConstraints(minWidth: buttonWidth, maxWidth: buttonWidth),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: borderColor),
+      ),
+      items: items.asMap().entries.map((e) {
+        final isSelected = e.value == value;
+        return PopupMenuItem<_Option<T>>(
+          value: _Option<T>(e.value),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          child: Row(children: [
+            Expanded(
+              child: Text(
+                labels[e.key],
+                style: AppTextStyles.body.copyWith(
+                  color: isSelected ? activeColor : textColor,
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_rounded, size: 15, color: activeColor),
+          ]),
+        );
+      }).toList(),
+    ).then((opt) {
+      if (opt != null) onChanged(opt.value);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
+    final iconColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
+    final idx = items.indexOf(value);
+    final display = idx >= 0 ? labels[idx] : null;
+
+    return InkWell(
+      onTap: () => _open(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(children: [
+          Expanded(
+            child: Text(
+              display ?? hint,
+              style: AppTextStyles.body.copyWith(
+                color: display != null ? textColor : mutedColor,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: iconColor),
+        ]),
+      ),
     );
   }
 }

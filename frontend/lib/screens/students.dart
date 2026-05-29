@@ -121,7 +121,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     _filter(resetPage: false);
   }
 
-  void _showSnack(String msg, {bool isError = false}) {
+  void _showSnack(String msg, {bool isError = false, bool isWarning = false}) {
     if (!mounted) return;
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
@@ -129,6 +129,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
       builder: (_) => _ToastNotification(
         message: msg,
         isError: isError,
+        isWarning: isWarning,
         onDismiss: () {
           if (entry.mounted) entry.remove();
         },
@@ -273,7 +274,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 if (_selectedStudent != null) {
                   _openForm(student: _selectedStudent);
                 } else {
-                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isError: true);
+                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
                 }
               },
             ),
@@ -284,7 +285,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 if (_selectedStudent != null) {
                   _delete(_selectedStudent!);
                 } else {
-                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isError: true);
+                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
                 }
               },
             ),
@@ -596,23 +597,26 @@ class _TableCard extends StatelessWidget {
       child: loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary))
-          : empty
-              ? Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(emptyIcon, size: 48, color: mutedColor),
-                    const SizedBox(height: 12),
-                    Text(emptyLabel,
-                        style: AppTextStyles.body.copyWith(color: mutedColor)),
-                  ]),
-                )
-              : Column(children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    child: header,
+          : Column(children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                child: header,
+              ),
+              if (empty)
+                Expanded(
+                  child: Center(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(emptyIcon, size: 48, color: mutedColor),
+                      const SizedBox(height: 12),
+                      Text(emptyLabel,
+                          style: AppTextStyles.body.copyWith(color: mutedColor)),
+                    ]),
                   ),
-                  Expanded(child: body),
-                ]),
+                )
+              else
+                Expanded(child: body),
+            ]),
     );
   }
 }
@@ -712,11 +716,13 @@ class _StatusBadge extends StatelessWidget {
 class _ToastNotification extends StatefulWidget {
   final String message;
   final bool isError;
+  final bool isWarning;
   final VoidCallback onDismiss;
   const _ToastNotification({
     required this.message,
     required this.isError,
     required this.onDismiss,
+    this.isWarning = false,
   });
 
   @override
@@ -747,9 +753,21 @@ class _ToastNotificationState extends State<_ToastNotification>
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = widget.isError ? AppColors.error : AppColors.primary;
-    final icon = widget.isError ? Icons.close : Icons.check;
-    final title = widget.isError ? (t['error'] ?? 'Error') : (t['success'] ?? 'Success');
+    final color = widget.isError
+        ? AppColors.error
+        : widget.isWarning
+            ? const Color(0xFFF59E0B)
+            : AppColors.primary;
+    final icon = widget.isError
+        ? Icons.close
+        : widget.isWarning
+            ? Icons.warning_amber_rounded
+            : Icons.check;
+    final title = widget.isError
+        ? (t['error'] ?? 'Error')
+        : widget.isWarning
+            ? (t['warning'] ?? 'Warning')
+            : (t['success'] ?? 'Success');
     final bgColor = isDark ? const Color(0xFF1C2A4A) : AppColors.white;
     final titleColor = isDark ? Colors.white : AppColors.textPrimary;
     final msgColor = isDark ? Colors.white60 : AppColors.textSecondary;

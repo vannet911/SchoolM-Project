@@ -46,6 +46,7 @@ class AppTranslations {
       'failed_load': 'Failed to load',
       'success': 'Success',
       'error': 'Error',
+      'warning': 'Warning',
 
       // Messages
       'student_created': 'Student created!',
@@ -96,7 +97,7 @@ class AppTranslations {
       'total_subjects': 'Total Subjects',
       'subject_information': 'Subject Information',
       'notifications_about_subject': 'Notifications about subject Info',
-      'data_this_month': 'Data this month',
+      'all_data': 'All Data',
       'chart_coming_soon': 'Chart / Data coming soon',
       'learn_today': 'Learn Today!',
 
@@ -133,6 +134,7 @@ class AppTranslations {
       'description': 'Description',
       'class_teacher': 'Class Teacher',
       'teacher_name': 'Teacher Name',
+      'select_class': 'Select Class',
 
       // Subjects
       'subject_list': 'Subject List',
@@ -221,6 +223,7 @@ class AppTranslations {
       'failed_load': 'បរាជ័យក្នុងការផ្ទុក',
       'success': 'ជោគជ័យ',
       'error': 'កំហុស',
+      'warning': 'ប្រុងប្រយ័ត្ន',
 
       // Messages
       'student_created': 'បន្ថែមសិស្សបានជោគជ័យ!',
@@ -270,7 +273,7 @@ class AppTranslations {
       'total_subjects': 'ចំនួនមុខវិជ្ជា',
       'subject_information': 'ព័ត៌មានមុខវិជ្ជា',
       'notifications_about_subject': 'ការជូនដំណឹងអំពីមុខវិជ្ជា',
-      'data_this_month': 'ទិន្ន័យខែនេះ',
+      'all_data': 'ទិន្ន័យទាំងអស់',
       'chart_coming_soon': 'តារាង / ទិន្ន័យនឹងមកដល់',
       'learn_today': 'រៀនថ្ងៃនេះ!',
 
@@ -307,6 +310,7 @@ class AppTranslations {
       'description': 'ការពិពណ៌នា',
       'class_teacher': 'គ្រូប្រចាំថ្នាក់',
       'teacher_name': 'ឈ្មោះគ្រូ',
+      'select_class': 'ជ្រើសរើសថ្នាក់',
 
       // Subjects
       'subject_list': 'បញ្ជីមុខវិជ្ជា',

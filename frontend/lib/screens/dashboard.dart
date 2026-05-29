@@ -183,7 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               .toString()
                               .padLeft(2, '0'),
                           subtitle:
-                              t['data_this_month'] ?? 'Data this month',
+                              t['all_data'] ?? 'All Data',
                           iconWidget: const _StudentIcon(),
                         ),
                       ),
@@ -196,7 +196,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               .toString()
                               .padLeft(2, '0'),
                           subtitle:
-                              t['data_this_month'] ?? 'Data this month',
+                              t['all_data'] ?? 'All Data',
                           iconWidget: const _TeacherIcon(),
                         ),
                       ),
@@ -208,7 +208,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               .toString()
                               .padLeft(2, '0'),
                           subtitle:
-                              t['data_this_month'] ?? 'Data this month',
+                              t['all_data'] ?? 'All Data',
                           iconWidget: const _ClassIcon(),
                         ),
                       ),
