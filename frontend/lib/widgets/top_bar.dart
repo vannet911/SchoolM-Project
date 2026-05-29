@@ -44,6 +44,7 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
           const Spacer(),
           _TopBarIconButton(
             icon: Icons.info_outline,
+            tooltip: 'About',
             onTap: () => showAppAboutDialog(context),
           ),
           const SizedBox(width: 8),
@@ -53,6 +54,7 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
                 icon: themeProvider.isDarkMode
                     ? Icons.light_mode_outlined
                     : Icons.dark_mode_outlined,
+                tooltip: themeProvider.isDarkMode ? 'Light Mode' : 'Dark Mode',
                 onTap: () => themeProvider.toggleTheme(),
               );
             },
@@ -110,8 +112,13 @@ class _MenuButtonState extends State<_MenuButton> {
 class _TopBarIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
+  final String? tooltip;
 
-  const _TopBarIconButton({required this.icon, required this.onTap});
+  const _TopBarIconButton({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +127,7 @@ class _TopBarIconButton extends StatelessWidget {
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
     final iconColor = isDark ? Colors.white70 : AppColors.textSecondary;
 
-    return InkWell(
+    final button = InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
@@ -133,6 +140,13 @@ class _TopBarIconButton extends StatelessWidget {
         ),
         child: Icon(icon, size: 18, color: iconColor),
       ),
+    );
+
+    if (tooltip == null) return button;
+    return Tooltip(
+      message: tooltip!,
+      preferBelow: true,
+      child: button,
     );
   }
 }

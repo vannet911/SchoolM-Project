@@ -20,6 +20,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _femaleCount = 0;
   Map<String, int> _studentsByClass = {};
   int _subjectCount = 0;
+  List<Map<String, dynamic>> _subjects = [];
   bool _loading = true;
 
   @override
@@ -66,6 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _femaleCount = female;
         _studentsByClass = byClass;
         _subjectCount = subjects.length;
+        _subjects = subjects.cast<Map<String, dynamic>>();
         _loading = false;
       });
     } catch (_) {
@@ -80,6 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'Unassigned': 5,
         };
         _subjectCount = 8;
+        _subjects = [];
         _loading = false;
       });
     }
@@ -255,7 +258,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
 
         // ── Right panel ───────────────────────────────────────────
-        const _CourseInfoPanel(),
+        _CourseInfoPanel(subjects: _subjects, loading: _loading),
       ],
     );
   }
@@ -863,15 +866,32 @@ class _AreaChartPainter extends CustomPainter {
 
 // ── Right panel ───────────────────────────────────────────────────────────────
 class _CourseInfoPanel extends StatelessWidget {
-  static const List<_CourseItem> _courses = [
-    _CourseItem(label: 'C# Programming', color: Color(0xFF6C3FAB), icon: Icons.code),
-    _CourseItem(label: 'Mathematics', color: Color(0xFF1A237E), icon: Icons.calculate_outlined),
-    _CourseItem(label: 'Graphic Design', color: Color(0xFFAD1457), icon: Icons.brush_outlined),
-    _CourseItem(label: 'Web Design', color: Color(0xFF1B5E20), icon: Icons.web_outlined),
-    _CourseItem(label: 'Flutter Framework', color: Color(0xFF00897B), icon: Icons.code),
+  final List<Map<String, dynamic>> subjects;
+  final bool loading;
+
+  static const List<Color> _palette = [
+    Color(0xFF6C3FAB),
+    Color(0xFF1A237E),
+    Color(0xFFAD1457),
+    Color(0xFF1B5E20),
+    Color(0xFF00897B),
+    Color(0xFFE65100),
+    Color(0xFF37474F),
+    Color(0xFFC62828),
   ];
 
-  const _CourseInfoPanel();
+  static const List<IconData> _icons = [
+    Icons.menu_book_outlined,
+    Icons.calculate_outlined,
+    Icons.science_outlined,
+    Icons.language_outlined,
+    Icons.brush_outlined,
+    Icons.code,
+    Icons.history_edu_outlined,
+    Icons.music_note_outlined,
+  ];
+
+  const _CourseInfoPanel({required this.subjects, required this.loading});
 
   @override
   Widget build(BuildContext context) {
@@ -911,12 +931,30 @@ class _CourseInfoPanel extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: _courses.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _courses[i],
-            ),
+            child: loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary))
+                : subjects.isEmpty
+                    ? Center(
+                        child: Text(t['no_data'] ?? 'No data',
+                            style: AppTextStyles.body
+                                .copyWith(color: mutedColor)))
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: subjects.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (_, i) {
+                          final s = subjects[i];
+                          final name =
+                              (s['name'] as String?) ?? 'Subject ${i + 1}';
+                          final color =
+                              _palette[i % _palette.length];
+                          final icon = _icons[i % _icons.length];
+                          return _CourseItem(
+                              label: name, color: color, icon: icon);
+                        },
+                      ),
           ),
         ],
       ),
