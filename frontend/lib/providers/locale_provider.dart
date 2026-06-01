@@ -67,6 +67,8 @@ class AppTranslations {
       'password_required': 'Password is required',
       'email_not_found': 'Email is incorrect',
       'wrong_password': 'Password is incorrect',
+      'login_failed': 'Login failed. Please try again.',
+      'account_disabled': 'This account has been disabled. Please contact admin.',
 
       // Navigation
       'dashboard': 'Dashboard',
@@ -244,6 +246,8 @@ class AppTranslations {
       'password_required': 'ត្រូវបំពេញពាក្យសម្ងាត់',
       'email_not_found': 'រកមិនឃើញអ៊ីមែល',
       'wrong_password': 'ពាក្យសម្ងាត់មិនត្រឹមត្រូវ',
+      'login_failed': 'ការចូលបានបរាជ័យ។ សូមព្យាយាមម្ដងទៀត។',
+      'account_disabled': 'គណនីនេះត្រូវបានបិទ។ សូមទាក់ទងអ្នកគ្រប់គ្រង។',
 
       // Navigation
       'dashboard': 'ផ្ទាំងគ្រប់គ្រង',

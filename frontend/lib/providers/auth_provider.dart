@@ -36,19 +36,27 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = result['user'] ?? {'email': email, 'username': email.split('@').first};
       _status = AuthStatus.authenticated;
     } catch (e) {
-      // For demo: allow any login if API is offline
-      if (e.toString().contains('Network error') || e.toString().contains('Connection refused')) {
-        _currentUser = {
-          'email': email,
-          'username': email.split('@').first,
-          'firstName': 'Vannet',
-          'lastName': 'SONY',
-        };
-        _status = AuthStatus.authenticated;
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('network error') ||
+          msg.contains('connection refused') ||
+          msg.contains('timeout') ||
+          msg.contains('failed to connect') ||
+          msg.contains('socket')) {
+        _errorMessage = 'cannot_connect_server';
+      } else if (msg.contains('email not found') ||
+          (msg.contains('email') &&
+              (msg.contains('not found') || msg.contains('incorrect')))) {
+        _errorMessage = 'email_not_found';
+      } else if (msg.contains('invalid password') ||
+          (msg.contains('password') &&
+              (msg.contains('invalid') || msg.contains('incorrect')))) {
+        _errorMessage = 'wrong_password';
+      } else if (msg.contains('disabled') || msg.contains('inactive')) {
+        _errorMessage = 'account_disabled';
       } else {
-        _errorMessage = e.toString();
-        _status = AuthStatus.error;
+        _errorMessage = 'login_failed';
       }
+      _status = AuthStatus.error;
     }
     notifyListeners();
   }

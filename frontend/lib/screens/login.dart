@@ -62,14 +62,17 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  final FocusNode _passwordFocus = FocusNode();
+
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
-  void _validateAndLogin() {
+  Future<void> _validateAndLogin() async {
     final locale = context.read<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
     final email = _emailCtrl.text.trim();
@@ -83,11 +86,17 @@ class _LoginScreenState extends State<LoginScreen> {
           : null;
     });
 
-    if (email.isEmpty || password.isEmpty) {
-      return;
-    }
+    if (email.isEmpty || password.isEmpty) return;
 
-    context.read<AuthProvider>().login(email, password);
+    final auth = context.read<AuthProvider>();
+    await auth.login(email, password);
+
+    if (!mounted) return;
+    // Wrong password: clear password field and focus it so user can retype
+    if (auth.errorMessage == 'wrong_password') {
+      _passwordCtrl.clear();
+      _passwordFocus.requestFocus();
+    }
   }
 
   @override
@@ -239,18 +248,26 @@ class _LoginScreenState extends State<LoginScreen> {
                         Container(
                           width: double.infinity,
                           margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
                           decoration: BoxDecoration(
                             color: AppColors.error.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                                 color: AppColors.error.withOpacity(0.3)),
                           ),
-                          child: Text(
-                            auth.errorMessage!,
-                            style: AppTextStyles.bodySmall
-                                .copyWith(color: AppColors.error),
-                          ),
+                          child: Row(children: [
+                            const Icon(Icons.error_outline,
+                                size: 16, color: AppColors.error),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                t[auth.errorMessage] ?? auth.errorMessage!,
+                                style: AppTextStyles.bodySmall
+                                    .copyWith(color: AppColors.error),
+                              ),
+                            ),
+                          ]),
                         ),
 
                       // Email field
@@ -268,6 +285,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Password field
                       _LoginField(
                         controller: _passwordCtrl,
+                        focusNode: _passwordFocus,
                         hint: t['password'] ?? 'Password',
                         prefixIcon: Icons.lock_outlined,
                         obscureText: _obscurePassword,
@@ -407,6 +425,7 @@ class _LoginField extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final ValueChanged<String>? onChanged;
   final String? errorText;
+  final FocusNode? focusNode;
 
   const _LoginField({
     required this.controller,
@@ -418,6 +437,7 @@ class _LoginField extends StatelessWidget {
     this.onSubmitted,
     this.onChanged,
     this.errorText,
+    this.focusNode,
   });
 
   @override
@@ -446,6 +466,7 @@ class _LoginField extends StatelessWidget {
           ),
           child: TextField(
             controller: controller,
+            focusNode: focusNode,
             obscureText: obscureText,
             keyboardType: keyboardType,
             onSubmitted: onSubmitted,
