@@ -18,9 +18,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final ApiService _api = ApiService();
 
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  bool _savingProfile = false;
   bool _uploadingPhoto = false;
 
   final _currentPwdCtrl = TextEditingController();
@@ -36,15 +33,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final auth = context.read<AuthProvider>();
-    _nameCtrl.text = auth.displayName;
-    _emailCtrl.text = auth.displayEmail;
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
     _currentPwdCtrl.dispose();
     _newPwdCtrl.dispose();
     _confirmPwdCtrl.dispose();
@@ -98,33 +90,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     });
     input.click();
-  }
-
-  Future<void> _saveProfile(Map<String, String> t) async {
-    if (_nameCtrl.text.trim().isEmpty) return;
-    setState(() => _savingProfile = true);
-    try {
-      final auth = context.read<AuthProvider>();
-      final newName = _nameCtrl.text.trim();
-      final id = auth.currentUser?['id'];
-      if (id != null) {
-        await _api.updateUser(id, {
-          'username': newName,
-          'email': _emailCtrl.text.trim(),
-        });
-      }
-      auth.updateCurrentUser({'username': newName});
-      _showSnack(t['profile_updated']!);
-    } catch (e) {
-      _showSnack(
-        e.toString().contains('Network error') || e.toString().contains('Connection')
-            ? t['cannot_connect_server']!
-            : t['save_failed']!,
-        isError: true,
-      );
-    } finally {
-      if (mounted) setState(() => _savingProfile = false);
-    }
   }
 
   Future<void> _changePassword(Map<String, String> t) async {
@@ -375,226 +340,133 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 16),
 
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                _card(
+                  title: t['change_password'] ?? 'Change Password',
+                  icon: Icons.lock_outline,
+                  isDark: isDark,
                   children: [
-                    // Profile info
-                    Expanded(
-                      child: _card(
-                        title: t['profile_information'] ?? 'Profile Information',
-                        icon: Icons.person_outline,
-                        isDark: isDark,
-                        children: [
-                          _labeled(
-                            '${t['display_name'] ?? 'Display Name'}:',
-                            SizedBox(
-                              height: 44,
-                              child: TextField(
-                                controller: _nameCtrl,
-                                style: AppTextStyles.body
-                                    .copyWith(color: textColor),
-                                decoration: _inputDecoration(
-                                    hint: t['enter_display_name'],
-                                    isDark: isDark),
+                    // ── Password fields ──────────────────────────────
+                    _labeled(
+                      '${t['current_password'] ?? 'Current Password'}:',
+                      SizedBox(
+                        height: 44,
+                        child: TextField(
+                          controller: _currentPwdCtrl,
+                          obscureText: !_showCurrentPwd,
+                          style: AppTextStyles.body.copyWith(color: textColor),
+                          decoration: _inputDecoration(
+                            hint: '••••••••',
+                            isDark: isDark,
+                            suffix: IconButton(
+                              icon: Icon(
+                                _showCurrentPwd
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                size: 18,
+                                color: AppColors.textSecondary,
                               ),
+                              onPressed: () => setState(
+                                  () => _showCurrentPwd = !_showCurrentPwd),
                             ),
                           ),
-                          const SizedBox(height: 14),
-                          _labeled(
-                            '${t['email'] ?? 'Email'}:',
-                            SizedBox(
-                              height: 44,
-                              child: TextField(
-                                controller: _emailCtrl,
-                                readOnly: true,
-                                style: AppTextStyles.body
-                                    .copyWith(color: mutedColor),
-                                decoration: _inputDecoration(
-                                    isDark: isDark, readOnly: true),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          _labeled(
-                            '${t['username'] ?? 'Username'}:',
-                            SizedBox(
-                              height: 44,
-                              child: TextField(
-                                readOnly: true,
-                                controller: TextEditingController(
-                                    text: auth.currentUser?['username'] ??
-                                        auth.displayName),
-                                style: AppTextStyles.body
-                                    .copyWith(color: mutedColor),
-                                decoration: _inputDecoration(
-                                    isDark: isDark, readOnly: true),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 44,
-                            child: ElevatedButton.icon(
-                              onPressed:
-                                  _savingProfile ? null : () => _saveProfile(t),
-                              icon: _savingProfile
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2))
-                                  : const Icon(Icons.save_outlined, size: 18),
-                              label: Text(t['save_profile'] ?? 'Save Profile'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24)),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 14),
+                    _labeled(
+                      '${t['new_password'] ?? 'New Password'}:',
+                      SizedBox(
+                        height: 44,
+                        child: TextField(
+                          controller: _newPwdCtrl,
+                          obscureText: !_showNewPwd,
+                          onChanged: (_) => setState(() {
+                            _newPwdError = false;
+                            _confirmPwdError = false;
+                          }),
+                          style: AppTextStyles.body.copyWith(color: textColor),
+                          decoration: _inputDecoration(
+                            hint: '••••••••',
+                            isDark: isDark,
+                            hasError: _newPwdError,
+                            suffix: IconButton(
+                              icon: Icon(
+                                _showNewPwd
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _showNewPwd = !_showNewPwd),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _labeled(
+                      '${t['confirm_new_password'] ?? 'Confirm New Password'}:',
+                      SizedBox(
+                        height: 44,
+                        child: TextField(
+                          controller: _confirmPwdCtrl,
+                          obscureText: !_showConfirmPwd,
+                          onChanged: (_) =>
+                              setState(() => _confirmPwdError = false),
+                          style: AppTextStyles.body.copyWith(color: textColor),
+                          decoration: _inputDecoration(
+                            hint: '••••••••',
+                            isDark: isDark,
+                            hasError: _confirmPwdError,
+                            suffix: IconButton(
+                              icon: Icon(
+                                _showConfirmPwd
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
+                              onPressed: () => setState(
+                                  () => _showConfirmPwd = !_showConfirmPwd),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_confirmPwdError) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        t['passwords_not_match'] ?? 'Passwords do not match',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.error),
+                      ),
+                    ],
 
-                    const SizedBox(width: 16),
-
-                    // Change password
-                    Expanded(
-                      child: _card(
-                        title: t['change_password'] ?? 'Change Password',
-                        icon: Icons.lock_outline,
-                        isDark: isDark,
-                        children: [
-                          _labeled(
-                            '${t['current_password'] ?? 'Current Password'}:',
-                            SizedBox(
-                              height: 44,
-                              child: TextField(
-                                controller: _currentPwdCtrl,
-                                obscureText: !_showCurrentPwd,
-                                style: AppTextStyles.body
-                                    .copyWith(color: textColor),
-                                decoration: _inputDecoration(
-                                  hint: '••••••••',
-                                  isDark: isDark,
-                                  suffix: IconButton(
-                                    icon: Icon(
-                                      _showCurrentPwd
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      size: 18,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    onPressed: () => setState(() =>
-                                        _showCurrentPwd = !_showCurrentPwd),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          _labeled(
-                            '${t['new_password'] ?? 'New Password'}:',
-                            SizedBox(
-                              height: 44,
-                              child: TextField(
-                                controller: _newPwdCtrl,
-                                obscureText: !_showNewPwd,
-                                onChanged: (_) => setState(() {
-                                  _newPwdError = false;
-                                  _confirmPwdError = false;
-                                }),
-                                style: AppTextStyles.body
-                                    .copyWith(color: textColor),
-                                decoration: _inputDecoration(
-                                  hint: '••••••••',
-                                  isDark: isDark,
-                                  hasError: _newPwdError,
-                                  suffix: IconButton(
-                                    icon: Icon(
-                                      _showNewPwd
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      size: 18,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    onPressed: () => setState(
-                                        () => _showNewPwd = !_showNewPwd),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          _labeled(
-                            '${t['confirm_new_password'] ?? 'Confirm New Password'}:',
-                            SizedBox(
-                              height: 44,
-                              child: TextField(
-                                controller: _confirmPwdCtrl,
-                                obscureText: !_showConfirmPwd,
-                                onChanged: (_) => setState(
-                                    () => _confirmPwdError = false),
-                                style: AppTextStyles.body
-                                    .copyWith(color: textColor),
-                                decoration: _inputDecoration(
-                                  hint: '••••••••',
-                                  isDark: isDark,
-                                  hasError: _confirmPwdError,
-                                  suffix: IconButton(
-                                    icon: Icon(
-                                      _showConfirmPwd
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      size: 18,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    onPressed: () => setState(() =>
-                                        _showConfirmPwd = !_showConfirmPwd),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (_confirmPwdError) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              t['passwords_not_match'] ?? 'Passwords do not match',
-                              style: AppTextStyles.bodySmall
-                                  .copyWith(color: AppColors.error),
-                            ),
-                          ],
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 44,
-                            child: ElevatedButton.icon(
-                              onPressed: _changingPassword
-                                  ? null
-                                  : () => _changePassword(t),
-                              icon: _changingPassword
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2))
-                                  : const Icon(Icons.lock_reset_outlined, size: 18),
-                              label: Text(t['change_password'] ?? 'Change Password'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24)),
-                              ),
-                            ),
-                          ),
-                        ],
+                    // ── Action button ────────────────────────────────
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        onPressed: _changingPassword
+                            ? null
+                            : () => _changePassword(t),
+                        icon: _changingPassword
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : const Icon(Icons.lock_reset_outlined, size: 18),
+                        label: Text(t['change_password'] ?? 'Change Password'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24)),
+                        ),
                       ),
                     ),
                   ],

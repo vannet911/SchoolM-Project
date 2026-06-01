@@ -1032,12 +1032,13 @@ class _TeacherReportState extends State<_TeacherReport> {
         const SizedBox(height: 14),
         Row(children: [
           Expanded(
-              flex: 3,
+              flex: 1,
               child: _SearchField(
                   hint: t['search'] ?? 'Search',
                   onChanged: (v) => setState(() => _search = v),
                   isDark: isDark)),
           const SizedBox(width: 10),
+          const Spacer(flex: 1),
           Expanded(
               child: _DropField(
                   value: _statusFilter,
