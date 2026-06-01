@@ -433,6 +433,9 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
   }
 
   Widget _buildTabView(Map<String, String> t) {
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w < 600;
+    final isTablet = w >= 600 && w < 1024;
     return Padding(
       padding: const EdgeInsets.all(AppConstants.pagePadding),
       child: Column(
@@ -456,8 +459,8 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             child: TabBarView(
               controller: _tabCtrl,
               children: [
-                _buildClassesTab(t),
-                _buildSubjectsTab(t),
+                _buildClassesTab(t, isMobile: isMobile, isTablet: isTablet),
+                _buildSubjectsTab(t, isMobile: isMobile, isTablet: isTablet),
               ],
             ),
           ),
@@ -466,45 +469,89 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
     );
   }
 
-  Widget _buildClassesTab(Map<String, String> t) {
+  Widget _buildClassesTab(Map<String, String> t, {bool isMobile = false, bool isTablet = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white70 : AppColors.textPrimary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          _SearchBox(
-              controller: _classSearchCtrl,
-              hint: t['search'] ?? 'Search...'),
-          const Spacer(),
-          _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm()),
-          const SizedBox(width: 8),
-          _EditButton(
-            label: t['edit'] ?? 'Edit',
-            onTap: () {
-              if (_selectedClass != null) {
-                _openClassForm(item: _selectedClass);
-              } else {
-                _showSnack(
-                    t['select_row_first'] ?? 'Please select a row first',
-                    isWarning: true);
-              }
-            },
-          ),
-          const SizedBox(width: 8),
-          _DeleteButton(
-            label: t['delete'] ?? 'Delete',
-            onTap: () {
-              if (_selectedClass != null) {
-                _deleteClass(_selectedClass!);
-              } else {
-                _showSnack(
-                    t['select_row_first'] ?? 'Please select a row first',
-                    isWarning: true);
-              }
-            },
-          ),
-        ]),
+        if (isMobile)
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            _SearchBox(
+                controller: _classSearchCtrl,
+                hint: t['search'] ?? 'Search...',
+                fullWidth: true),
+            const SizedBox(height: 8),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm()),
+              const SizedBox(width: 8),
+              _EditButton(
+                label: t['edit'] ?? 'Edit',
+                onTap: () {
+                  if (_selectedClass != null) {
+                    _openClassForm(item: _selectedClass);
+                  } else {
+                    _showSnack(
+                        t['select_row_first'] ?? 'Please select a row first',
+                        isWarning: true);
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              _DeleteButton(
+                label: t['delete'] ?? 'Delete',
+                onTap: () {
+                  if (_selectedClass != null) {
+                    _deleteClass(_selectedClass!);
+                  } else {
+                    _showSnack(
+                        t['select_row_first'] ?? 'Please select a row first',
+                        isWarning: true);
+                  }
+                },
+              ),
+            ]),
+          ])
+        else
+          LayoutBuilder(builder: (_, constraints) {
+            final btns = [
+              _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm()),
+              const SizedBox(width: 8),
+              _EditButton(
+                label: t['edit'] ?? 'Edit',
+                onTap: () {
+                  if (_selectedClass != null) {
+                    _openClassForm(item: _selectedClass);
+                  } else {
+                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              _DeleteButton(
+                label: t['delete'] ?? 'Delete',
+                onTap: () {
+                  if (_selectedClass != null) {
+                    _deleteClass(_selectedClass!);
+                  } else {
+                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                  }
+                },
+              ),
+            ];
+            if (constraints.maxWidth > 550) {
+              return Row(children: [
+                _SearchBox(controller: _classSearchCtrl, hint: t['search'] ?? 'Search...'),
+                const Spacer(),
+                ...btns,
+              ]);
+            }
+            return Row(children: [
+              Expanded(child: _SearchBox(controller: _classSearchCtrl, hint: t['search'] ?? 'Search...', fullWidth: true)),
+              const SizedBox(width: 10),
+              ...btns,
+            ]);
+          }),
         const SizedBox(height: 12),
         Expanded(
           child: _TableCard(
@@ -512,38 +559,83 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             empty: _filteredClasses.isEmpty,
             emptyIcon: Icons.class_outlined,
             emptyLabel: t['no_data'] ?? 'No classes found',
-            header: Row(children: [
-              const TableHeader(label: '#', flex: 1),
-              TableHeader(
-                label: t['code'] ?? 'Code',
-                flex: 2,
-                onSort: () => _sortClasses('code'),
-                isSorted: _classSortColumn == 'code',
-                sortAscending: _classSortAscending,
-              ),
-              TableHeader(
-                label: t['class_name'] ?? 'Class Name',
-                flex: 3,
-                onSort: () => _sortClasses('name'),
-                isSorted: _classSortColumn == 'name',
-                sortAscending: _classSortAscending,
-              ),
-              TableHeader(
-                label: t['description'] ?? 'Description',
-                flex: 4,
-                onSort: () => _sortClasses('description'),
-                isSorted: _classSortColumn == 'description',
-                sortAscending: _classSortAscending,
-              ),
-              TableHeader(
-                label: t['status'] ?? 'Status',
-                flex: 1,
-                onSort: () => _sortClasses('status'),
-                isSorted: _classSortColumn == 'status',
-                sortAscending: _classSortAscending,
-                textAlign: TextAlign.center,
-              ),
-            ]),
+            header: isMobile
+                ? Row(children: [
+                    const TableHeader(label: '#', flex: 1),
+                    TableHeader(
+                      label: t['class_name'] ?? 'Class',
+                      flex: 6,
+                      onSort: () => _sortClasses('name'),
+                      isSorted: _classSortColumn == 'name',
+                      sortAscending: _classSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['status'] ?? 'Status',
+                      flex: 2,
+                      onSort: () => _sortClasses('status'),
+                      isSorted: _classSortColumn == 'status',
+                      sortAscending: _classSortAscending,
+                      textAlign: TextAlign.center,
+                    ),
+                  ])
+                : isTablet
+                ? Row(children: [
+                    const TableHeader(label: '#', flex: 1),
+                    TableHeader(
+                      label: t['code'] ?? 'Code',
+                      flex: 2,
+                      onSort: () => _sortClasses('code'),
+                      isSorted: _classSortColumn == 'code',
+                      sortAscending: _classSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['class_name'] ?? 'Class Name',
+                      flex: 4,
+                      onSort: () => _sortClasses('name'),
+                      isSorted: _classSortColumn == 'name',
+                      sortAscending: _classSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['status'] ?? 'Status',
+                      flex: 2,
+                      onSort: () => _sortClasses('status'),
+                      isSorted: _classSortColumn == 'status',
+                      sortAscending: _classSortAscending,
+                      textAlign: TextAlign.center,
+                    ),
+                  ])
+                : Row(children: [
+                    const TableHeader(label: '#', flex: 1),
+                    TableHeader(
+                      label: t['code'] ?? 'Code',
+                      flex: 2,
+                      onSort: () => _sortClasses('code'),
+                      isSorted: _classSortColumn == 'code',
+                      sortAscending: _classSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['class_name'] ?? 'Class Name',
+                      flex: 3,
+                      onSort: () => _sortClasses('name'),
+                      isSorted: _classSortColumn == 'name',
+                      sortAscending: _classSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['description'] ?? 'Description',
+                      flex: 4,
+                      onSort: () => _sortClasses('description'),
+                      isSorted: _classSortColumn == 'description',
+                      sortAscending: _classSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['status'] ?? 'Status',
+                      flex: 2,
+                      onSort: () => _sortClasses('status'),
+                      isSorted: _classSortColumn == 'status',
+                      sortAscending: _classSortAscending,
+                      textAlign: TextAlign.center,
+                    ),
+                  ]),
             body: ListView.builder(
               itemCount: _classPaginated.length,
               itemBuilder: (_, i) {
@@ -556,44 +648,97 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                       _selectedClass!['id'] == c['id'],
                   onTap: () => _openClassDetail(c),
                   onDoubleTap: () => _openClassDetailPanel(c),
-                  children: [
-                    Expanded(
-                      flex: 1,
-                      child: Text(
-                        (globalIndex + 1).toString(),
-                        style: AppTextStyles.body.copyWith(color: textColor),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                        c['code'] ?? '—',
-                        style: AppTextStyles.body.copyWith(color: textColor),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 3,
-                      child: Text(
-                        c['name'] ?? '—',
-                        style: AppTextStyles.body.copyWith(color: textColor),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Expanded(
-                      flex: 4,
-                      child: Text(
-                        c['description'] ?? '—',
-                        style: AppTextStyles.body.copyWith(color: textColor),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Expanded(
-                      flex: 1,
-                      child: _StatusBadge(status: c['status'] ?? true),
-                    ),
-                  ],
+                  children: isMobile
+                      ? [
+                          Expanded(
+                            flex: 1,
+                            child: Text(
+                              (globalIndex + 1).toString(),
+                              style: AppTextStyles.body.copyWith(color: textColor),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 6,
+                            child: Text(
+                              c['name'] ?? '—',
+                              style: AppTextStyles.body.copyWith(color: textColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Center(child: _StatusBadge(status: c['status'] ?? true)),
+                          ),
+                        ]
+                      : isTablet
+                      ? [
+                          Expanded(
+                            flex: 1,
+                            child: Text(
+                              (globalIndex + 1).toString(),
+                              style: AppTextStyles.body.copyWith(color: textColor),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              c['code'] ?? '—',
+                              style: AppTextStyles.body.copyWith(color: textColor),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 4,
+                            child: Text(
+                              c['name'] ?? '—',
+                              style: AppTextStyles.body.copyWith(color: textColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Center(child: _StatusBadge(status: c['status'] ?? true)),
+                          ),
+                        ]
+                      : [
+                          Expanded(
+                            flex: 1,
+                            child: Text(
+                              (globalIndex + 1).toString(),
+                              style: AppTextStyles.body.copyWith(color: textColor),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              c['code'] ?? '—',
+                              style: AppTextStyles.body.copyWith(color: textColor),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: Text(
+                              c['name'] ?? '—',
+                              style: AppTextStyles.body.copyWith(color: textColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 4,
+                            child: Text(
+                              c['description'] ?? '—',
+                              style: AppTextStyles.body.copyWith(color: textColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Center(child: _StatusBadge(status: c['status'] ?? true)),
+                          ),
+                        ],
                 );
               },
             ),
@@ -615,46 +760,92 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
     );
   }
 
-  Widget _buildSubjectsTab(Map<String, String> t) {
+  Widget _buildSubjectsTab(Map<String, String> t,
+      {bool isMobile = false, bool isTablet = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white70 : AppColors.textPrimary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          _SearchBox(
-              controller: _subjectSearchCtrl,
-              hint: t['search'] ?? 'Search...'),
-          const Spacer(),
-          _AddButton(
-              label: t['add'] ?? 'Add', onTap: () => _openSubjectForm()),
-          const SizedBox(width: 8),
-          _EditButton(
-            label: t['edit'] ?? 'Edit',
-            onTap: () {
-              if (_selectedSubject != null) {
-                _openSubjectForm(item: _selectedSubject);
-              } else {
-                _showSnack(
-                    t['select_row_first'] ?? 'Please select a row first',
-                    isWarning: true);
-              }
-            },
-          ),
-          const SizedBox(width: 8),
-          _DeleteButton(
-            label: t['delete'] ?? 'Delete',
-            onTap: () {
-              if (_selectedSubject != null) {
-                _deleteSubject(_selectedSubject!);
-              } else {
-                _showSnack(
-                    t['select_row_first'] ?? 'Please select a row first',
-                    isWarning: true);
-              }
-            },
-          ),
-        ]),
+        // ── Toolbar ─────────────────────────────────────────────
+        if (isMobile)
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            _SearchBox(
+                controller: _subjectSearchCtrl,
+                hint: t['search'] ?? 'Search...',
+                fullWidth: true),
+            const SizedBox(height: 8),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              _AddButton(
+                  label: t['add'] ?? 'Add', onTap: () => _openSubjectForm()),
+              const SizedBox(width: 8),
+              _EditButton(
+                label: t['edit'] ?? 'Edit',
+                onTap: () {
+                  if (_selectedSubject != null) {
+                    _openSubjectForm(item: _selectedSubject);
+                  } else {
+                    _showSnack(
+                        t['select_row_first'] ?? 'Please select a row first',
+                        isWarning: true);
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              _DeleteButton(
+                label: t['delete'] ?? 'Delete',
+                onTap: () {
+                  if (_selectedSubject != null) {
+                    _deleteSubject(_selectedSubject!);
+                  } else {
+                    _showSnack(
+                        t['select_row_first'] ?? 'Please select a row first',
+                        isWarning: true);
+                  }
+                },
+              ),
+            ]),
+          ])
+        else
+          LayoutBuilder(builder: (_, constraints) {
+            final btns = [
+              _AddButton(label: t['add'] ?? 'Add', onTap: () => _openSubjectForm()),
+              const SizedBox(width: 8),
+              _EditButton(
+                label: t['edit'] ?? 'Edit',
+                onTap: () {
+                  if (_selectedSubject != null) {
+                    _openSubjectForm(item: _selectedSubject);
+                  } else {
+                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              _DeleteButton(
+                label: t['delete'] ?? 'Delete',
+                onTap: () {
+                  if (_selectedSubject != null) {
+                    _deleteSubject(_selectedSubject!);
+                  } else {
+                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                  }
+                },
+              ),
+            ];
+            if (constraints.maxWidth > 550) {
+              return Row(children: [
+                _SearchBox(controller: _subjectSearchCtrl, hint: t['search'] ?? 'Search...'),
+                const Spacer(),
+                ...btns,
+              ]);
+            }
+            return Row(children: [
+              Expanded(child: _SearchBox(controller: _subjectSearchCtrl, hint: t['search'] ?? 'Search...', fullWidth: true)),
+              const SizedBox(width: 10),
+              ...btns,
+            ]);
+          }),
         const SizedBox(height: 12),
         Expanded(
           child: _TableCard(
@@ -662,38 +853,83 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             empty: _filteredSubjects.isEmpty,
             emptyIcon: Icons.book_outlined,
             emptyLabel: t['no_data'] ?? 'No subjects found',
-            header: Row(children: [
-              const TableHeader(label: '#', flex: 1),
-              TableHeader(
-                label: t['code'] ?? 'Code',
-                flex: 2,
-                onSort: () => _sortSubjects('code'),
-                isSorted: _subjectSortColumn == 'code',
-                sortAscending: _subjectSortAscending,
-              ),
-              TableHeader(
-                label: t['subject_name'] ?? 'Subject Name',
-                flex: 3,
-                onSort: () => _sortSubjects('name'),
-                isSorted: _subjectSortColumn == 'name',
-                sortAscending: _subjectSortAscending,
-              ),
-              TableHeader(
-                label: t['description'] ?? 'Description',
-                flex: 4,
-                onSort: () => _sortSubjects('description'),
-                isSorted: _subjectSortColumn == 'description',
-                sortAscending: _subjectSortAscending,
-              ),
-              TableHeader(
-                label: t['status'] ?? 'Status',
-                flex: 1,
-                onSort: () => _sortSubjects('status'),
-                isSorted: _subjectSortColumn == 'status',
-                sortAscending: _subjectSortAscending,
-                textAlign: TextAlign.center,
-              ),
-            ]),
+            header: isMobile
+                ? Row(children: [
+                    const TableHeader(label: '#', flex: 1),
+                    TableHeader(
+                      label: t['subject_name'] ?? 'Subject',
+                      flex: 6,
+                      onSort: () => _sortSubjects('name'),
+                      isSorted: _subjectSortColumn == 'name',
+                      sortAscending: _subjectSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['status'] ?? 'Status',
+                      flex: 2,
+                      onSort: () => _sortSubjects('status'),
+                      isSorted: _subjectSortColumn == 'status',
+                      sortAscending: _subjectSortAscending,
+                      textAlign: TextAlign.center,
+                    ),
+                  ])
+                : isTablet
+                ? Row(children: [
+                    const TableHeader(label: '#', flex: 1),
+                    TableHeader(
+                      label: t['code'] ?? 'Code',
+                      flex: 2,
+                      onSort: () => _sortSubjects('code'),
+                      isSorted: _subjectSortColumn == 'code',
+                      sortAscending: _subjectSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['subject_name'] ?? 'Subject Name',
+                      flex: 4,
+                      onSort: () => _sortSubjects('name'),
+                      isSorted: _subjectSortColumn == 'name',
+                      sortAscending: _subjectSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['status'] ?? 'Status',
+                      flex: 2,
+                      onSort: () => _sortSubjects('status'),
+                      isSorted: _subjectSortColumn == 'status',
+                      sortAscending: _subjectSortAscending,
+                      textAlign: TextAlign.center,
+                    ),
+                  ])
+                : Row(children: [
+                    const TableHeader(label: '#', flex: 1),
+                    TableHeader(
+                      label: t['code'] ?? 'Code',
+                      flex: 2,
+                      onSort: () => _sortSubjects('code'),
+                      isSorted: _subjectSortColumn == 'code',
+                      sortAscending: _subjectSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['subject_name'] ?? 'Subject Name',
+                      flex: 3,
+                      onSort: () => _sortSubjects('name'),
+                      isSorted: _subjectSortColumn == 'name',
+                      sortAscending: _subjectSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['description'] ?? 'Description',
+                      flex: 4,
+                      onSort: () => _sortSubjects('description'),
+                      isSorted: _subjectSortColumn == 'description',
+                      sortAscending: _subjectSortAscending,
+                    ),
+                    TableHeader(
+                      label: t['status'] ?? 'Status',
+                      flex: 2,
+                      onSort: () => _sortSubjects('status'),
+                      isSorted: _subjectSortColumn == 'status',
+                      sortAscending: _subjectSortAscending,
+                      textAlign: TextAlign.center,
+                    ),
+                  ]),
             body: ListView.builder(
               itemCount: _subjectPaginated.length,
               itemBuilder: (_, i) {
@@ -706,44 +942,26 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                       _selectedSubject!['id'] == s['id'],
                   onTap: () => _openSubjectDetail(s),
                   onDoubleTap: () => _openSubjectDetailPanel(s),
-                  children: [
-                    Expanded(
-                      flex: 1,
-                      child: Text(
-                        (globalIndex + 1).toString(),
-                        style: AppTextStyles.body.copyWith(color: textColor),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                        s['code'] ?? '—',
-                        style: AppTextStyles.body.copyWith(color: textColor),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 3,
-                      child: Text(
-                        s['name'] ?? '—',
-                        style: AppTextStyles.body.copyWith(color: textColor),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Expanded(
-                      flex: 4,
-                      child: Text(
-                        s['description'] ?? '—',
-                        style: AppTextStyles.body.copyWith(color: textColor),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Expanded(
-                      flex: 1,
-                      child: _StatusBadge(status: s['status'] ?? true),
-                    ),
-                  ],
+                  children: isMobile
+                      ? [
+                          Expanded(flex: 1, child: Text((globalIndex + 1).toString(), style: AppTextStyles.body.copyWith(color: textColor))),
+                          Expanded(flex: 6, child: Text(s['name'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          Expanded(flex: 2, child: Center(child: _StatusBadge(status: s['status'] ?? true))),
+                        ]
+                      : isTablet
+                      ? [
+                          Expanded(flex: 1, child: Text((globalIndex + 1).toString(), style: AppTextStyles.body.copyWith(color: textColor))),
+                          Expanded(flex: 2, child: Text(s['code'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          Expanded(flex: 4, child: Text(s['name'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          Expanded(flex: 2, child: Center(child: _StatusBadge(status: s['status'] ?? true))),
+                        ]
+                      : [
+                          Expanded(flex: 1, child: Text((globalIndex + 1).toString(), style: AppTextStyles.body.copyWith(color: textColor))),
+                          Expanded(flex: 2, child: Text(s['code'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor))),
+                          Expanded(flex: 3, child: Text(s['name'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          Expanded(flex: 4, child: Text(s['description'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          Expanded(flex: 2, child: Center(child: _StatusBadge(status: s['status'] ?? true))),
+                        ],
                 );
               },
             ),
@@ -771,7 +989,8 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
 class _SearchBox extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
-  const _SearchBox({required this.controller, required this.hint});
+  final bool fullWidth;
+  const _SearchBox({required this.controller, required this.hint, this.fullWidth = false});
 
   @override
   Widget build(BuildContext context) {
@@ -782,7 +1001,7 @@ class _SearchBox extends StatelessWidget {
     final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
 
     return SizedBox(
-      width: 240,
+      width: fullWidth ? double.infinity : 240,
       height: 42,
       child: TextField(
         controller: controller,
@@ -957,6 +1176,12 @@ class _TableRowState extends State<_TableRow> {
   bool _isHovering = false;
 
   @override
+  void deactivate() {
+    _isHovering = false;
+    super.deactivate();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEven = widget.index % 2 == 0;
@@ -975,8 +1200,8 @@ class _TableRowState extends State<_TableRow> {
     }
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onEnter: (_) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isHovering = true); }),
+      onExit: (_) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isHovering = false); }),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
@@ -1011,7 +1236,8 @@ class _StatusBadge extends StatelessWidget {
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      width: 88,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(24),
@@ -1020,7 +1246,9 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         statusStr,
         textAlign: TextAlign.center,
-        style: AppTextStyles.body.copyWith(color: color),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.body.copyWith(color: color, fontSize: 12),
       ),
     );
   }

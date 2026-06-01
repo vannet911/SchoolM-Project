@@ -196,6 +196,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w < 600;
+    final isTablet = w >= 600 && w < 1024;
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -207,19 +210,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ────────────────────────────────────────────────
-          Row(
-            children: [
+          Row(children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF1A1A2E)
-                      : AppColors.primarySurface,
+                  color: isDark ? const Color(0xFF1A1A2E) : AppColors.primarySurface,
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: const Icon(Icons.bar_chart_rounded,
-                    color: AppColors.primaryLight, size: 22),
+                child: const Icon(Icons.bar_chart_rounded, color: AppColors.primaryLight, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -228,64 +226,38 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     Text(t['school_reports'] ?? 'School Reports',
                         style: AppTextStyles.heading2.copyWith(color: textColor)),
-                    Text(
-                        t['reports_subtitle'] ??
-                            'School data reports and summaries',
+                    Text(t['reports_subtitle'] ?? 'School data reports and summaries',
                         style: AppTextStyles.body.copyWith(color: mutedColor)),
                   ],
                 ),
               ),
               SizedBox(
-                width: 38,
-                height: 38,
+                width: 38, height: 38,
                 child: InkWell(
                   onTap: _load,
                   borderRadius: BorderRadius.circular(18),
-                  child: const Center(
-                    child: Icon(Icons.refresh_rounded,
-                        size: 24, color: AppColors.textSecondary),
-                  ),
+                  child: const Center(child: Icon(Icons.refresh_rounded, size: 24, color: AppColors.textSecondary)),
                 ),
               ),
               const SizedBox(width: 8),
               OutlinedButton(
                 onPressed: _exporting || _loading ? null : _exportReport,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primaryLight,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 18),
-                  side: BorderSide(
-                      color: isDark
-                          ? const Color(0xFF2A2A4A)
-                          : AppColors.border,
-                      width: 1),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24)),
+                  foregroundColor: AppColors.primaryLight, elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  side: BorderSide(color: isDark ? const Color(0xFF2A2A4A) : AppColors.border, width: 1),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                   overlayColor: AppColors.primaryLight.withValues(alpha: 0.08),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _exporting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primaryLight),
-                          )
-                        : const Icon(Icons.download_rounded, size: 18),
-                    const SizedBox(width: 8),
-                    Text(t['export'] ?? 'Export',
-                        style: AppTextStyles.label.copyWith(
-                            color: AppColors.primaryLight,
-                            fontWeight: FontWeight.w600)),
-                  ],
-                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  _exporting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryLight))
+                      : const Icon(Icons.download_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  Text(t['export'] ?? 'Export', style: AppTextStyles.label.copyWith(color: AppColors.primaryLight, fontWeight: FontWeight.w600)),
+                ]),
               ),
-            ],
-          ),
+            ]),
           const SizedBox(height: 20),
 
           // ── Tab bar ───────────────────────────────────────────────
@@ -309,18 +281,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   child: CircularProgressIndicator(color: AppColors.primary)),
             )
           else if (_tab == 0)
-            _StudentReport(
-                students: _students, t: t, isDark: isDark)
+            _StudentReport(students: _students, t: t, isDark: isDark, isMobile: isMobile, isTablet: isTablet)
           else if (_tab == 1)
-            _TeacherReport(
-                teachers: _teachers, t: t, isDark: isDark)
+            _TeacherReport(teachers: _teachers, t: t, isDark: isDark, isMobile: isMobile, isTablet: isTablet)
           else
-            _ClassReport(
-                classes: _classes,
-                students: _students,
-                teachers: _teachers,
-                t: t,
-                isDark: isDark),
+            _ClassReport(classes: _classes, students: _students, teachers: _teachers, t: t, isDark: isDark, isMobile: isMobile, isTablet: isTablet),
         ],
       ),
     );
@@ -363,6 +328,12 @@ class _IconTabBarState extends State<_IconTabBar> {
   }
 
   @override
+  void deactivate() {
+    _hovered = List.filled(_hovered.length, false);
+    super.deactivate();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
     final hoverBg = isDark
@@ -386,7 +357,7 @@ class _IconTabBarState extends State<_IconTabBar> {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () => widget.onTap(i),
-                  onHover: (v) => setState(() => _hovered[i] = v),
+                  onHover: (v) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _hovered[i] = v); }),
                   borderRadius: BorderRadius.circular(9),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
@@ -563,6 +534,7 @@ class _DropField extends StatelessWidget {
   final bool isDark;
 
   const _DropField({
+    super.key,
     required this.value,
     required this.items,
     required this.onChanged,
@@ -778,6 +750,12 @@ class _ReportRowState extends State<_ReportRow> {
   bool _hovering = false;
 
   @override
+  void deactivate() {
+    _hovering = false;
+    super.deactivate();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
     final isEven = widget.index % 2 == 0;
@@ -793,8 +771,8 @@ class _ReportRowState extends State<_ReportRow> {
     }
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
+      onEnter: (_) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _hovering = true); }),
+      onExit: (_) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _hovering = false); }),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
@@ -814,9 +792,12 @@ class _StudentReport extends StatefulWidget {
   final List<Map<String, dynamic>> students;
   final Map<String, String> t;
   final bool isDark;
+  final bool isMobile;
+  final bool isTablet;
 
   const _StudentReport(
-      {required this.students, required this.t, required this.isDark});
+      {required this.students, required this.t, required this.isDark,
+       this.isMobile = false, this.isTablet = false});
 
   @override
   State<_StudentReport> createState() => _StudentReportState();
@@ -885,53 +866,60 @@ class _StudentReportState extends State<_StudentReport> {
       ];
     }).toList();
 
+    final isMobile = widget.isMobile;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          _StatCard(value: '${widget.students.length}', label: t['total_students'] ?? 'Total Students', icon: Icons.school_rounded, color: AppColors.primaryLight, isDark: isDark),
-          const SizedBox(width: 12),
-          _StatCard(value: '$male', label: t['male'] ?? 'Male', icon: Icons.male, color: const Color(0xFF3B82F6), isDark: isDark),
-          const SizedBox(width: 12),
-          _StatCard(value: '$female', label: t['female'] ?? 'Female', icon: Icons.female, color: const Color(0xFFEC4899), isDark: isDark),
-          const SizedBox(width: 12),
-          _StatCard(value: '$classCount', label: t['total_classes'] ?? 'Classes', icon: Icons.class_rounded, color: const Color(0xFFF59E0B), isDark: isDark),
-        ]),
+        if (isMobile)
+          Column(children: [
+            Row(children: [
+              _StatCard(value: '${widget.students.length}', label: t['total_students'] ?? 'Total Students', icon: Icons.school_rounded, color: AppColors.primaryLight, isDark: isDark),
+              const SizedBox(width: 10),
+              _StatCard(value: '$male', label: t['male'] ?? 'Male', icon: Icons.male, color: const Color(0xFF3B82F6), isDark: isDark),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              _StatCard(value: '$female', label: t['female'] ?? 'Female', icon: Icons.female, color: const Color(0xFFEC4899), isDark: isDark),
+              const SizedBox(width: 10),
+              _StatCard(value: '$classCount', label: t['total_classes'] ?? 'Classes', icon: Icons.class_rounded, color: const Color(0xFFF59E0B), isDark: isDark),
+            ]),
+          ])
+        else
+          Row(children: [
+            _StatCard(value: '${widget.students.length}', label: t['total_students'] ?? 'Total Students', icon: Icons.school_rounded, color: AppColors.primaryLight, isDark: isDark),
+            const SizedBox(width: 12),
+            _StatCard(value: '$male', label: t['male'] ?? 'Male', icon: Icons.male, color: const Color(0xFF3B82F6), isDark: isDark),
+            const SizedBox(width: 12),
+            _StatCard(value: '$female', label: t['female'] ?? 'Female', icon: Icons.female, color: const Color(0xFFEC4899), isDark: isDark),
+            const SizedBox(width: 12),
+            _StatCard(value: '$classCount', label: t['total_classes'] ?? 'Classes', icon: Icons.class_rounded, color: const Color(0xFFF59E0B), isDark: isDark),
+          ]),
         const SizedBox(height: 14),
         // Filter bar
-        Row(children: [
-          Expanded(
-              flex: 2,
-              child: _SearchField(
-                  hint: t['search'] ?? 'Search',
-                  onChanged: (v) => setState(() => _search = v),
-                  isDark: isDark)),
-          const SizedBox(width: 10),
-          const Spacer(flex: 3),
-          Expanded(
-              child: _DropField(
-                  value: _genderFilter,
-                  items: const ['all', 'Male', 'Female'],
-                  labels: [t['all_genders'] ?? 'All Genders', t['male'] ?? 'Male', t['female'] ?? 'Female'],
-                  onChanged: (v) => setState(() => _genderFilter = v!),
-                  isDark: isDark)),
-          const SizedBox(width: 10),
-          Expanded(
-              child: _DropField(
-                  value: _classFilter,
-                  items: ['all', ...allClasses.skip(1)],
-                  labels: [t['all_classes'] ?? 'All Classes', ...allClasses.skip(1)],
-                  onChanged: (v) => setState(() => _classFilter = v!),
-                  isDark: isDark)),
-          const SizedBox(width: 10),
-          Expanded(
-              child: _DropField(
-                  value: _statusFilter,
-                  items: const ['all', 'active', 'inactive'],
-                  labels: [t['all_status'] ?? 'All Status', t['active'] ?? 'Active', t['inactive'] ?? 'Inactive'],
-                  onChanged: (v) => setState(() => _statusFilter = v!),
-                  isDark: isDark)),
-        ]),
+        if (isMobile)
+          Column(children: [
+            _SearchField(hint: t['search'] ?? 'Search', onChanged: (v) => setState(() => _search = v), isDark: isDark),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: _DropField(key: const ValueKey('s_gender'), value: _genderFilter, items: const ['all', 'Male', 'Female'], labels: [t['all_genders'] ?? 'All Genders', t['male'] ?? 'Male', t['female'] ?? 'Female'], onChanged: (v) => setState(() => _genderFilter = v!), isDark: isDark)),
+              const SizedBox(width: 8),
+              Expanded(child: _DropField(key: const ValueKey('s_class'), value: _classFilter, items: ['all', ...allClasses.skip(1)], labels: [t['all_classes'] ?? 'All Classes', ...allClasses.skip(1)], onChanged: (v) => setState(() => _classFilter = v!), isDark: isDark)),
+              const SizedBox(width: 8),
+              Expanded(child: _DropField(key: const ValueKey('s_status'), value: _statusFilter, items: const ['all', 'active', 'inactive'], labels: [t['all_status'] ?? 'All Status', t['active'] ?? 'Active', t['inactive'] ?? 'Inactive'], onChanged: (v) => setState(() => _statusFilter = v!), isDark: isDark)),
+            ]),
+          ])
+        else
+          Row(children: [
+            Expanded(flex: 2, child: _SearchField(hint: t['search'] ?? 'Search', onChanged: (v) => setState(() => _search = v), isDark: isDark)),
+            const SizedBox(width: 10),
+            const Spacer(flex: 3),
+            Expanded(child: _DropField(key: const ValueKey('s_gender'), value: _genderFilter, items: const ['all', 'Male', 'Female'], labels: [t['all_genders'] ?? 'All Genders', t['male'] ?? 'Male', t['female'] ?? 'Female'], onChanged: (v) => setState(() => _genderFilter = v!), isDark: isDark)),
+            const SizedBox(width: 10),
+            Expanded(child: _DropField(key: const ValueKey('s_class'), value: _classFilter, items: ['all', ...allClasses.skip(1)], labels: [t['all_classes'] ?? 'All Classes', ...allClasses.skip(1)], onChanged: (v) => setState(() => _classFilter = v!), isDark: isDark)),
+            const SizedBox(width: 10),
+            Expanded(child: _DropField(key: const ValueKey('s_status'), value: _statusFilter, items: const ['all', 'active', 'inactive'], labels: [t['all_status'] ?? 'All Status', t['active'] ?? 'Active', t['inactive'] ?? 'Inactive'], onChanged: (v) => setState(() => _statusFilter = v!), isDark: isDark)),
+          ]),
         const SizedBox(height: 12),
         
 
@@ -961,9 +949,12 @@ class _TeacherReport extends StatefulWidget {
   final List<Map<String, dynamic>> teachers;
   final Map<String, String> t;
   final bool isDark;
+  final bool isMobile;
+  final bool isTablet;
 
   const _TeacherReport(
-      {required this.teachers, required this.t, required this.isDark});
+      {required this.teachers, required this.t, required this.isDark,
+       this.isMobile = false, this.isTablet = false});
 
   @override
   State<_TeacherReport> createState() => _TeacherReportState();
@@ -1015,26 +1006,38 @@ class _TeacherReportState extends State<_TeacherReport> {
       ];
     }).toList();
 
+    final isMobile = widget.isMobile;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          _StatCard(value: '${widget.teachers.length}', label: t['total_teachers'] ?? 'Total Teachers', icon: Icons.person_rounded, color: AppColors.primaryLight, isDark: isDark),
-          const SizedBox(width: 12),
-          _StatCard(value: '$uniqueSubs', label: t['subjects_taught'] ?? 'Subjects Taught', icon: Icons.menu_book_rounded, color: const Color(0xFF8B5CF6), isDark: isDark),
-          const SizedBox(width: 12),
-          _StatCard(value: avg.toStringAsFixed(1), label: t['avg_subjects'] ?? 'Avg Subjects', icon: Icons.bar_chart_rounded, color: const Color(0xFFF59E0B), isDark: isDark),
-        ]),
+        if (isMobile)
+          Column(children: [
+            Row(children: [
+              _StatCard(value: '${widget.teachers.length}', label: t['total_teachers'] ?? 'Total Teachers', icon: Icons.person_rounded, color: AppColors.primaryLight, isDark: isDark),
+              const SizedBox(width: 10),
+              _StatCard(value: '$uniqueSubs', label: t['subjects_taught'] ?? 'Subjects Taught', icon: Icons.menu_book_rounded, color: const Color(0xFF8B5CF6), isDark: isDark),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [_StatCard(value: avg.toStringAsFixed(1), label: t['avg_subjects'] ?? 'Avg Subjects', icon: Icons.bar_chart_rounded, color: const Color(0xFFF59E0B), isDark: isDark)]),
+          ])
+        else
+          Row(children: [
+            _StatCard(value: '${widget.teachers.length}', label: t['total_teachers'] ?? 'Total Teachers', icon: Icons.person_rounded, color: AppColors.primaryLight, isDark: isDark),
+            const SizedBox(width: 12),
+            _StatCard(value: '$uniqueSubs', label: t['subjects_taught'] ?? 'Subjects Taught', icon: Icons.menu_book_rounded, color: const Color(0xFF8B5CF6), isDark: isDark),
+            const SizedBox(width: 12),
+            _StatCard(value: avg.toStringAsFixed(1), label: t['avg_subjects'] ?? 'Avg Subjects', icon: Icons.bar_chart_rounded, color: const Color(0xFFF59E0B), isDark: isDark),
+          ]),
         const SizedBox(height: 14),
         Row(children: [
           Expanded(
-              flex: 1,
+              flex: 3,
               child: _SearchField(
                   hint: t['search'] ?? 'Search',
                   onChanged: (v) => setState(() => _search = v),
                   isDark: isDark)),
           const SizedBox(width: 10),
-          const Spacer(flex: 1),
           Expanded(
               child: _DropField(
                   value: _statusFilter,
@@ -1072,13 +1075,17 @@ class _ClassReport extends StatefulWidget {
   final List<Map<String, dynamic>> teachers;
   final Map<String, String> t;
   final bool isDark;
+  final bool isMobile;
+  final bool isTablet;
 
   const _ClassReport(
       {required this.classes,
       required this.students,
       required this.teachers,
       required this.t,
-      required this.isDark});
+      required this.isDark,
+      this.isMobile = false,
+      this.isTablet = false});
 
   @override
   State<_ClassReport> createState() => _ClassReportState();
@@ -1147,13 +1154,24 @@ class _ClassReportState extends State<_ClassReport> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          _StatCard(value: '${widget.classes.length}', label: t['total_classes'] ?? 'Total Classes', icon: Icons.class_rounded, color: const Color(0xFFF59E0B), isDark: isDark),
-          const SizedBox(width: 12),
-          _StatCard(value: '${widget.teachers.length}', label: t['total_teachers'] ?? 'Total Teachers', icon: Icons.person_rounded, color: AppColors.primaryLight, isDark: isDark),
-          const SizedBox(width: 12),
-          _StatCard(value: '${widget.students.length}', label: t['total_students'] ?? 'Total Students', icon: Icons.school_rounded, color: const Color(0xFF3B82F6), isDark: isDark),
-        ]),
+        if (widget.isMobile)
+          Column(children: [
+            Row(children: [
+              _StatCard(value: '${widget.classes.length}', label: t['total_classes'] ?? 'Total Classes', icon: Icons.class_rounded, color: const Color(0xFFF59E0B), isDark: isDark),
+              const SizedBox(width: 10),
+              _StatCard(value: '${widget.teachers.length}', label: t['total_teachers'] ?? 'Total Teachers', icon: Icons.person_rounded, color: AppColors.primaryLight, isDark: isDark),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [_StatCard(value: '${widget.students.length}', label: t['total_students'] ?? 'Total Students', icon: Icons.school_rounded, color: const Color(0xFF3B82F6), isDark: isDark)]),
+          ])
+        else
+          Row(children: [
+            _StatCard(value: '${widget.classes.length}', label: t['total_classes'] ?? 'Total Classes', icon: Icons.class_rounded, color: const Color(0xFFF59E0B), isDark: isDark),
+            const SizedBox(width: 12),
+            _StatCard(value: '${widget.teachers.length}', label: t['total_teachers'] ?? 'Total Teachers', icon: Icons.person_rounded, color: AppColors.primaryLight, isDark: isDark),
+            const SizedBox(width: 12),
+            _StatCard(value: '${widget.students.length}', label: t['total_students'] ?? 'Total Students', icon: Icons.school_rounded, color: const Color(0xFF3B82F6), isDark: isDark),
+          ]),
         const SizedBox(height: 14),
         Row(children: [
           Expanded(

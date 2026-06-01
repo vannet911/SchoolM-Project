@@ -252,10 +252,13 @@ class _TeachersScreenState extends State<TeachersScreen> {
       );
     }
 
-    return _buildTableView(t);
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w < 600;
+    final isTablet = w >= 600 && w < 1024;
+    return _buildTableView(t, isMobile: isMobile, isTablet: isTablet);
   }
 
-  Widget _buildTableView(Map<String, String> t) {
+  Widget _buildTableView(Map<String, String> t, {bool isMobile = false, bool isTablet = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white70 : AppColors.textPrimary;
     return Padding(
@@ -263,39 +266,83 @@ class _TeachersScreenState extends State<TeachersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            _SearchBox(
-                controller: _searchCtrl,
-                hint: t['search'] ?? 'Search...'),
-            const Spacer(),
-            _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
-            const SizedBox(width: 8),
-            _EditButton(
-              label: t['edit'] ?? 'Edit',
-              onTap: () {
-                if (_selectedTeacher != null) {
-                  _openForm(teacher: _selectedTeacher);
-                } else {
-                  _showSnack(
-                      t['select_row_first'] ?? 'Please select a row first',
-                      isWarning: true);
-                }
-              },
-            ),
-            const SizedBox(width: 8),
-            _DeleteButton(
-              label: t['delete'] ?? 'Delete',
-              onTap: () {
-                if (_selectedTeacher != null) {
-                  _delete(_selectedTeacher!);
-                } else {
-                  _showSnack(
-                      t['select_row_first'] ?? 'Please select a row first',
-                      isWarning: true);
-                }
-              },
-            ),
-          ]),
+          if (isMobile)
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              _SearchBox(
+                  controller: _searchCtrl,
+                  hint: t['search'] ?? 'Search...',
+                  fullWidth: true),
+              const SizedBox(height: 8),
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
+                const SizedBox(width: 8),
+                _EditButton(
+                  label: t['edit'] ?? 'Edit',
+                  onTap: () {
+                    if (_selectedTeacher != null) {
+                      _openForm(teacher: _selectedTeacher);
+                    } else {
+                      _showSnack(
+                          t['select_row_first'] ?? 'Please select a row first',
+                          isWarning: true);
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                _DeleteButton(
+                  label: t['delete'] ?? 'Delete',
+                  onTap: () {
+                    if (_selectedTeacher != null) {
+                      _delete(_selectedTeacher!);
+                    } else {
+                      _showSnack(
+                          t['select_row_first'] ?? 'Please select a row first',
+                          isWarning: true);
+                    }
+                  },
+                ),
+              ]),
+            ])
+          else
+            LayoutBuilder(builder: (_, constraints) {
+              final btns = [
+                _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
+                const SizedBox(width: 8),
+                _EditButton(
+                  label: t['edit'] ?? 'Edit',
+                  onTap: () {
+                    if (_selectedTeacher != null) {
+                      _openForm(teacher: _selectedTeacher);
+                    } else {
+                      _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                _DeleteButton(
+                  label: t['delete'] ?? 'Delete',
+                  onTap: () {
+                    if (_selectedTeacher != null) {
+                      _delete(_selectedTeacher!);
+                    } else {
+                      _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                    }
+                  },
+                ),
+              ];
+              if (constraints.maxWidth > 550) {
+                return Row(children: [
+                  _SearchBox(controller: _searchCtrl, hint: t['search'] ?? 'Search...'),
+                  const Spacer(),
+                  ...btns,
+                ]);
+              }
+              return Row(children: [
+                Expanded(child: _SearchBox(controller: _searchCtrl, hint: t['search'] ?? 'Search...', fullWidth: true)),
+                const SizedBox(width: 10),
+                ...btns,
+              ]);
+            }),
           const SizedBox(height: 12),
           Expanded(
             child: _TableCard(
@@ -303,52 +350,111 @@ class _TeachersScreenState extends State<TeachersScreen> {
               empty: _filtered.isEmpty,
               emptyIcon: Icons.person_outline,
               emptyLabel: t['no_data'] ?? 'No teachers found',
-              header: Row(children: [
-                const TableHeader(label: '#', flex: 1),
-                TableHeader(
-                  label: t['code'] ?? 'Code',
-                  flex: 2,
-                  onSort: () => _sortBy('code'),
-                  isSorted: _sortColumn == 'code',
-                  sortAscending: _sortAscending,
-                ),
-                TableHeader(
-                  label: t['full_name'] ?? 'Full Name',
-                  flex: 3,
-                  onSort: () => _sortBy('name'),
-                  isSorted: _sortColumn == 'name',
-                  sortAscending: _sortAscending,
-                ),
-                TableHeader(
-                  label: t['subject'] ?? 'Subject',
-                  flex: 3,
-                  onSort: () => _sortBy('subject'),
-                  isSorted: _sortColumn == 'subject',
-                  sortAscending: _sortAscending,
-                ),
-                TableHeader(
-                  label: t['email'] ?? 'Email', 
-                  flex: 3,
-                  onSort: () => _sortBy('email'),
-                  isSorted: _sortColumn == 'email',
-                  sortAscending: _sortAscending,
-                ),
-                TableHeader(
-                  label: t['address'] ?? 'Address',
-                  flex: 4,
-                  onSort: () => _sortBy('address'),
-                  isSorted: _sortColumn == 'address',
-                  sortAscending: _sortAscending,
-                ),
-                TableHeader(
-                  label: t['status'] ?? 'Status',
-                  flex: 1,
-                  onSort: () => _sortBy('status'),
-                  isSorted: _sortColumn == 'status',
-                  sortAscending: _sortAscending,
-                  textAlign: TextAlign.center,
-                ),
-              ]),
+              header: isMobile
+                ? Row(children: [
+                    const TableHeader(label: '#', flex: 1),
+                    TableHeader(
+                      label: t['full_name'] ?? 'Name',
+                      flex: 4,
+                      onSort: () => _sortBy('name'),
+                      isSorted: _sortColumn == 'name',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['subject'] ?? 'Subject',
+                      flex: 4,
+                      onSort: () => _sortBy('subject'),
+                      isSorted: _sortColumn == 'subject',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['status'] ?? 'Status',
+                      flex: 2,
+                      onSort: () => _sortBy('status'),
+                      isSorted: _sortColumn == 'status',
+                      sortAscending: _sortAscending,
+                      textAlign: TextAlign.center,
+                    ),
+                  ])
+                : isTablet
+                ? Row(children: [
+                    const TableHeader(label: '#', flex: 1),
+                    TableHeader(
+                      label: t['full_name'] ?? 'Full Name',
+                      flex: 3,
+                      onSort: () => _sortBy('name'),
+                      isSorted: _sortColumn == 'name',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['subject'] ?? 'Subject',
+                      flex: 3,
+                      onSort: () => _sortBy('subject'),
+                      isSorted: _sortColumn == 'subject',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['email'] ?? 'Email',
+                      flex: 3,
+                      onSort: () => _sortBy('email'),
+                      isSorted: _sortColumn == 'email',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['status'] ?? 'Status',
+                      flex: 2,
+                      onSort: () => _sortBy('status'),
+                      isSorted: _sortColumn == 'status',
+                      sortAscending: _sortAscending,
+                      textAlign: TextAlign.center,
+                    ),
+                  ])
+                : Row(children: [
+                    const TableHeader(label: '#', flex: 1),
+                    TableHeader(
+                      label: t['code'] ?? 'Code',
+                      flex: 2,
+                      onSort: () => _sortBy('code'),
+                      isSorted: _sortColumn == 'code',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['full_name'] ?? 'Full Name',
+                      flex: 3,
+                      onSort: () => _sortBy('name'),
+                      isSorted: _sortColumn == 'name',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['subject'] ?? 'Subject',
+                      flex: 3,
+                      onSort: () => _sortBy('subject'),
+                      isSorted: _sortColumn == 'subject',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['email'] ?? 'Email',
+                      flex: 3,
+                      onSort: () => _sortBy('email'),
+                      isSorted: _sortColumn == 'email',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['address'] ?? 'Address',
+                      flex: 4,
+                      onSort: () => _sortBy('address'),
+                      isSorted: _sortColumn == 'address',
+                      sortAscending: _sortAscending,
+                    ),
+                    TableHeader(
+                      label: t['status'] ?? 'Status',
+                      flex: 2,
+                      onSort: () => _sortBy('status'),
+                      isSorted: _sortColumn == 'status',
+                      sortAscending: _sortAscending,
+                      textAlign: TextAlign.center,
+                    ),
+                  ]),
               body: ListView.builder(
                 itemCount: _paginated.length,
                 itemBuilder: (_, i) {
@@ -360,64 +466,141 @@ class _TeachersScreenState extends State<TeachersScreen> {
                         _selectedTeacher!['id'] == s['id'],
                     onTap: () => _openTeacherDetail(s),
                     onDoubleTap: () => _openDetail(s),
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: Text(
-                          (globalIndex + 1).toString(),
-                          style: AppTextStyles.body.copyWith(color: textColor),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          s['code'] ?? s['id']?.toString() ?? '—',
-                          style: AppTextStyles.body.copyWith(color: textColor),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          s['name'] ?? '—',
-                          style: AppTextStyles.body.copyWith(color: textColor),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          (s['subjects'] as List?)?.isNotEmpty == true
-                              ? (s['subjects'] as List).map((sub) => sub['name']).join(', ')
-                              : '—',
-                          style: AppTextStyles.body.copyWith(color: textColor),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          s['email'] ?? '—',
-                          style: AppTextStyles.body.copyWith(color: textColor),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 4,
-                        child: Text(
-                          s['address'] ?? '—',
-                          style: AppTextStyles.body.copyWith(color: textColor),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 1,
-                        child: _StatusBadge(status: s['status'] ?? 'Active'),
-                      ),
-                    ],
+                    children: isMobile
+                        ? [
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                (globalIndex + 1).toString(),
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                s['name'] ?? '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                (s['subjects'] as List?)?.isNotEmpty == true
+                                    ? (s['subjects'] as List).map((sub) => sub['name']).join(', ')
+                                    : '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Center(child: _StatusBadge(status: s['status'] ?? 'Active')),
+                            ),
+                          ]
+                        : isTablet
+                        ? [
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                (globalIndex + 1).toString(),
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                s['name'] ?? '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                (s['subjects'] as List?)?.isNotEmpty == true
+                                    ? (s['subjects'] as List).map((sub) => sub['name']).join(', ')
+                                    : '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                s['email'] ?? '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Center(child: _StatusBadge(status: s['status'] ?? 'Active')),
+                            ),
+                          ]
+                        : [
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                (globalIndex + 1).toString(),
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                s['code'] ?? s['id']?.toString() ?? '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                s['name'] ?? '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                (s['subjects'] as List?)?.isNotEmpty == true
+                                    ? (s['subjects'] as List).map((sub) => sub['name']).join(', ')
+                                    : '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                s['email'] ?? '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                s['address'] ?? '—',
+                                style: AppTextStyles.body.copyWith(color: textColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Center(child: _StatusBadge(status: s['status'] ?? 'Active')),
+                            ),
+                          ],
                   );
                 },
               ),
@@ -446,7 +629,8 @@ class _TeachersScreenState extends State<TeachersScreen> {
 class _SearchBox extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
-  const _SearchBox({required this.controller, required this.hint});
+  final bool fullWidth;
+  const _SearchBox({required this.controller, required this.hint, this.fullWidth = false});
 
   @override
   Widget build(BuildContext context) {
@@ -457,7 +641,7 @@ class _SearchBox extends StatelessWidget {
     final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
 
     return SizedBox(
-      width: 240,
+      width: fullWidth ? double.infinity : 240,
       height: 42,
       child: TextField(
         controller: controller,
@@ -632,6 +816,12 @@ class _TableRowState extends State<_TableRow> {
   bool _isHovering = false;
 
   @override
+  void deactivate() {
+    _isHovering = false;
+    super.deactivate();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEven = widget.index % 2 == 0;
@@ -648,8 +838,8 @@ class _TableRowState extends State<_TableRow> {
     }
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onEnter: (_) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isHovering = true); }),
+      onExit: (_) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isHovering = false); }),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
@@ -684,7 +874,8 @@ class _StatusBadge extends StatelessWidget {
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      width: 88,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(24),
@@ -693,7 +884,9 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         statusStr,
         textAlign: TextAlign.center,
-        style: AppTextStyles.body.copyWith(color: color),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.body.copyWith(color: color, fontSize: 12),
       ),
     );
   }

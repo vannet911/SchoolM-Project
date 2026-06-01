@@ -557,10 +557,17 @@ class TableHeader extends StatelessWidget {
         child: Row(
           mainAxisAlignment: mainAxis,
           children: [
-            Text(label, textAlign: textAlign, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600, color: textColor)),
+            Flexible(
+              child: Text(
+                label,
+                textAlign: textAlign,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600, color: textColor),
+              ),
+            ),
             if (onSort != null) ...[
               const SizedBox(width: 4),
-              //const Spacer(),
               Icon(
                 isSorted ? (sortAscending ? Icons.arrow_upward : Icons.arrow_downward) : Icons.unfold_more,
                 size: 14,

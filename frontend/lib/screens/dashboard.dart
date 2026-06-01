@@ -97,6 +97,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 600;
+    final isDesktop = width >= 1024;
+
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -104,163 +108,146 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final mutedColor = isDark ? Colors.white70 : AppColors.textSecondary;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── Main content ──────────────────────────────────────────
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppConstants.pagePadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Welcome + Logo header
-                Row(
+    // ── Stat cards ─────────────────────────────────────────────
+    Widget statCards;
+    if (_loading) {
+      statCards = const Center(
+          child: CircularProgressIndicator(color: AppColors.primary));
+    } else if (isMobile) {
+      // Mobile: 2-column grid
+      statCards = Column(children: [
+        Row(children: [
+          Expanded(child: _StatCard(title: t['total_students'] ?? 'Total Students', value: _stats['students']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _StudentIcon())),
+          const SizedBox(width: 12),
+          Expanded(child: _StatCard(title: t['total_teachers'] ?? 'Total Teachers', value: _stats['teachers']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _TeacherIcon())),
+        ]),
+        const SizedBox(height: 12),
+        _StatCard(title: t['total_classes'] ?? 'Total Classes', value: _stats['classes']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _ClassIcon()),
+      ]);
+    } else {
+      // Tablet + Desktop: 3 in a row
+      statCards = Row(children: [
+        Expanded(child: _StatCard(title: t['total_students'] ?? 'Total Students', value: _stats['students']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _StudentIcon())),
+        const SizedBox(width: 16),
+        Expanded(child: _StatCard(title: t['total_teachers'] ?? 'Total Teachers', value: _stats['teachers']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _TeacherIcon())),
+        const SizedBox(width: 16),
+        Expanded(child: _StatCard(title: t['total_classes'] ?? 'Total Classes', value: _stats['classes']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _ClassIcon())),
+      ]);
+    }
+
+    // ── Charts row 1 ───────────────────────────────────────────
+    Widget chartsRow1;
+    if (isMobile) {
+      // Mobile: stacked vertically
+      chartsRow1 = Column(children: [
+        _GenderDonutChart(male: _maleCount, female: _femaleCount, total: _stats['students'] ?? 0, t: t),
+        const SizedBox(height: 16),
+        _StudentsPerClassChart(data: _studentsByClass, t: t),
+      ]);
+    } else {
+      // Tablet + Desktop: side by side
+      chartsRow1 = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _GenderDonutChart(male: _maleCount, female: _femaleCount, total: _stats['students'] ?? 0, t: t)),
+          const SizedBox(width: 16),
+          Expanded(child: _StudentsPerClassChart(data: _studentsByClass, t: t)),
+        ],
+      );
+    }
+
+    // ── Scrollable main content ────────────────────────────────
+    final mainScroll = SingleChildScrollView(
+      padding: const EdgeInsets.all(AppConstants.pagePadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome + Logo header
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _greeting(t),
-                            style: AppTextStyles.heading1.copyWith(
-                                fontSize: 28, color: textColor),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            t['welcome_back'] ??
-                                'Welcome back to School Management Portal.',
-                            style:
-                                AppTextStyles.body.copyWith(color: mutedColor),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border:
-                                Border.all(color: borderColor, width: 1.5),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.school,
-                                size: 36, color: AppColors.primaryLight),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          t['app_name'] ?? 'KOMPONG PHNOM',
-                          style: AppTextStyles.heading2
-                              .copyWith(fontSize: 18, color: textColor),
-                        ),
-                        Text(
-                          t['app_subtitle'] ?? AppConstants.appSubtitle,
-                          style: AppTextStyles.body.copyWith(color: mutedColor),
-                        ),
-                      ],
+                    Text(_greeting(t),
+                        style: AppTextStyles.heading1.copyWith(
+                            fontSize: isMobile ? 22 : 28, color: textColor)),
+                    const SizedBox(height: 4),
+                    Text(
+                      t['welcome_back'] ??
+                          'Welcome back to School Management Portal.',
+                      style: AppTextStyles.body.copyWith(color: mutedColor),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-
-                // Stat cards
-                if (_loading)
-                  const Center(
-                      child: CircularProgressIndicator(
-                          color: AppColors.primary))
-                else
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          title:
-                              t['total_students'] ?? 'Total Students',
-                          value: _stats['students']!
-                              .toString()
-                              .padLeft(2, '0'),
-                          subtitle:
-                              t['all_data'] ?? 'All Data',
-                          iconWidget: const _StudentIcon(),
-                        ),
+              ),
+              if (!isMobile) ...[
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: borderColor, width: 1.5),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _StatCard(
-                          title:
-                              t['total_teachers'] ?? 'Total Teachers',
-                          value: _stats['teachers']!
-                              .toString()
-                              .padLeft(2, '0'),
-                          subtitle:
-                              t['all_data'] ?? 'All Data',
-                          iconWidget: const _TeacherIcon(),
-                        ),
+                      child: const Center(
+                        child: Icon(Icons.school, size: 36, color: AppColors.primaryLight),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _StatCard(
-                          title: t['total_classes'] ?? 'Total Classes',
-                          value: _stats['classes']!
-                              .toString()
-                              .padLeft(2, '0'),
-                          subtitle:
-                              t['all_data'] ?? 'All Data',
-                          iconWidget: const _ClassIcon(),
-                        ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 16),
-
-                // Charts row 1: Donut + Horizontal bars
-                if (!_loading)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _GenderDonutChart(
-                          male: _maleCount,
-                          female: _femaleCount,
-                          total: _stats['students'] ?? 0,
-                          t: t,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _StudentsPerClassChart(
-                          data: _studentsByClass,
-                          t: t,
-                        ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 16),
-
-                // Chart row 2: School overview vertical bars
-                if (!_loading)
-                  _SchoolOverviewChart(
-                    students: _stats['students'] ?? 0,
-                    teachers: _stats['teachers'] ?? 0,
-                    classes: _stats['classes'] ?? 0,
-                    subjects: _subjectCount,
-                    t: t,
-                  ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(t['app_name'] ?? 'KOMPONG PHNOM',
+                        style: AppTextStyles.heading2.copyWith(fontSize: 18, color: textColor)),
+                    Text(t['app_subtitle'] ?? AppConstants.appSubtitle,
+                        style: AppTextStyles.body.copyWith(color: mutedColor)),
+                  ],
+                ),
               ],
-            ),
+            ],
           ),
-        ),
+          const SizedBox(height: 24),
 
-        // ── Right panel ───────────────────────────────────────────
-        _CourseInfoPanel(subjects: _subjects, loading: _loading),
-      ],
+          statCards,
+          const SizedBox(height: 16),
+
+          if (!_loading) chartsRow1,
+          const SizedBox(height: 16),
+
+          if (!_loading)
+            _SchoolOverviewChart(
+              students: _stats['students'] ?? 0,
+              teachers: _stats['teachers'] ?? 0,
+              classes: _stats['classes'] ?? 0,
+              subjects: _subjectCount,
+              t: t,
+            ),
+
+          // Inline subject panel on mobile/tablet
+          if (!isDesktop) ...[
+            const SizedBox(height: 16),
+            _CourseInfoPanel(
+                subjects: _subjects, loading: _loading, inline: true),
+          ],
+        ],
+      ),
     );
+
+    // ── Desktop: main + right panel side-by-side ──────────────
+    if (isDesktop) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: mainScroll),
+          _CourseInfoPanel(subjects: _subjects, loading: _loading),
+        ],
+      );
+    }
+
+    // ── Tablet / Mobile: full-width scroll ────────────────────
+    return mainScroll;
   }
 }
 
@@ -868,6 +855,7 @@ class _AreaChartPainter extends CustomPainter {
 class _CourseInfoPanel extends StatelessWidget {
   final List<Map<String, dynamic>> subjects;
   final bool loading;
+  final bool inline;
 
   static const List<Color> _palette = [
     Color(0xFF6C3FAB),
@@ -891,7 +879,11 @@ class _CourseInfoPanel extends StatelessWidget {
     Icons.music_note_outlined,
   ];
 
-  const _CourseInfoPanel({required this.subjects, required this.loading});
+  const _CourseInfoPanel({
+    required this.subjects,
+    required this.loading,
+    this.inline = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -903,6 +895,74 @@ class _CourseInfoPanel extends StatelessWidget {
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white70 : AppColors.textSecondary;
 
+    final header = Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t['subject_information'] ?? 'Subject Information',
+              style: AppTextStyles.heading3.copyWith(color: textColor)),
+          const SizedBox(height: 2),
+          Text(
+            t['notifications_about_subject'] ??
+                'Notifications about subject Info',
+            style: AppTextStyles.body.copyWith(color: mutedColor),
+          ),
+        ],
+      ),
+    );
+
+    Widget buildList({bool shrink = false}) {
+      if (loading) {
+        return const Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        );
+      }
+      if (subjects.isEmpty) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(child: Text(t['no_data'] ?? 'No data',
+              style: AppTextStyles.body.copyWith(color: mutedColor))),
+        );
+      }
+      return ListView.separated(
+        padding: const EdgeInsets.all(12),
+        shrinkWrap: shrink,
+        physics: shrink ? const NeverScrollableScrollPhysics() : null,
+        itemCount: subjects.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, i) {
+          final s = subjects[i];
+          final name = (s['name'] as String?) ?? 'Subject ${i + 1}';
+          return _CourseItem(
+            label: name,
+            color: _palette[i % _palette.length],
+            icon: _icons[i % _icons.length],
+          );
+        },
+      );
+    }
+
+    // ── Inline mode (mobile/tablet): inside the scroll column ──
+    if (inline) {
+      return Container(
+        decoration: BoxDecoration(
+          color: panelColor,
+          borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            header,
+            buildList(shrink: true),
+          ],
+        ),
+      );
+    }
+
+    // ── Side panel mode (desktop) ──────────────────────────────
     return Container(
       width: AppConstants.rightPanelWidth,
       decoration: BoxDecoration(
@@ -912,50 +972,8 @@ class _CourseInfoPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  t['subject_information'] ?? 'Subject Information',
-                  style: AppTextStyles.heading3.copyWith(color: textColor),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  t['notifications_about_subject'] ??
-                      'Notifications about subject Info',
-                  style: AppTextStyles.body.copyWith(color: mutedColor),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary))
-                : subjects.isEmpty
-                    ? Center(
-                        child: Text(t['no_data'] ?? 'No data',
-                            style: AppTextStyles.body
-                                .copyWith(color: mutedColor)))
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: subjects.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (_, i) {
-                          final s = subjects[i];
-                          final name =
-                              (s['name'] as String?) ?? 'Subject ${i + 1}';
-                          final color =
-                              _palette[i % _palette.length];
-                          final icon = _icons[i % _icons.length];
-                          return _CourseItem(
-                              label: name, color: color, icon: icon);
-                        },
-                      ),
-          ),
+          header,
+          Expanded(child: buildList()),
         ],
       ),
     );

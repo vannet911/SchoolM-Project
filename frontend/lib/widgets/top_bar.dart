@@ -89,7 +89,7 @@ class _MenuButtonState extends State<_MenuButton> {
       color: Colors.transparent,
       child: InkWell(
         onTap: widget.onTap,
-        onHover: (v) => setState(() => _hovered = v),
+        onHover: (v) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _hovered = v); }),
         borderRadius: BorderRadius.circular(18),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 0),

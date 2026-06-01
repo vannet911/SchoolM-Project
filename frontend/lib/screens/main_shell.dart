@@ -16,35 +16,79 @@ import 'package:schoolms_portal/screens/reports.dart';
 class MainShell extends StatelessWidget {
   const MainShell({super.key});
 
+  static const double _mobileBreakpoint = 600.0;
+  static const double _desktopBreakpoint = 1024.0;
+
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < _mobileBreakpoint;
+    final isTablet = width >= _mobileBreakpoint && width < _desktopBreakpoint;
+
     final nav = context.watch<NavProvider>();
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
 
+    // ── Mobile: sidebar in a Drawer ───────────────────────────
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        drawer: const Sidebar(forceCollapsed: false),
+        body: Builder(
+          builder: (ctx) => Column(
+            children: [
+              TopBar(
+                title: t[nav.pageTitleKey] ?? nav.pageTitleKey,
+                showMenuIcon: true,
+                onMenuTap: () => Scaffold.of(ctx).openDrawer(),
+              ),
+              Expanded(child: _buildPage(nav.currentPage)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ── Tablet: always-collapsed icon sidebar ─────────────────
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        body: Row(
+          children: [
+            const Sidebar(forceCollapsed: true),
+            Expanded(
+              child: Column(
+                children: [
+                  TopBar(
+                    title: t[nav.pageTitleKey] ?? nav.pageTitleKey,
+                    showMenuIcon: false,
+                  ),
+                  Expanded(child: _buildPage(nav.currentPage)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ── Desktop: full sidebar with toggle ─────────────────────
     return Scaffold(
       backgroundColor: bgColor,
       body: Row(
         children: [
-          // ── Sidebar ───────────────────────────────────────────
           const Sidebar(),
-
-          // ── Main area ─────────────────────────────────────────
           Expanded(
             child: Column(
               children: [
-                // Top bar
                 TopBar(
                   title: t[nav.pageTitleKey] ?? nav.pageTitleKey,
                   showMenuIcon: true,
                   onMenuTap: () => nav.toggleSidebar(),
                 ),
-                // Content
-                Expanded(
-                  child: _buildPage(nav.currentPage),
-                ),
+                Expanded(child: _buildPage(nav.currentPage)),
               ],
             ),
           ),

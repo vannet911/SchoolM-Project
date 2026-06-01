@@ -9,12 +9,13 @@ import 'package:schoolms_portal/utils/app_constants.dart';
 const double _collapsedWidth = 90;
 
 class Sidebar extends StatelessWidget {
-  const Sidebar({super.key});
+  final bool? forceCollapsed;
+  const Sidebar({super.key, this.forceCollapsed});
 
   @override
   Widget build(BuildContext context) {
     final nav = context.watch<NavProvider>();
-    final isCollapsed = nav.sidebarCollapsed;
+    final isCollapsed = forceCollapsed ?? nav.sidebarCollapsed;
     final auth = context.watch<AuthProvider>();
     final locale = context.watch<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
@@ -206,7 +207,7 @@ class _CollapsedNavItemState extends State<_CollapsedNavItem> {
       color: Colors.transparent,
       child: InkWell(
         onTap: widget.onTap,
-        onHover: (v) => setState(() => isHovering = v),
+        onHover: (v) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => isHovering = v); }),
         borderRadius: BorderRadius.circular(8),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
