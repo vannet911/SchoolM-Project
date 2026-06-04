@@ -1,4 +1,7 @@
 // lib/screens/class_subject.dart
+import 'dart:html' as html;
+import 'dart:typed_data';
+import 'package:excel/excel.dart' hide Border, TextSpan;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/locale_provider.dart';
@@ -60,6 +63,19 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
     return _filteredSubjects.skip(start).take(_subjectPageSize).toList();
   }
 
+  // Filter & export
+  final GlobalKey _classSearchBoxKey = GlobalKey();
+  final GlobalKey _subjectSearchBoxKey = GlobalKey();
+  OverlayEntry? _classFilterOverlay;
+  OverlayEntry? _subjectFilterOverlay;
+  bool _exportingClasses = false;
+  bool _exportingSubjects = false;
+  String _classStatusFilter = 'all';
+  String _subjectStatusFilter = 'all';
+
+  int get _classActiveFilterCount => _classStatusFilter != 'all' ? 1 : 0;
+  int get _subjectActiveFilterCount => _subjectStatusFilter != 'all' ? 1 : 0;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +93,8 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
     _classSearchCtrl.dispose();
     _subjectSearchCtrl.removeListener(_filterSubjects);
     _subjectSearchCtrl.dispose();
+    _classFilterOverlay?.remove();
+    _subjectFilterOverlay?.remove();
     super.dispose();
   }
 
@@ -101,14 +119,17 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
 
   void _filterClasses({bool resetPage = true}) {
     final q = _classSearchCtrl.text.toLowerCase();
-    var list = q.isEmpty
-        ? List<Map<String, dynamic>>.from(_classes)
-        : _classes
-            .where((c) =>
-                '${c['code']} ${c['name']} ${c['description'] ?? ''}'
-                    .toLowerCase()
-                    .contains(q))
-            .toList();
+    var list = _classes.where((c) {
+      final searchOk = q.isEmpty ||
+          '${c['code']} ${c['name']} ${c['description'] ?? ''}'
+              .toLowerCase()
+              .contains(q);
+      final active = c['status'] == true;
+      final statusOk = _classStatusFilter == 'all' ||
+          (_classStatusFilter == 'active' && active) ||
+          (_classStatusFilter == 'inactive' && !active);
+      return searchOk && statusOk;
+    }).toList();
     if (_classSortColumn != null) {
       list.sort((a, b) {
         final av = _classSortValue(a, _classSortColumn!);
@@ -222,14 +243,17 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
 
   void _filterSubjects({bool resetPage = true}) {
     final q = _subjectSearchCtrl.text.toLowerCase();
-    var list = q.isEmpty
-        ? List<Map<String, dynamic>>.from(_subjects)
-        : _subjects
-            .where((s) =>
-                '${s['code']} ${s['name']} ${s['description'] ?? ''}'
-                    .toLowerCase()
-                    .contains(q))
-            .toList();
+    var list = _subjects.where((s) {
+      final searchOk = q.isEmpty ||
+          '${s['code']} ${s['name']} ${s['description'] ?? ''}'
+              .toLowerCase()
+              .contains(q);
+      final active = s['status'] == true;
+      final statusOk = _subjectStatusFilter == 'all' ||
+          (_subjectStatusFilter == 'active' && active) ||
+          (_subjectStatusFilter == 'inactive' && !active);
+      return searchOk && statusOk;
+    }).toList();
     if (_subjectSortColumn != null) {
       list.sort((a, b) {
         final av = _subjectSortValue(a, _subjectSortColumn!);
@@ -321,6 +345,156 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
 
   void _closeSubjectForm() =>
       setState(() { _showSubjectForm = false; _formSubject = null; });
+
+  // ── Filter & Export ───────────────────────────────────────────────────────────
+
+  void _toggleClassFilter() {
+    if (_classFilterOverlay != null) {
+      _classFilterOverlay!.remove();
+      _classFilterOverlay = null;
+      return;
+    }
+    final keyCtx = _classSearchBoxKey.currentContext;
+    if (keyCtx == null) return;
+    final box = keyCtx.findRenderObject() as RenderBox;
+    final overlayBox = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final pos = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+    final locale = context.read<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    _classFilterOverlay = OverlayEntry(
+      builder: (_) => Stack(children: [
+        Positioned.fill(child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () { _classFilterOverlay?.remove(); _classFilterOverlay = null; },
+          child: const ColoredBox(color: Colors.transparent),
+        )),
+        Positioned(
+          left: pos.dx, top: pos.dy + box.size.height + 6, width: box.size.width,
+          child: GestureDetector(onTap: () {}, child: Material(
+            elevation: 6, borderRadius: BorderRadius.circular(12),
+            child: _FilterPanel(
+              statusFilter: _classStatusFilter, t: t, isDark: isDark,
+              onApply: (s) {
+                _classFilterOverlay?.remove(); _classFilterOverlay = null;
+                setState(() => _classStatusFilter = s);
+                _filterClasses();
+              },
+            ),
+          )),
+        ),
+      ]),
+    );
+    Overlay.of(context).insert(_classFilterOverlay!);
+  }
+
+  void _toggleSubjectFilter() {
+    if (_subjectFilterOverlay != null) {
+      _subjectFilterOverlay!.remove();
+      _subjectFilterOverlay = null;
+      return;
+    }
+    final keyCtx = _subjectSearchBoxKey.currentContext;
+    if (keyCtx == null) return;
+    final box = keyCtx.findRenderObject() as RenderBox;
+    final overlayBox = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final pos = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+    final locale = context.read<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    _subjectFilterOverlay = OverlayEntry(
+      builder: (_) => Stack(children: [
+        Positioned.fill(child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () { _subjectFilterOverlay?.remove(); _subjectFilterOverlay = null; },
+          child: const ColoredBox(color: Colors.transparent),
+        )),
+        Positioned(
+          left: pos.dx, top: pos.dy + box.size.height + 6, width: box.size.width,
+          child: GestureDetector(onTap: () {}, child: Material(
+            elevation: 6, borderRadius: BorderRadius.circular(12),
+            child: _FilterPanel(
+              statusFilter: _subjectStatusFilter, t: t, isDark: isDark,
+              onApply: (s) {
+                _subjectFilterOverlay?.remove(); _subjectFilterOverlay = null;
+                setState(() => _subjectStatusFilter = s);
+                _filterSubjects();
+              },
+            ),
+          )),
+        ),
+      ]),
+    );
+    Overlay.of(context).insert(_subjectFilterOverlay!);
+  }
+
+  Future<void> _exportClasses(Map<String, String> t) async {
+    if (_exportingClasses || _filteredClasses.isEmpty) return;
+    setState(() => _exportingClasses = true);
+    try {
+      final workbook = Excel.createExcel();
+      workbook.rename('Sheet1', 'Classes');
+      final sheet = workbook['Classes'];
+      sheet.appendRow(['#', 'Code', 'Name', 'Description', 'Status'].map((h) => TextCellValue(h)).toList());
+      for (var i = 0; i < _filteredClasses.length; i++) {
+        final c = _filteredClasses[i];
+        final active = c['status'] == true;
+        sheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(c['code']?.toString() ?? ''),
+          TextCellValue(c['name']?.toString() ?? ''),
+          TextCellValue(c['description']?.toString() ?? ''),
+          TextCellValue(active ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive')),
+        ]);
+      }
+      final bytes = workbook.encode()!;
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final filename = 'classes_$date.xlsx';
+      final blob = html.Blob([Uint8List.fromList(bytes)], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)..setAttribute('download', filename)..click();
+      html.Url.revokeObjectUrl(url);
+      _showSnack(filename);
+    } catch (e) {
+      _showSnack(t['save_failed'] ?? 'Export failed', isError: true);
+    } finally {
+      if (mounted) setState(() => _exportingClasses = false);
+    }
+  }
+
+  Future<void> _exportSubjects(Map<String, String> t) async {
+    if (_exportingSubjects || _filteredSubjects.isEmpty) return;
+    setState(() => _exportingSubjects = true);
+    try {
+      final workbook = Excel.createExcel();
+      workbook.rename('Sheet1', 'Subjects');
+      final sheet = workbook['Subjects'];
+      sheet.appendRow(['#', 'Code', 'Name', 'Description', 'Status'].map((h) => TextCellValue(h)).toList());
+      for (var i = 0; i < _filteredSubjects.length; i++) {
+        final s = _filteredSubjects[i];
+        final active = s['status'] == true;
+        sheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(s['code']?.toString() ?? ''),
+          TextCellValue(s['name']?.toString() ?? ''),
+          TextCellValue(s['description']?.toString() ?? ''),
+          TextCellValue(active ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive')),
+        ]);
+      }
+      final bytes = workbook.encode()!;
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final filename = 'subjects_$date.xlsx';
+      final blob = html.Blob([Uint8List.fromList(bytes)], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)..setAttribute('download', filename)..click();
+      html.Url.revokeObjectUrl(url);
+      _showSnack(filename);
+    } catch (e) {
+      _showSnack(t['save_failed'] ?? 'Export failed', isError: true);
+    } finally {
+      if (mounted) setState(() => _exportingSubjects = false);
+    }
+  }
 
   // ── Toast ─────────────────────────────────────────────────────────────────────
 
@@ -477,10 +651,15 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
       children: [
         if (isMobile)
           Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            _SearchBox(
-                controller: _classSearchCtrl,
-                hint: t['search'] ?? 'Search...',
-                fullWidth: true),
+            KeyedSubtree(
+              key: _classSearchBoxKey,
+              child: _SearchBox(
+                  controller: _classSearchCtrl,
+                  hint: t['search'] ?? 'Search...',
+                  fullWidth: true,
+                  onFilter: _toggleClassFilter,
+                  filterCount: _classActiveFilterCount),
+            ),
             const SizedBox(height: 8),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
               _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm()),
@@ -510,6 +689,13 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                   }
                 },
               ),
+              const SizedBox(width: 8),
+              _ExportButton(
+                label: t['export'] ?? 'Export',
+                exporting: _exportingClasses,
+                isDark: isDark,
+                onTap: () => _exportClasses(t),
+              ),
             ]),
           ])
         else
@@ -538,16 +724,42 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                   }
                 },
               ),
+              const SizedBox(width: 8),
+              _ExportButton(
+                label: t['export'] ?? 'Export',
+                exporting: _exportingClasses,
+                isDark: isDark,
+                onTap: () => _exportClasses(t),
+              ),
             ];
-            if (constraints.maxWidth > 550) {
+            if (constraints.maxWidth > 650) {
               return Row(children: [
-                _SearchBox(controller: _classSearchCtrl, hint: t['search'] ?? 'Search...'),
+                KeyedSubtree(
+                  key: _classSearchBoxKey,
+                  child: _SearchBox(
+                    controller: _classSearchCtrl,
+                    hint: t['search'] ?? 'Search...',
+                    onFilter: _toggleClassFilter,
+                    filterCount: _classActiveFilterCount,
+                  ),
+                ),
                 const Spacer(),
                 ...btns,
               ]);
             }
             return Row(children: [
-              Expanded(child: _SearchBox(controller: _classSearchCtrl, hint: t['search'] ?? 'Search...', fullWidth: true)),
+              Expanded(
+                child: KeyedSubtree(
+                  key: _classSearchBoxKey,
+                  child: _SearchBox(
+                    controller: _classSearchCtrl,
+                    hint: t['search'] ?? 'Search...',
+                    fullWidth: true,
+                    onFilter: _toggleClassFilter,
+                    filterCount: _classActiveFilterCount,
+                  ),
+                ),
+              ),
               const SizedBox(width: 10),
               ...btns,
             ]);
@@ -770,10 +982,15 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
         // ── Toolbar ─────────────────────────────────────────────
         if (isMobile)
           Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            _SearchBox(
-                controller: _subjectSearchCtrl,
-                hint: t['search'] ?? 'Search...',
-                fullWidth: true),
+            KeyedSubtree(
+              key: _subjectSearchBoxKey,
+              child: _SearchBox(
+                  controller: _subjectSearchCtrl,
+                  hint: t['search'] ?? 'Search...',
+                  fullWidth: true,
+                  onFilter: _toggleSubjectFilter,
+                  filterCount: _subjectActiveFilterCount),
+            ),
             const SizedBox(height: 8),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
               _AddButton(
@@ -804,6 +1021,13 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                   }
                 },
               ),
+              const SizedBox(width: 8),
+              _ExportButton(
+                label: t['export'] ?? 'Export',
+                exporting: _exportingSubjects,
+                isDark: isDark,
+                onTap: () => _exportSubjects(t),
+              ),
             ]),
           ])
         else
@@ -832,16 +1056,42 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                   }
                 },
               ),
+              const SizedBox(width: 8),
+              _ExportButton(
+                label: t['export'] ?? 'Export',
+                exporting: _exportingSubjects,
+                isDark: isDark,
+                onTap: () => _exportSubjects(t),
+              ),
             ];
-            if (constraints.maxWidth > 550) {
+            if (constraints.maxWidth > 650) {
               return Row(children: [
-                _SearchBox(controller: _subjectSearchCtrl, hint: t['search'] ?? 'Search...'),
+                KeyedSubtree(
+                  key: _subjectSearchBoxKey,
+                  child: _SearchBox(
+                    controller: _subjectSearchCtrl,
+                    hint: t['search'] ?? 'Search...',
+                    onFilter: _toggleSubjectFilter,
+                    filterCount: _subjectActiveFilterCount,
+                  ),
+                ),
                 const Spacer(),
                 ...btns,
               ]);
             }
             return Row(children: [
-              Expanded(child: _SearchBox(controller: _subjectSearchCtrl, hint: t['search'] ?? 'Search...', fullWidth: true)),
+              Expanded(
+                child: KeyedSubtree(
+                  key: _subjectSearchBoxKey,
+                  child: _SearchBox(
+                    controller: _subjectSearchCtrl,
+                    hint: t['search'] ?? 'Search...',
+                    fullWidth: true,
+                    onFilter: _toggleSubjectFilter,
+                    filterCount: _subjectActiveFilterCount,
+                  ),
+                ),
+              ),
               const SizedBox(width: 10),
               ...btns,
             ]);
@@ -986,11 +1236,312 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
 
 // ── Shared local helpers ──────────────────────────────────────────────────────
 
+class _FilterIconSuffix extends StatefulWidget {
+  final VoidCallback onTap;
+  final bool activeFilter;
+  final int filterCount;
+  final Color mutedColor;
+  final bool isDark;
+
+  const _FilterIconSuffix({
+    required this.onTap,
+    required this.activeFilter,
+    required this.filterCount,
+    required this.mutedColor,
+    required this.isDark,
+  });
+
+  @override
+  State<_FilterIconSuffix> createState() => _FilterIconSuffixState();
+}
+
+class _FilterIconSuffixState extends State<_FilterIconSuffix> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hoverBg = widget.isDark
+        ? Colors.white.withValues(alpha: 0.0)
+        : AppColors.primarySurface;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => WidgetsBinding.instance.addPostFrameCallback(
+          (_) { if (mounted) setState(() => _hovering = true); }),
+      onExit: (_) => WidgetsBinding.instance.addPostFrameCallback(
+          (_) { if (mounted) setState(() => _hovering = false); }),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 0),
+              width: 32,
+              height: 32,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: widget.activeFilter
+                    ? AppColors.primary.withValues(alpha: 0.0)
+                    : _hovering
+                        ? hoverBg
+                        : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: widget.activeFilter
+                    ? AppColors.primary
+                    : _hovering
+                        ? AppColors.primary
+                        : widget.mutedColor,
+              ),
+            ),
+            if (widget.activeFilter)
+              Positioned(
+                top: 6,
+                right: 4,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${widget.filterCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterPanel extends StatefulWidget {
+  final String statusFilter;
+  final Map<String, String> t;
+  final bool isDark;
+  final void Function(String status) onApply;
+
+  const _FilterPanel({
+    required this.statusFilter,
+    required this.t,
+    required this.isDark,
+    required this.onApply,
+  });
+
+  @override
+  State<_FilterPanel> createState() => _FilterPanelState();
+}
+
+class _FilterPanelState extends State<_FilterPanel> {
+  late String _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = widget.statusFilter;
+  }
+
+  Widget _section(String title, List<Widget> chips) {
+    final isDark = widget.isDark;
+    final mutedColor = isDark ? Colors.white60 : AppColors.textSecondary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: AppTextStyles.label.copyWith(
+                color: mutedColor, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: chips),
+      ],
+    );
+  }
+
+  Widget _chip(String label, String value, String current,
+      void Function(String) onSelect) {
+    final isDark = widget.isDark;
+    final selected = current == value;
+    return GestureDetector(
+      onTap: () => setState(() => onSelect(value)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : (isDark ? const Color(0xFF1C2A4A) : const Color(0xFFF3F4F6)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.primary : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+          if (selected) ...[
+            const SizedBox(width: 6),
+            const Icon(Icons.check_circle_rounded,
+                size: 14, color: AppColors.primary),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final t = widget.t;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final dividerColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+
+    final statusChips = [
+      _chip(t['all_status'] ?? 'All', 'all', _status, (v) => _status = v),
+      _chip(t['active'] ?? 'Active', 'active', _status, (v) => _status = v),
+      _chip(t['inactive'] ?? 'Inactive', 'inactive', _status, (v) => _status = v),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+            child: Row(children: [
+              const Icon(Icons.tune_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(t['filter'] ?? 'Filter',
+                    style: AppTextStyles.label.copyWith(
+                        color: textColor, fontWeight: FontWeight.w600)),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _status = 'all'),
+                style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero),
+                child: Text(t['delete'] ?? 'Reset',
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textSecondary)),
+              ),
+            ]),
+          ),
+          Divider(height: 1, color: dividerColor),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _section(t['status'] ?? 'Status', statusChips),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: () => widget.onApply(_status),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)),
+                    ),
+                    child: Text(t['confirm'] ?? 'Apply',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExportButton extends StatelessWidget {
+  final String label;
+  final bool exporting;
+  final VoidCallback? onTap;
+  final bool isDark;
+
+  const _ExportButton({
+    required this.label,
+    required this.exporting,
+    required this.isDark,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    return OutlinedButton(
+      onPressed: exporting ? null : onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primaryLight,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: BorderSide(color: borderColor, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        overlayColor: AppColors.primaryLight.withValues(alpha: 0.08),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        exporting
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primaryLight))
+            : const Icon(Icons.download_rounded, size: 18),
+        const SizedBox(width: 8),
+        Text(label),
+      ]),
+    );
+  }
+}
+
 class _SearchBox extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
   final bool fullWidth;
-  const _SearchBox({required this.controller, required this.hint, this.fullWidth = false});
+  final VoidCallback? onFilter;
+  final int filterCount;
+
+  const _SearchBox({
+    required this.controller,
+    required this.hint,
+    this.fullWidth = false,
+    this.onFilter,
+    this.filterCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -999,6 +1550,8 @@ class _SearchBox extends StatelessWidget {
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
+    final hasFilter = onFilter != null;
+    final activeFilter = filterCount > 0;
 
     return SizedBox(
       width: fullWidth ? double.infinity : 240,
@@ -1010,6 +1563,15 @@ class _SearchBox extends StatelessWidget {
           hintText: hint,
           hintStyle: AppTextStyles.body.copyWith(color: mutedColor),
           prefixIcon: Icon(Icons.search, size: 18, color: mutedColor),
+          suffixIcon: hasFilter
+              ? _FilterIconSuffix(
+                  onTap: onFilter!,
+                  activeFilter: activeFilter,
+                  filterCount: filterCount,
+                  mutedColor: mutedColor,
+                  isDark: isDark,
+                )
+              : null,
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),

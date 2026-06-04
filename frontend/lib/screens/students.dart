@@ -1,4 +1,7 @@
 // lib/screens/students.dart
+import 'dart:html' as html;
+import 'dart:typed_data';
+import 'package:excel/excel.dart' hide Border;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/locale_provider.dart';
@@ -18,6 +21,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
   List<Map<String, dynamic>> _students = [];
   List<Map<String, dynamic>> _filtered = [];
   bool _loading = true;
+  final GlobalKey _searchBoxKey = GlobalKey();
+  OverlayEntry? _filterOverlay;
+  bool _exporting = false;
   final _searchCtrl = TextEditingController();
   Map<String, dynamic>? _selectedStudent;
   Map<String, dynamic>? _detailStudent;
@@ -27,6 +33,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
   bool _sortAscending = true;
   int _currentPage = 1;
   int _pageSize = 25;
+
+  // Active filters
+  String _genderFilter = 'all';
+  String _classFilter = 'all';
+  String _statusFilter = 'all';
+
+  int get _activeFilterCount => [
+        _genderFilter != 'all',
+        _classFilter != 'all',
+        _statusFilter != 'all',
+      ].where((v) => v).length;
 
   int get _totalPages => (_filtered.length / _pageSize).ceil().clamp(1, 999);
   List<Map<String, dynamic>> get _paginated {
@@ -69,13 +86,23 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   void _filter({bool resetPage = true}) {
     final q = _searchCtrl.text.toLowerCase();
-    var list = q.isEmpty
-        ? List<Map<String, dynamic>>.from(_students)
-        : _students
-            .where((s) => '${s['firstName']} ${s['lastName']} ${s['email']} ${s['className'] ?? ''}'
-                .toLowerCase()
-                .contains(q))
-            .toList();
+    var list = _students.where((s) {
+      final searchOk = q.isEmpty ||
+          '${s['firstName']} ${s['lastName']} ${s['email']} ${s['className'] ?? ''}'
+              .toLowerCase()
+              .contains(q);
+      final gender = (s['gender'] as String?)?.toLowerCase() ?? '';
+      final genderOk = _genderFilter == 'all' ||
+          gender == _genderFilter.toLowerCase();
+      final cls = (s['className'] as String?) ?? '';
+      final classOk = _classFilter == 'all' || cls == _classFilter;
+      final active = s['status'] == true;
+      final statusOk = _statusFilter == 'all' ||
+          (_statusFilter == 'active' && active) ||
+          (_statusFilter == 'inactive' && !active);
+      return searchOk && genderOk && classOk && statusOk;
+    }).toList();
+
     if (_sortColumn != null) {
       list.sort((a, b) {
         final av = _sortValue(a, _sortColumn!);
@@ -89,6 +116,139 @@ class _StudentsScreenState extends State<StudentsScreen> {
     });
   }
 
+  List<String> _buildUniqueClasses() {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final s in _students) {
+      final cn = s['className'];
+      if (cn is String && cn.isNotEmpty && seen.add(cn)) result.add(cn);
+    }
+    result.sort();
+    return result;
+  }
+
+  Future<void> _exportStudents(Map<String, String> t) async {
+    if (_exporting || _filtered.isEmpty) return;
+    setState(() => _exporting = true);
+    try {
+      final workbook = Excel.createExcel();
+      workbook.rename('Sheet1', 'Students');
+      final sheet = workbook['Students'];
+      final headers = ['#', 'Code', 'First Name', 'Last Name', 'Gender',
+          'Class', 'Date of Birth', 'Email', 'Phone', 'Address', 'Status'];
+      sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
+      for (var i = 0; i < _filtered.length; i++) {
+        final s = _filtered[i];
+        final dob = s['dateOfBirth'] != null
+            ? (s['dateOfBirth'] as String).split('T').first
+            : '';
+        final active = s['status'] == true;
+        sheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(s['code']?.toString() ?? ''),
+          TextCellValue(s['firstName']?.toString() ?? ''),
+          TextCellValue(s['lastName']?.toString() ?? ''),
+          TextCellValue(s['gender']?.toString() ?? ''),
+          TextCellValue(s['className']?.toString() ?? ''),
+          TextCellValue(dob),
+          TextCellValue(s['email']?.toString() ?? ''),
+          TextCellValue(s['phoneNumber']?.toString() ?? ''),
+          TextCellValue(s['address']?.toString() ?? ''),
+          TextCellValue(active ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive')),
+        ]);
+      }
+      final bytes = workbook.encode()!;
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final filename = 'students_$date.xlsx';
+      final blob = html.Blob(
+        [Uint8List.fromList(bytes)],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', filename)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+      _showSnack(filename);
+    } catch (e) {
+      _showSnack(t['save_failed'] ?? 'Export failed', isError: true);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  void _toggleFilter() {
+    if (_filterOverlay != null) {
+      _filterOverlay!.remove();
+      _filterOverlay = null;
+      return;
+    }
+
+    final keyCtx = _searchBoxKey.currentContext;
+    if (keyCtx == null) return;
+    final box = keyCtx.findRenderObject() as RenderBox;
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final pos = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+    final width = box.size.width;
+    final boxHeight = box.size.height;
+
+    final locale = context.read<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final uniqueClasses = _buildUniqueClasses();
+
+    _filterOverlay = OverlayEntry(
+      builder: (_) => Stack(
+        children: [
+          // Full-screen transparent barrier — closes panel on outside tap
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                _filterOverlay?.remove();
+                _filterOverlay = null;
+              },
+              child: const ColoredBox(color: Colors.transparent),
+            ),
+          ),
+          // Filter panel positioned below the search box
+          Positioned(
+            left: pos.dx,
+            top: pos.dy + boxHeight + 6,
+            width: width,
+            child: GestureDetector(
+              onTap: () {},
+              child: Material(
+                elevation: 6,
+                borderRadius: BorderRadius.circular(12),
+                child: _FilterPanel(
+                  genderFilter: _genderFilter,
+                  classFilter: _classFilter,
+                  statusFilter: _statusFilter,
+                  availableClasses: uniqueClasses,
+                  t: t,
+                  isDark: isDark,
+                  onApply: (g, c, s) {
+                    _filterOverlay?.remove();
+                    _filterOverlay = null;
+                    setState(() {
+                      _genderFilter = g;
+                      _classFilter = c;
+                      _statusFilter = s;
+                    });
+                    _filter();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    Overlay.of(context).insert(_filterOverlay!);
+  }
+
   String _sortValue(Map<String, dynamic> s, String col) {
     switch (col) {
       case 'code':
@@ -97,6 +257,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
         return '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.toLowerCase();
       case 'dob':
         return s['dateOfBirth']?.toString() ?? '';
+      case 'gender':
+        return s['gender']?.toString().toLowerCase() ?? '';
       case 'class':
         return s['className']?.toString().toLowerCase() ?? '';
       case 'email':
@@ -282,39 +444,70 @@ class _StudentsScreenState extends State<StudentsScreen> {
     final Widget toolbar;
     if (isMobile) {
       toolbar = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _SearchBox(controller: _searchCtrl, hint: t['search'] ?? 'Searching...', fullWidth: true),
+        KeyedSubtree(
+          key: _searchBoxKey,
+          child: _SearchBox(
+            controller: _searchCtrl,
+            hint: t['search'] ?? 'Searching...',
+            fullWidth: true,
+            onFilter: _toggleFilter,
+            filterCount: _activeFilterCount,
+          ),
+        ),
         const SizedBox(height: 8),
-        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
-          const SizedBox(width: 8),
-          _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
-          const SizedBox(width: 8),
-          _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
-        ]),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
+            _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
+            _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
+            _ExportButton(
+              label: t['export'] ?? 'Export',
+              exporting: _exporting,
+              onTap: _filtered.isEmpty ? null : () => _exportStudents(t),
+              isDark: isDark,
+            ),
+          ],
+        ),
       ]);
     } else {
-      // Tablet + Desktop: use LayoutBuilder to prevent overflow
-      // when sidebar is expanded and content width is tight
       final btns = [
         _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
         const SizedBox(width: 8),
         _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
         const SizedBox(width: 8),
         _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
+        const SizedBox(width: 8),
+        _ExportButton(
+          label: t['export'] ?? 'Export',
+          exporting: _exporting,
+          onTap: _filtered.isEmpty ? null : () => _exportStudents(t),
+          isDark: isDark,
+        ),
       ];
       toolbar = LayoutBuilder(
         builder: (_, constraints) {
-          // 550 = 240 (search) + ~10 (gap) + ~300 (3 buttons + gaps)
-          if (constraints.maxWidth > 550) {
+          final searchBox = KeyedSubtree(
+            key: _searchBoxKey,
+            child: _SearchBox(
+              controller: _searchCtrl,
+              hint: t['search'] ?? 'Searching...',
+              fullWidth: constraints.maxWidth <= 650,
+              onFilter: _toggleFilter,
+              filterCount: _activeFilterCount,
+            ),
+          );
+          if (constraints.maxWidth > 650) {
             return Row(children: [
-              _SearchBox(controller: _searchCtrl, hint: t['search'] ?? 'Searching...'),
+              searchBox,
               const Spacer(),
               ...btns,
             ]);
           }
-          // Tight: let search shrink, buttons stay natural size
           return Row(children: [
-            Expanded(child: _SearchBox(controller: _searchCtrl, hint: t['search'] ?? 'Searching...', fullWidth: true)),
+            Expanded(child: searchBox),
             const SizedBox(width: 10),
             ...btns,
           ]);
@@ -349,6 +542,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
       tableHeader = Row(children: [
         const TableHeader(label: '#', flex: 1),
         TableHeader(label: t['student_name'] ?? 'Full Name', flex: 3, onSort: () => _sortBy('name'), isSorted: _sortColumn == 'name', sortAscending: _sortAscending),
+        TableHeader(label: t['gender'] ?? 'Gender', flex: 2, onSort: () => _sortBy('gender'), isSorted: _sortColumn == 'gender', sortAscending: _sortAscending),
         TableHeader(label: t['class_name'] ?? 'Class', flex: 2, onSort: () => _sortBy('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
         TableHeader(label: t['date_of_birth'] ?? 'DOB', flex: 2, onSort: () => _sortBy('dob'), isSorted: _sortColumn == 'dob', sortAscending: _sortAscending, textAlign: TextAlign.center),
         TableHeader(label: t['email'] ?? 'Email', flex: 3, onSort: () => _sortBy('email'), isSorted: _sortColumn == 'email', sortAscending: _sortAscending),
@@ -359,6 +553,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         return [
           Expanded(flex: 1, child: Text('$idx', style: AppTextStyles.body.copyWith(color: textColor))),
           Expanded(flex: 3, child: Text(name.isEmpty ? '—' : name, style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 2, child: Text(s['gender']?.toString() ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text(s['className'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text(dob(s), style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(s['email'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -371,6 +566,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         const TableHeader(label: '#', flex: 1),
         TableHeader(label: t['code'] ?? 'Code', flex: 2, onSort: () => _sortBy('code'), isSorted: _sortColumn == 'code', sortAscending: _sortAscending),
         TableHeader(label: t['student_name'] ?? 'Full Name', flex: 3, onSort: () => _sortBy('name'), isSorted: _sortColumn == 'name', sortAscending: _sortAscending),
+        TableHeader(label: t['gender'] ?? 'Gender', flex: 2, onSort: () => _sortBy('gender'), isSorted: _sortColumn == 'gender', sortAscending: _sortAscending),
         TableHeader(label: t['class_name'] ?? 'Class', flex: 2, onSort: () => _sortBy('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
         TableHeader(label: t['date_of_birth'] ?? 'Date of Birth', flex: 3, onSort: () => _sortBy('dob'), isSorted: _sortColumn == 'dob', sortAscending: _sortAscending, textAlign: TextAlign.center),
         TableHeader(label: t['email'] ?? 'Email', flex: 3, onSort: () => _sortBy('email'), isSorted: _sortColumn == 'email', sortAscending: _sortAscending),
@@ -383,6 +579,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
           Expanded(flex: 1, child: Text('$idx', style: AppTextStyles.body.copyWith(color: textColor))),
           Expanded(flex: 2, child: Text(s['code'] ?? s['studentCode'] ?? s['id']?.toString() ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(name.isEmpty ? '—' : name, style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 2, child: Text(s['gender']?.toString() ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text(s['className'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(dob(s), style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(s['email'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -447,7 +644,16 @@ class _SearchBox extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
   final bool fullWidth;
-  const _SearchBox({required this.controller, required this.hint, this.fullWidth = false});
+  final VoidCallback? onFilter;
+  final int filterCount;
+
+  const _SearchBox({
+    required this.controller,
+    required this.hint,
+    this.fullWidth = false,
+    this.onFilter,
+    this.filterCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -456,6 +662,8 @@ class _SearchBox extends StatelessWidget {
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
+    final hasFilter = onFilter != null;
+    final activeFilter = filterCount > 0;
 
     return SizedBox(
       width: fullWidth ? double.infinity : 240,
@@ -467,6 +675,15 @@ class _SearchBox extends StatelessWidget {
           hintText: hint,
           hintStyle: AppTextStyles.body.copyWith(color: mutedColor),
           prefixIcon: Icon(Icons.search, size: 18, color: mutedColor),
+          suffixIcon: hasFilter
+              ? _FilterIconSuffix(
+                  onTap: onFilter!,
+                  activeFilter: activeFilter,
+                  filterCount: filterCount,
+                  mutedColor: mutedColor,
+                  isDark: isDark,
+                )
+              : null,
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -552,6 +769,140 @@ class _DeleteButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         side: BorderSide(color: borderColor, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _ExportButton extends StatelessWidget {
+  final String label;
+  final bool exporting;
+  final VoidCallback? onTap;
+  final bool isDark;
+
+  const _ExportButton({
+    required this.label,
+    required this.exporting,
+    required this.isDark,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    return OutlinedButton(
+      onPressed: exporting ? null : onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primaryLight,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: BorderSide(color: borderColor, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        overlayColor: AppColors.primaryLight.withValues(alpha: 0.08),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        exporting
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primaryLight))
+            : const Icon(Icons.download_rounded, size: 18),
+        const SizedBox(width: 8),
+        Text(label),
+      ]),
+    );
+  }
+}
+
+class _FilterIconSuffix extends StatefulWidget {
+  final VoidCallback onTap;
+  final bool activeFilter;
+  final int filterCount;
+  final Color mutedColor;
+  final bool isDark;
+
+  const _FilterIconSuffix({
+    required this.onTap,
+    required this.activeFilter,
+    required this.filterCount,
+    required this.mutedColor,
+    required this.isDark,
+  });
+
+  @override
+  State<_FilterIconSuffix> createState() => _FilterIconSuffixState();
+}
+
+class _FilterIconSuffixState extends State<_FilterIconSuffix> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hoverBg = widget.isDark
+        ? Colors.white.withValues(alpha: 0.0)
+        : AppColors.primarySurface;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => WidgetsBinding.instance.addPostFrameCallback(
+          (_) { if (mounted) setState(() => _hovering = true); }),
+      onExit: (_) => WidgetsBinding.instance.addPostFrameCallback(
+          (_) { if (mounted) setState(() => _hovering = false); }),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 0),
+              width: 32,
+              height: 32,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: widget.activeFilter
+                    ? AppColors.primary.withValues(alpha: 0.0)
+                    : _hovering
+                        ? hoverBg
+                        : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: widget.activeFilter
+                    ? AppColors.primary
+                    : _hovering
+                        ? AppColors.primary
+                        : widget.mutedColor,
+              ),
+            ),
+            if (widget.activeFilter)
+              Positioned(
+                top: 6,
+                right: 4,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${widget.filterCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -707,6 +1058,201 @@ class _StatusBadge extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: AppTextStyles.body.copyWith(color: color, fontSize: 14),
+      ),
+    );
+  }
+}
+
+// ── Filter panel dialog ───────────────────────────────────────────────────────
+class _FilterPanel extends StatefulWidget {
+  final String genderFilter;
+  final String classFilter;
+  final String statusFilter;
+  final List<String> availableClasses;
+  final Map<String, String> t;
+  final bool isDark;
+  final void Function(String gender, String cls, String status) onApply;
+
+  const _FilterPanel({
+    required this.genderFilter,
+    required this.classFilter,
+    required this.statusFilter,
+    required this.availableClasses,
+    required this.t,
+    required this.isDark,
+    required this.onApply,
+  });
+
+  @override
+  State<_FilterPanel> createState() => _FilterPanelState();
+}
+
+class _FilterPanelState extends State<_FilterPanel> {
+  late String _gender;
+  late String _cls;
+  late String _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _gender = widget.genderFilter;
+    _cls = widget.classFilter;
+    _status = widget.statusFilter;
+  }
+
+  Widget _section(String title, List<Widget> chips) {
+    final isDark = widget.isDark;
+    final mutedColor = isDark ? Colors.white60 : AppColors.textSecondary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: AppTextStyles.label.copyWith(
+                color: mutedColor, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: chips),
+      ],
+    );
+  }
+
+  Widget _chip(String label, String value, String current,
+      void Function(String) onSelect) {
+    final isDark = widget.isDark;
+    final selected = current == value;
+    return GestureDetector(
+      onTap: () => setState(() => onSelect(value)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : (isDark ? const Color(0xFF1C2A4A) : const Color(0xFFF3F4F6)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.primary : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+              fontWeight:
+                  selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+          if (selected) ...[
+            const SizedBox(width: 6),
+            const Icon(Icons.check_circle_rounded,
+                size: 14, color: AppColors.primary),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final t = widget.t;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final dividerColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+
+    final genderChips = [
+      _chip(t['all_genders'] ?? 'All', 'all', _gender, (v) => _gender = v),
+      _chip(t['male'] ?? 'Male', 'Male', _gender, (v) => _gender = v),
+      _chip(t['female'] ?? 'Female', 'Female', _gender, (v) => _gender = v),
+    ];
+
+    final classChips = [
+      _chip(t['all_classes'] ?? 'All', 'all', _cls, (v) => _cls = v),
+      ...widget.availableClasses
+          .where((c) => c.isNotEmpty)
+          .map((c) => _chip(c, c, _cls, (v) => _cls = v)),
+    ];
+
+    final statusChips = [
+      _chip(t['all_status'] ?? 'All', 'all', _status, (v) => _status = v),
+      _chip(t['active'] ?? 'Active', 'active', _status,
+          (v) => _status = v),
+      _chip(t['inactive'] ?? 'Inactive', 'inactive', _status,
+          (v) => _status = v),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+            child: Row(children: [
+              const Icon(Icons.tune_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(t['filter'] ?? 'Filter',
+                    style: AppTextStyles.label.copyWith(
+                        color: textColor, fontWeight: FontWeight.w600)),
+              ),
+              TextButton(
+                onPressed: () => setState(
+                    () { _gender = 'all'; _cls = 'all'; _status = 'all'; }),
+                style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero),
+                child: Text(t['delete'] ?? 'Reset',
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textSecondary)),
+              ),
+            ]),
+          ),
+          Divider(height: 1, color: dividerColor),
+
+          // Filter sections
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _section(t['gender'] ?? 'Gender', genderChips),
+                const SizedBox(height: 16),
+                if (widget.availableClasses.isNotEmpty) ...[
+                  _section(t['class_name'] ?? 'Class', classChips),
+                  const SizedBox(height: 16),
+                ],
+                _section(t['status'] ?? 'Status', statusChips),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: () => widget.onApply(_gender, _cls, _status),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)),
+                    ),
+                    child: Text(t['confirm'] ?? 'Apply',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

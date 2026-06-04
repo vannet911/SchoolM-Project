@@ -1,4 +1,7 @@
 // lib/screens/teachers.dart
+import 'dart:html' as html;
+import 'dart:typed_data';
+import 'package:excel/excel.dart' hide Border;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/locale_provider.dart';
@@ -18,6 +21,9 @@ class _TeachersScreenState extends State<TeachersScreen> {
   List<Map<String, dynamic>> _teachers = [];
   List<Map<String, dynamic>> _filtered = [];
   bool _loading = true;
+  final GlobalKey _searchBoxKey = GlobalKey();
+  OverlayEntry? _filterOverlay;
+  bool _exporting = false;
   final _searchCtrl = TextEditingController();
   Map<String, dynamic>? _selectedTeacher;
   Map<String, dynamic>? _detailTeacher;
@@ -27,6 +33,15 @@ class _TeachersScreenState extends State<TeachersScreen> {
   bool _sortAscending = true;
   int _currentPage = 1;
   int _pageSize = 25;
+
+  // Active filters
+  String _genderFilter = 'all';
+  String _statusFilter = 'all';
+
+  int get _activeFilterCount => [
+        _genderFilter != 'all',
+        _statusFilter != 'all',
+      ].where((v) => v).length;
 
   int get _totalPages => (_filtered.length / _pageSize).ceil().clamp(1, 999);
   List<Map<String, dynamic>> get _paginated {
@@ -70,14 +85,20 @@ class _TeachersScreenState extends State<TeachersScreen> {
 
   void _filter({bool resetPage = true}) {
     final q = _searchCtrl.text.toLowerCase();
-    var list = q.isEmpty
-        ? List<Map<String, dynamic>>.from(_teachers)
-        : _teachers
-            .where((s) =>
-                '${s['name']} ${s['code']} ${s['email']} ${(s['subjects'] as List?)?.map((sub) => sub['name']).join(' ') ?? ''}'
-                    .toLowerCase()
-                    .contains(q))
-            .toList();
+    var list = _teachers.where((tc) {
+      final searchOk = q.isEmpty ||
+          '${tc['name']} ${tc['code']} ${tc['email']} ${(tc['subjects'] as List?)?.map((sub) => sub['name']).join(' ') ?? ''}'
+              .toLowerCase()
+              .contains(q);
+      final gender = (tc['gender'] as String?)?.toLowerCase() ?? '';
+      final genderOk = _genderFilter == 'all' ||
+          gender == _genderFilter.toLowerCase();
+      final active = tc['status'] == true;
+      final statusOk = _statusFilter == 'all' ||
+          (_statusFilter == 'active' && active) ||
+          (_statusFilter == 'inactive' && !active);
+      return searchOk && genderOk && statusOk;
+    }).toList();
     if (_sortColumn != null) {
       list.sort((a, b) {
         final av = _sortValue(a, _sortColumn!);
@@ -89,6 +110,119 @@ class _TeachersScreenState extends State<TeachersScreen> {
       _filtered = list;
       if (resetPage) _currentPage = 1;
     });
+  }
+
+  Future<void> _exportTeachers(Map<String, String> t) async {
+    if (_exporting || _filtered.isEmpty) return;
+    setState(() => _exporting = true);
+    try {
+      final workbook = Excel.createExcel();
+      workbook.rename('Sheet1', 'Teachers');
+      final sheet = workbook['Teachers'];
+      final headers = ['#', 'Name', 'Gender', 'Subjects', 'Email', 'PhoneNumber', 'Status'];
+      sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
+      for (var i = 0; i < _filtered.length; i++) {
+        final tc = _filtered[i];
+        final active = tc['status'] == true;
+        final subjects = (tc['subjects'] as List?)
+                ?.map((s) => s['name']?.toString() ?? '')
+                .where((n) => n.isNotEmpty)
+                .join(', ') ??
+            '';
+        sheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(tc['name']?.toString() ?? ''),
+          TextCellValue(tc['gender']?.toString() ?? ''),
+          TextCellValue(subjects),
+          TextCellValue(tc['email']?.toString() ?? ''),
+          TextCellValue(tc['phoneNumber']?.toString() ?? ''),
+          TextCellValue(active ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive')),
+        ]);
+      }
+      final bytes = workbook.encode()!;
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final filename = 'teachers_$date.xlsx';
+      final blob = html.Blob(
+        [Uint8List.fromList(bytes)],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', filename)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+      _showSnack(filename);
+    } catch (e) {
+      _showSnack(t['save_failed'] ?? 'Export failed', isError: true);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  void _toggleFilter() {
+    if (_filterOverlay != null) {
+      _filterOverlay!.remove();
+      _filterOverlay = null;
+      return;
+    }
+
+    final keyCtx = _searchBoxKey.currentContext;
+    if (keyCtx == null) return;
+    final box = keyCtx.findRenderObject() as RenderBox;
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final pos = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+    final width = box.size.width;
+    final boxHeight = box.size.height;
+
+    final locale = context.read<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    _filterOverlay = OverlayEntry(
+      builder: (_) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                _filterOverlay?.remove();
+                _filterOverlay = null;
+              },
+              child: const ColoredBox(color: Colors.transparent),
+            ),
+          ),
+          Positioned(
+            left: pos.dx,
+            top: pos.dy + boxHeight + 6,
+            width: width,
+            child: GestureDetector(
+              onTap: () {},
+              child: Material(
+                elevation: 6,
+                borderRadius: BorderRadius.circular(12),
+                child: _FilterPanel(
+                  genderFilter: _genderFilter,
+                  statusFilter: _statusFilter,
+                  t: t,
+                  isDark: isDark,
+                  onApply: (g, s) {
+                    _filterOverlay?.remove();
+                    _filterOverlay = null;
+                    setState(() {
+                      _genderFilter = g;
+                      _statusFilter = s;
+                    });
+                    _filter();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    Overlay.of(context).insert(_filterOverlay!);
   }
 
   String _sortValue(Map<String, dynamic> s, String col) {
@@ -261,88 +395,101 @@ class _TeachersScreenState extends State<TeachersScreen> {
   Widget _buildTableView(Map<String, String> t, {bool isMobile = false, bool isTablet = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white70 : AppColors.textPrimary;
+
+    void onAdd() => _openForm();
+    void onEdit() {
+      if (_selectedTeacher != null) {
+        _openForm(teacher: _selectedTeacher);
+      } else {
+        _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+      }
+    }
+    void onDelete() {
+      if (_selectedTeacher != null) {
+        _delete(_selectedTeacher!);
+      } else {
+        _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+      }
+    }
+
+    final Widget toolbar;
+    if (isMobile) {
+      toolbar = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        KeyedSubtree(
+          key: _searchBoxKey,
+          child: _SearchBox(
+            controller: _searchCtrl,
+            hint: t['search'] ?? 'Search...',
+            fullWidth: true,
+            onFilter: _toggleFilter,
+            filterCount: _activeFilterCount,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
+            _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
+            _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
+            _ExportButton(
+              label: t['export'] ?? 'Export',
+              exporting: _exporting,
+              onTap: _filtered.isEmpty ? null : () => _exportTeachers(t),
+              isDark: isDark,
+            ),
+          ],
+        ),
+      ]);
+    } else {
+      toolbar = LayoutBuilder(builder: (_, constraints) {
+        final btns = [
+          _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
+          const SizedBox(width: 8),
+          _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
+          const SizedBox(width: 8),
+          _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
+          const SizedBox(width: 8),
+          _ExportButton(
+            label: t['export'] ?? 'Export',
+            exporting: _exporting,
+            onTap: _filtered.isEmpty ? null : () => _exportTeachers(t),
+            isDark: isDark,
+          ),
+        ];
+        final searchBox = KeyedSubtree(
+          key: _searchBoxKey,
+          child: _SearchBox(
+            controller: _searchCtrl,
+            hint: t['search'] ?? 'Search...',
+            fullWidth: constraints.maxWidth <= 650,
+            onFilter: _toggleFilter,
+            filterCount: _activeFilterCount,
+          ),
+        );
+        if (constraints.maxWidth > 650) {
+          return Row(children: [
+            searchBox,
+            const Spacer(),
+            ...btns,
+          ]);
+        }
+        return Row(children: [
+          Expanded(child: searchBox),
+          const SizedBox(width: 10),
+          ...btns,
+        ]);
+      });
+    }
+
     return Padding(
       padding: const EdgeInsets.all(AppConstants.pagePadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (isMobile)
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              _SearchBox(
-                  controller: _searchCtrl,
-                  hint: t['search'] ?? 'Search...',
-                  fullWidth: true),
-              const SizedBox(height: 8),
-              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
-                const SizedBox(width: 8),
-                _EditButton(
-                  label: t['edit'] ?? 'Edit',
-                  onTap: () {
-                    if (_selectedTeacher != null) {
-                      _openForm(teacher: _selectedTeacher);
-                    } else {
-                      _showSnack(
-                          t['select_row_first'] ?? 'Please select a row first',
-                          isWarning: true);
-                    }
-                  },
-                ),
-                const SizedBox(width: 8),
-                _DeleteButton(
-                  label: t['delete'] ?? 'Delete',
-                  onTap: () {
-                    if (_selectedTeacher != null) {
-                      _delete(_selectedTeacher!);
-                    } else {
-                      _showSnack(
-                          t['select_row_first'] ?? 'Please select a row first',
-                          isWarning: true);
-                    }
-                  },
-                ),
-              ]),
-            ])
-          else
-            LayoutBuilder(builder: (_, constraints) {
-              final btns = [
-                _AddButton(label: t['add'] ?? 'Add', onTap: () => _openForm()),
-                const SizedBox(width: 8),
-                _EditButton(
-                  label: t['edit'] ?? 'Edit',
-                  onTap: () {
-                    if (_selectedTeacher != null) {
-                      _openForm(teacher: _selectedTeacher);
-                    } else {
-                      _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
-                    }
-                  },
-                ),
-                const SizedBox(width: 8),
-                _DeleteButton(
-                  label: t['delete'] ?? 'Delete',
-                  onTap: () {
-                    if (_selectedTeacher != null) {
-                      _delete(_selectedTeacher!);
-                    } else {
-                      _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
-                    }
-                  },
-                ),
-              ];
-              if (constraints.maxWidth > 550) {
-                return Row(children: [
-                  _SearchBox(controller: _searchCtrl, hint: t['search'] ?? 'Search...'),
-                  const Spacer(),
-                  ...btns,
-                ]);
-              }
-              return Row(children: [
-                Expanded(child: _SearchBox(controller: _searchCtrl, hint: t['search'] ?? 'Search...', fullWidth: true)),
-                const SizedBox(width: 10),
-                ...btns,
-              ]);
-            }),
+          toolbar,
           const SizedBox(height: 12),
           Expanded(
             child: _TableCard(
@@ -630,7 +777,16 @@ class _SearchBox extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
   final bool fullWidth;
-  const _SearchBox({required this.controller, required this.hint, this.fullWidth = false});
+  final VoidCallback? onFilter;
+  final int filterCount;
+
+  const _SearchBox({
+    required this.controller,
+    required this.hint,
+    this.fullWidth = false,
+    this.onFilter,
+    this.filterCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -639,6 +795,8 @@ class _SearchBox extends StatelessWidget {
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
+    final hasFilter = onFilter != null;
+    final activeFilter = filterCount > 0;
 
     return SizedBox(
       width: fullWidth ? double.infinity : 240,
@@ -650,6 +808,15 @@ class _SearchBox extends StatelessWidget {
           hintText: hint,
           hintStyle: AppTextStyles.body.copyWith(color: mutedColor),
           prefixIcon: Icon(Icons.search, size: 18, color: mutedColor),
+          suffixIcon: hasFilter
+              ? _FilterIconSuffix(
+                  onTap: onFilter!,
+                  activeFilter: activeFilter,
+                  filterCount: filterCount,
+                  mutedColor: mutedColor,
+                  isDark: isDark,
+                )
+              : null,
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -735,6 +902,309 @@ class _DeleteButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         side: BorderSide(color: borderColor, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _ExportButton extends StatelessWidget {
+  final String label;
+  final bool exporting;
+  final VoidCallback? onTap;
+  final bool isDark;
+
+  const _ExportButton({
+    required this.label,
+    required this.exporting,
+    required this.isDark,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    return OutlinedButton(
+      onPressed: exporting ? null : onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primaryLight,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        side: BorderSide(color: borderColor, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        overlayColor: AppColors.primaryLight.withValues(alpha: 0.08),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        exporting
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primaryLight))
+            : const Icon(Icons.download_rounded, size: 18),
+        const SizedBox(width: 8),
+        Text(label),
+      ]),
+    );
+  }
+}
+
+class _FilterIconSuffix extends StatefulWidget {
+  final VoidCallback onTap;
+  final bool activeFilter;
+  final int filterCount;
+  final Color mutedColor;
+  final bool isDark;
+
+  const _FilterIconSuffix({
+    required this.onTap,
+    required this.activeFilter,
+    required this.filterCount,
+    required this.mutedColor,
+    required this.isDark,
+  });
+
+  @override
+  State<_FilterIconSuffix> createState() => _FilterIconSuffixState();
+}
+
+class _FilterIconSuffixState extends State<_FilterIconSuffix> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hoverBg = widget.isDark
+        ? Colors.white.withValues(alpha: 0.0)
+        : AppColors.primarySurface;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => WidgetsBinding.instance.addPostFrameCallback(
+          (_) { if (mounted) setState(() => _hovering = true); }),
+      onExit: (_) => WidgetsBinding.instance.addPostFrameCallback(
+          (_) { if (mounted) setState(() => _hovering = false); }),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 0),
+              width: 32,
+              height: 32,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: widget.activeFilter
+                    ? AppColors.primary.withValues(alpha: 0.0)
+                    : _hovering
+                        ? hoverBg
+                        : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: widget.activeFilter
+                    ? AppColors.primary
+                    : _hovering
+                        ? AppColors.primary
+                        : widget.mutedColor,
+              ),
+            ),
+            if (widget.activeFilter)
+              Positioned(
+                top: 6,
+                right: 4,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${widget.filterCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterPanel extends StatefulWidget {
+  final String genderFilter;
+  final String statusFilter;
+  final Map<String, String> t;
+  final bool isDark;
+  final void Function(String gender, String status) onApply;
+
+  const _FilterPanel({
+    required this.genderFilter,
+    required this.statusFilter,
+    required this.t,
+    required this.isDark,
+    required this.onApply,
+  });
+
+  @override
+  State<_FilterPanel> createState() => _FilterPanelState();
+}
+
+class _FilterPanelState extends State<_FilterPanel> {
+  late String _gender;
+  late String _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _gender = widget.genderFilter;
+    _status = widget.statusFilter;
+  }
+
+  Widget _section(String title, List<Widget> chips) {
+    final mutedColor = widget.isDark ? Colors.white60 : AppColors.textSecondary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: AppTextStyles.label.copyWith(
+                color: mutedColor, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: chips),
+      ],
+    );
+  }
+
+  Widget _chip(String label, String value, String current,
+      void Function(String) onSelect) {
+    final isDark = widget.isDark;
+    final selected = current == value;
+    return GestureDetector(
+      onTap: () => setState(() => onSelect(value)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : (isDark ? const Color(0xFF1C2A4A) : const Color(0xFFF3F4F6)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.primary : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+          if (selected) ...[
+            const SizedBox(width: 6),
+            const Icon(Icons.check_circle_rounded,
+                size: 14, color: AppColors.primary),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final t = widget.t;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final dividerColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+
+    final genderChips = [
+      _chip(t['all_genders'] ?? 'All', 'all', _gender, (v) => _gender = v),
+      _chip(t['male'] ?? 'Male', 'Male', _gender, (v) => _gender = v),
+      _chip(t['female'] ?? 'Female', 'Female', _gender, (v) => _gender = v),
+    ];
+
+    final statusChips = [
+      _chip(t['all_status'] ?? 'All', 'all', _status, (v) => _status = v),
+      _chip(t['active'] ?? 'Active', 'active', _status, (v) => _status = v),
+      _chip(t['inactive'] ?? 'Inactive', 'inactive', _status, (v) => _status = v),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+            child: Row(children: [
+              const Icon(Icons.tune_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(t['filter'] ?? 'Filter',
+                    style: AppTextStyles.label.copyWith(
+                        color: textColor, fontWeight: FontWeight.w600)),
+              ),
+              TextButton(
+                onPressed: () => setState(() { _gender = 'all'; _status = 'all'; }),
+                style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero),
+                child: Text(t['delete'] ?? 'Reset',
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textSecondary)),
+              ),
+            ]),
+          ),
+          Divider(height: 1, color: dividerColor),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _section(t['gender'] ?? 'Gender', genderChips),
+                const SizedBox(height: 16),
+                _section(t['status'] ?? 'Status', statusChips),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: () => widget.onApply(_gender, _status),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)),
+                    ),
+                    child: Text(t['confirm'] ?? 'Apply',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
