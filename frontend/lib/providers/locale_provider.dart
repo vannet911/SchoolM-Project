@@ -102,6 +102,8 @@ class AppTranslations {
       'all_data': 'All Data',
       'chart_coming_soon': 'Chart / Data coming soon',
       'learn_today': 'Learn Today!',
+      'under_development': 'Under Development',
+      'under_development_subtitle': 'We\'re working on this feature. Stay tuned!',
 
       // Students
       'student_list': 'Student List',
@@ -280,6 +282,8 @@ class AppTranslations {
       'all_data': 'ទិន្ន័យទាំងអស់',
       'chart_coming_soon': 'តារាង / ទិន្ន័យនឹងមកដល់',
       'learn_today': 'រៀនថ្ងៃនេះ!',
+      'under_development': 'កំពុងអភិវឌ្ឍ',
+      'under_development_subtitle': 'យើងកំពុងធ្វើការលើមុខងារនេះ។ សូមរង់ចាំ!',
 
       // Students
       'student_list': 'បញ្ជីសិស្ស',

@@ -981,46 +981,32 @@ class _TableRow extends StatefulWidget {
 }
 
 class _TableRowState extends State<_TableRow> {
-  bool _isHovering = false;
-
-  @override
-  void deactivate() {
-    _isHovering = false;
-    super.deactivate();
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEven = widget.index % 2 == 0;
-    Color rowColor;
-    if (widget.isSelected) {
-      rowColor = AppColors.primary.withValues(alpha: 0.10);
-    } else if (_isHovering) {
-      rowColor = isDark
-          ? const Color(0xFF1E2D50)
-          : AppColors.primarySurface;
-    } else if (isDark) {
-      rowColor = isEven
-          ? const Color(0xFF16213E)
-          : const Color(0xFF1C2A4A);
-    } else {
-      rowColor = isEven ? Colors.white : const Color(0xFFF5F7FA);
-    }
 
-    return MouseRegion(
-      onEnter: (_) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isHovering = true); }),
-      onExit: (_) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isHovering = false); }),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+    final baseColor = widget.isSelected
+        ? AppColors.primary.withValues(alpha: 0.10)
+        : isDark
+            ? (isEven ? const Color(0xFF16213E) : const Color(0xFF1C2A4A))
+            : (isEven ? Colors.white : const Color(0xFFF5F7FA));
+
+    final hoverColor = AppColors.primary.withValues(alpha: 0.10);
+
+    return Material(
+      color: baseColor,
+      borderRadius: BorderRadius.circular(4),
+      child: InkWell(
         onTap: widget.onTap,
         onDoubleTap: widget.onDoubleTap,
-        child: Container(
+        borderRadius: BorderRadius.circular(4),
+        hoverColor: hoverColor,
+        splashColor: AppColors.primary.withValues(alpha: 0.06),
+        highlightColor: Colors.transparent,
+        mouseCursor: SystemMouseCursors.click,
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: rowColor,
-            borderRadius: BorderRadius.circular(4),
-          ),
           child: Row(children: widget.children),
         ),
       ),

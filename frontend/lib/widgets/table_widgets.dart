@@ -26,11 +26,16 @@ class StudentDetailPanel extends StatelessWidget {
     return s.length >= 10 ? s.substring(0, 10).replaceAll('-', '/') : s;
   }
 
+  static Color _readFill(bool isDark) =>
+      isDark ? const Color(0xFF0D0D1C) : const Color(0xFFF2F3F7);
+
   InputDecoration _inputDecoration({String? hint, Widget? suffix, bool multiline = false, bool isDark = false}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: AppTextStyles.body.copyWith(color: isDark ? Colors.white70 : AppColors.textMuted),
       suffixIcon: suffix,
+      filled: true,
+      fillColor: _readFill(isDark),
       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: multiline ? 16 : 0),
     );
   }
@@ -601,6 +606,8 @@ class TeacherDetailPanel extends StatelessWidget {
       hintText: hint,
       hintStyle: AppTextStyles.body.copyWith(color: isDark ? Colors.white70 : AppColors.textMuted),
       suffixIcon: suffix,
+      filled: true,
+      fillColor: StudentDetailPanel._readFill(isDark),
       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: multiline ? 16 : 0),
     );
   }
@@ -732,7 +739,7 @@ class TeacherDetailPanel extends StatelessWidget {
                               Container(
                                 width: double.infinity,
                                 constraints: const BoxConstraints(minHeight: 44),
-                                decoration: BoxDecoration(border: Border.all(color: borderColor), borderRadius: BorderRadius.circular(8)),
+                                decoration: BoxDecoration(color: StudentDetailPanel._readFill(isDark), border: Border.all(color: borderColor), borderRadius: BorderRadius.circular(8)),
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 child: subjectsList.isEmpty
                                   ? Text('—', style: AppTextStyles.body.copyWith(color: isDark ? Colors.white70 : AppColors.textMuted))
