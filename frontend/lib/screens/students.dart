@@ -39,6 +39,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
   String _classFilter = 'all';
   String _statusFilter = 'all';
 
+  // Multi-select
+  final Set<dynamic> _checkedIds = {};
+
   int get _activeFilterCount => [
         _genderFilter != 'all',
         _classFilter != 'all',
@@ -110,6 +113,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         return _sortAscending ? av.compareTo(bv) : bv.compareTo(av);
       });
     }
+    _checkedIds.clear();
     setState(() {
       _filtered = list;
       if (resetPage) _currentPage = 1;
@@ -174,6 +178,91 @@ class _StudentsScreenState extends State<StudentsScreen> {
       _showSnack(t['save_failed'] ?? 'Export failed', isError: true);
     } finally {
       if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _exportChecked(Map<String, String> t) async {
+    final selected = _filtered.where((s) => _checkedIds.contains(s['id'])).toList();
+    if (selected.isEmpty || _exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final workbook = Excel.createExcel();
+      workbook.rename('Sheet1', 'Students');
+      final sheet = workbook['Students'];
+      final headers = ['#', 'Code', 'First Name', 'Last Name', 'Gender',
+          'Class', 'Date of Birth', 'Email', 'Phone', 'Address', 'Status'];
+      sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
+      for (var i = 0; i < selected.length; i++) {
+        final s = selected[i];
+        final dob = s['dateOfBirth'] != null
+            ? (s['dateOfBirth'] as String).split('T').first : '';
+        final active = s['status'] == true;
+        sheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(s['code']?.toString() ?? ''),
+          TextCellValue(s['firstName']?.toString() ?? ''),
+          TextCellValue(s['lastName']?.toString() ?? ''),
+          TextCellValue(s['gender']?.toString() ?? ''),
+          TextCellValue(s['className']?.toString() ?? ''),
+          TextCellValue(dob),
+          TextCellValue(s['email']?.toString() ?? ''),
+          TextCellValue(s['phoneNumber']?.toString() ?? ''),
+          TextCellValue(s['address']?.toString() ?? ''),
+          TextCellValue(active ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive')),
+        ]);
+      }
+      final bytes = workbook.encode()!;
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final filename = 'students_selected_$date.xlsx';
+      final blob = html.Blob([Uint8List.fromList(bytes)],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', filename)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+      _showSnack(filename);
+    } catch (_) {
+      _showSnack(t['save_failed'] ?? 'Export failed', isError: true);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _deleteChecked(Map<String, String> t) async {
+    if (_checkedIds.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(t['confirm_delete'] ?? 'Confirm Delete'),
+        content: Text(
+          (t['confirm_delete_multiple'] ?? 'Total delete is {count}. Are you sure want to delete?')
+              .replaceAll('{count}', '${_checkedIds.length}'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(t['cancel'] ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            child: Text(t['delete'] ?? 'Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      for (final id in _checkedIds.toList()) {
+        await _api.deleteStudent(id);
+      }
+      _checkedIds.clear();
+      _showSnack(t['student_deleted'] ?? 'Students deleted');
+      _load();
+    } catch (_) {
+      _showSnack(t['delete_failed'] ?? 'Delete failed', isError: true);
     }
   }
 
@@ -338,7 +427,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   void _openStudentDetail(Map<String, dynamic> student) {
-    setState(() => _selectedStudent = student);
+    final id = student['id'];
+    setState(() {
+      _selectedStudent = student;
+      if (_checkedIds.contains(id)) {
+        _checkedIds.remove(id);
+      } else {
+        _checkedIds.add(id);
+      }
+    });
   }
 
   void _openDetail(Map<String, dynamic> student) {
@@ -433,7 +530,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
       }
     }
     void onDelete() {
-      if (_selectedStudent != null) {
+      if (_checkedIds.isNotEmpty) {
+        _deleteChecked(t);
+      } else if (_selectedStudent != null) {
         _delete(_selectedStudent!);
       } else {
         _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
@@ -466,7 +565,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
             _ExportButton(
               label: t['export'] ?? 'Export',
               exporting: _exporting,
-              onTap: _filtered.isEmpty ? null : () => _exportStudents(t),
+              onTap: _checkedIds.isNotEmpty
+                  ? () => _exportChecked(t)
+                  : (_filtered.isEmpty ? null : () => _exportStudents(t)),
               isDark: isDark,
             ),
           ],
@@ -483,7 +584,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
         _ExportButton(
           label: t['export'] ?? 'Export',
           exporting: _exporting,
-          onTap: _filtered.isEmpty ? null : () => _exportStudents(t),
+          onTap: _checkedIds.isNotEmpty
+              ? () => _exportChecked(t)
+              : (_filtered.isEmpty ? null : () => _exportStudents(t)),
           isDark: isDark,
         ),
       ];
@@ -523,24 +626,100 @@ class _StudentsScreenState extends State<StudentsScreen> {
         ? (s['dateOfBirth'] as String).substring(0, 10).replaceAll('-', '/')
         : '—';
 
+    // Checkbox helpers
+    final allPageChecked = _paginated.isNotEmpty &&
+        _paginated.every((s) => _checkedIds.contains(s['id']));
+    final anyPageChecked = _paginated.any((s) => _checkedIds.contains(s['id']));
+
+    final fieldBg = isDark ? const Color(0xFF0D0D1C) : const Color(0xFFF2F3F7);
+    final checkboxShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(4));
+
+    WidgetStateBorderSide checkboxSide(bool active) =>
+        WidgetStateBorderSide.resolveWith((_) => BorderSide(
+          color: active ? AppColors.primary : textColor,
+          width: 1.5,
+        ));
+
+    final headerActive = allPageChecked || anyPageChecked;
+    final headerCheckbox = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 32,
+          child: Checkbox(
+            tristate: true,
+            value: allPageChecked ? true : (anyPageChecked ? null : false),
+            onChanged: (v) => setState(() {
+              if (v == true) {
+                for (final s in _paginated) { _checkedIds.add(s['id']); }
+              } else {
+                for (final s in _paginated) { _checkedIds.remove(s['id']); }
+              }
+            }),
+            fillColor: WidgetStateProperty.all(headerActive ? AppColors.primary : fieldBg),
+            checkColor: Colors.white,
+            shape: checkboxShape,
+            side: checkboxSide(headerActive),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        const SizedBox(width: 10),
+      ],
+    );
+
+    Widget rowCheckbox(Map<String, dynamic> s) {
+      final checked = _checkedIds.contains(s['id']);
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() {
+          if (checked) { _checkedIds.remove(s['id']); }
+          else { _checkedIds.add(s['id']); }
+        }),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 32,
+              child: Checkbox(
+                value: checked,
+                onChanged: (v) => setState(() {
+                  if (v == true) { _checkedIds.add(s['id']); }
+                  else { _checkedIds.remove(s['id']); }
+                }),
+                fillColor: WidgetStateProperty.all(checked ? AppColors.primary : fieldBg),
+                checkColor: Colors.white,
+                shape: checkboxShape,
+                side: checkboxSide(checked),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+        ),
+      );
+    }
+
     if (isMobile) {
-      // Mobile: # | Name | Class | Status
       tableHeader = Row(children: [
-        const TableHeader(label: '#', flex: 1),
+        headerCheckbox,
+        const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
         TableHeader(label: t['student_name'] ?? 'Name', flex: 4, onSort: () => _sortBy('name'), isSorted: _sortColumn == 'name', sortAscending: _sortAscending),
         TableHeader(label: t['class_name'] ?? 'Class', flex: 3, onSort: () => _sortBy('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
         TableHeader(label: t['status'] ?? 'Status', flex: 2, onSort: () => _sortBy('status'), isSorted: _sortColumn == 'status', sortAscending: _sortAscending, textAlign: TextAlign.center),
       ]);
       buildCells = (s, idx) => [
-        Expanded(flex: 1, child: Text('$idx', style: AppTextStyles.body.copyWith(color: textColor))),
+        rowCheckbox(s),
+        Expanded(flex: 1, child: Text('$idx', style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center)),
         Expanded(flex: 4, child: Text('${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim().isEmpty ? '—' : '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim(), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
         Expanded(flex: 3, child: Text(s['className'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
         Expanded(flex: 2, child: Center(child: _StatusBadge(status: s['status'] ?? 'Active'))),
       ];
     } else if (isTablet) {
-      // Tablet: # | Name | Class | DOB | Email | Status
       tableHeader = Row(children: [
-        const TableHeader(label: '#', flex: 1),
+        headerCheckbox,
+        const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
         TableHeader(label: t['student_name'] ?? 'Full Name', flex: 3, onSort: () => _sortBy('name'), isSorted: _sortColumn == 'name', sortAscending: _sortAscending),
         TableHeader(label: t['gender'] ?? 'Gender', flex: 2, onSort: () => _sortBy('gender'), isSorted: _sortColumn == 'gender', sortAscending: _sortAscending),
         TableHeader(label: t['class_name'] ?? 'Class', flex: 2, onSort: () => _sortBy('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
@@ -551,7 +730,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
       buildCells = (s, idx) {
         final name = '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim();
         return [
-          Expanded(flex: 1, child: Text('$idx', style: AppTextStyles.body.copyWith(color: textColor))),
+          rowCheckbox(s),
+          Expanded(flex: 1, child: Text('$idx', style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center)),
           Expanded(flex: 3, child: Text(name.isEmpty ? '—' : name, style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text(s['gender']?.toString() ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text(s['className'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -561,9 +741,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
         ];
       };
     } else {
-      // Desktop: all 8 columns
       tableHeader = Row(children: [
-        const TableHeader(label: '#', flex: 1),
+        headerCheckbox,
+        const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
         TableHeader(label: t['code'] ?? 'Code', flex: 2, onSort: () => _sortBy('code'), isSorted: _sortColumn == 'code', sortAscending: _sortAscending),
         TableHeader(label: t['student_name'] ?? 'Full Name', flex: 3, onSort: () => _sortBy('name'), isSorted: _sortColumn == 'name', sortAscending: _sortAscending),
         TableHeader(label: t['gender'] ?? 'Gender', flex: 2, onSort: () => _sortBy('gender'), isSorted: _sortColumn == 'gender', sortAscending: _sortAscending),
@@ -576,7 +756,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
       buildCells = (s, idx) {
         final name = '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim();
         return [
-          Expanded(flex: 1, child: Text('$idx', style: AppTextStyles.body.copyWith(color: textColor))),
+          rowCheckbox(s),
+          Expanded(flex: 1, child: Text('$idx', style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center)),
           Expanded(flex: 2, child: Text(s['code'] ?? s['studentCode'] ?? s['id']?.toString() ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(name.isEmpty ? '—' : name, style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text(s['gender']?.toString() ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -610,8 +791,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   final globalIdx = (_currentPage - 1) * _pageSize + i + 1;
                   return _TableRow(
                     index: i,
-                    isSelected: _selectedStudent != null &&
-                        _selectedStudent!['id'] == s['id'],
+                    isSelected: (_selectedStudent != null &&
+                        _selectedStudent!['id'] == s['id']) ||
+                        _checkedIds.contains(s['id']),
                     onTap: () => _openStudentDetail(s),
                     onDoubleTap: () => _openDetail(s),
                     children: buildCells(s, globalIdx),
@@ -625,6 +807,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             currentPage: _currentPage,
             totalPages: _totalPages,
             pageSize: _pageSize,
+            selectedCount: _checkedIds.length,
             translations: t,
             onPageChanged: (p) => setState(() => _currentPage = p),
             onPageSizeChanged: (s) => setState(() {
@@ -941,7 +1124,7 @@ class _TableCard extends StatelessWidget {
           : Column(children: [
               Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                    horizontal: 14, vertical: 12),
                 child: header,
               ),
               if (empty)
@@ -1383,6 +1566,7 @@ class _PaginationRow extends StatelessWidget {
   final int currentPage;
   final int totalPages;
   final int pageSize;
+  final int selectedCount;
   final Map<String, String> translations;
   final ValueChanged<int> onPageChanged;
   final ValueChanged<int> onPageSizeChanged;
@@ -1390,6 +1574,7 @@ class _PaginationRow extends StatelessWidget {
     required this.currentPage,
     required this.totalPages,
     required this.pageSize,
+    required this.selectedCount,
     required this.translations,
     required this.onPageChanged,
     required this.onPageSizeChanged,
@@ -1451,6 +1636,27 @@ class _PaginationRow extends StatelessWidget {
       ],
     );
 
+    final selectedBadge = selectedCount > 0
+        ? Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(width: 7, height: 7, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
+                const SizedBox(width: 6),
+                Text(
+                  '$selectedCount ${translations['selected'] ?? 'selected'}',
+                  style: AppTextStyles.body.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+              ]),
+            ),
+          ])
+        : const SizedBox.shrink();
+
     return LayoutBuilder(
       builder: (_, constraints) {
         final fits = constraints.maxWidth >= 380;
@@ -1458,15 +1664,20 @@ class _PaginationRow extends StatelessWidget {
           return Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             navRow,
             const Spacer(),
+            if (selectedCount > 0) ...[selectedBadge, const SizedBox(width: 16)],
             showRow,
           ]);
         }
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Center(child: navRow),
           const SizedBox(height: 6),
-          Align(alignment: Alignment.centerRight, child: showRow),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            selectedBadge,
+            showRow,
+          ]),
         ]);
       },
     );
   }
 }
+

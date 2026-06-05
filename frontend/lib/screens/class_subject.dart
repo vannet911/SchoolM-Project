@@ -27,6 +27,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
   bool _classLoading = true;
   final _classSearchCtrl = TextEditingController();
   Map<String, dynamic>? _selectedClass;
+  final Set<dynamic> _checkedClassIds = {};
   Map<String, dynamic>? _detailClass;
   bool _showClassForm = false;
   Map<String, dynamic>? _formClass;
@@ -48,6 +49,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
   bool _subjectLoading = true;
   final _subjectSearchCtrl = TextEditingController();
   Map<String, dynamic>? _selectedSubject;
+  final Set<dynamic> _checkedSubjectIds = {};
   Map<String, dynamic>? _detailSubject;
   bool _showSubjectForm = false;
   Map<String, dynamic>? _formSubject;
@@ -137,6 +139,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
         return _classSortAscending ? av.compareTo(bv) : bv.compareTo(av);
       });
     }
+    _checkedClassIds.clear();
     setState(() {
       _filteredClasses = list;
       if (resetPage) _classCurrentPage = 1;
@@ -205,8 +208,17 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
     }
   }
 
-  void _openClassDetail(Map<String, dynamic> c) =>
-      setState(() => _selectedClass = c);
+  void _openClassDetail(Map<String, dynamic> c) {
+    final id = c['id'];
+    setState(() {
+      _selectedClass = c;
+      if (_checkedClassIds.contains(id)) {
+        _checkedClassIds.remove(id);
+      } else {
+        _checkedClassIds.add(id);
+      }
+    });
+  }
 
   void _openClassDetailPanel(Map<String, dynamic> c) =>
       setState(() { _selectedClass = c; _detailClass = c; });
@@ -261,6 +273,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
         return _subjectSortAscending ? av.compareTo(bv) : bv.compareTo(av);
       });
     }
+    _checkedSubjectIds.clear();
     setState(() {
       _filteredSubjects = list;
       if (resetPage) _subjectCurrentPage = 1;
@@ -329,8 +342,17 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
     }
   }
 
-  void _openSubjectDetail(Map<String, dynamic> s) =>
-      setState(() => _selectedSubject = s);
+  void _openSubjectDetail(Map<String, dynamic> s) {
+    final id = s['id'];
+    setState(() {
+      _selectedSubject = s;
+      if (_checkedSubjectIds.contains(id)) {
+        _checkedSubjectIds.remove(id);
+      } else {
+        _checkedSubjectIds.add(id);
+      }
+    });
+  }
 
   void _openSubjectDetailPanel(Map<String, dynamic> s) =>
       setState(() { _selectedSubject = s; _detailSubject = s; });
@@ -347,6 +369,138 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
       setState(() { _showSubjectForm = false; _formSubject = null; });
 
   // ── Filter & Export ───────────────────────────────────────────────────────────
+
+  Future<void> _exportCheckedClasses(Map<String, String> t) async {
+    final selected = _filteredClasses.where((c) => _checkedClassIds.contains(c['id'])).toList();
+    if (selected.isEmpty || _exportingClasses) return;
+    setState(() => _exportingClasses = true);
+    try {
+      final workbook = Excel.createExcel();
+      workbook.rename('Sheet1', 'Classes');
+      final sheet = workbook['Classes'];
+      sheet.appendRow(['#', 'Code', 'Name', 'Description', 'Status'].map((h) => TextCellValue(h)).toList());
+      for (var i = 0; i < selected.length; i++) {
+        final c = selected[i];
+        final active = c['status'] == true;
+        sheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(c['code']?.toString() ?? ''),
+          TextCellValue(c['name']?.toString() ?? ''),
+          TextCellValue(c['description']?.toString() ?? ''),
+          TextCellValue(active ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive')),
+        ]);
+      }
+      final bytes = workbook.encode()!;
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final filename = 'classes_selected_$date.xlsx';
+      final blob = html.Blob([Uint8List.fromList(bytes)], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)..setAttribute('download', filename)..click();
+      html.Url.revokeObjectUrl(url);
+      _showSnack(filename);
+    } catch (_) {
+      _showSnack(t['save_failed'] ?? 'Export failed', isError: true);
+    } finally {
+      if (mounted) setState(() => _exportingClasses = false);
+    }
+  }
+
+  Future<void> _deleteCheckedClasses(Map<String, String> t) async {
+    if (_checkedClassIds.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(t['confirm_delete'] ?? 'Confirm Delete'),
+        content: Text(
+          (t['confirm_delete_multiple'] ?? 'Total delete is {count}. Are you sure want to delete?')
+              .replaceAll('{count}', '${_checkedClassIds.length}'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t['cancel'] ?? 'Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            child: Text(t['delete'] ?? 'Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      for (final id in _checkedClassIds.toList()) { await _api.deleteClass(id); }
+      _checkedClassIds.clear();
+      _showSnack('Classes deleted');
+      _loadClasses();
+    } catch (_) {
+      _showSnack(t['delete_failed'] ?? 'Delete failed', isError: true);
+    }
+  }
+
+  Future<void> _exportCheckedSubjects(Map<String, String> t) async {
+    final selected = _filteredSubjects.where((s) => _checkedSubjectIds.contains(s['id'])).toList();
+    if (selected.isEmpty || _exportingSubjects) return;
+    setState(() => _exportingSubjects = true);
+    try {
+      final workbook = Excel.createExcel();
+      workbook.rename('Sheet1', 'Subjects');
+      final sheet = workbook['Subjects'];
+      sheet.appendRow(['#', 'Code', 'Name', 'Description', 'Status'].map((h) => TextCellValue(h)).toList());
+      for (var i = 0; i < selected.length; i++) {
+        final s = selected[i];
+        final active = s['status'] == true;
+        sheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(s['code']?.toString() ?? ''),
+          TextCellValue(s['name']?.toString() ?? ''),
+          TextCellValue(s['description']?.toString() ?? ''),
+          TextCellValue(active ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive')),
+        ]);
+      }
+      final bytes = workbook.encode()!;
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final filename = 'subjects_selected_$date.xlsx';
+      final blob = html.Blob([Uint8List.fromList(bytes)], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)..setAttribute('download', filename)..click();
+      html.Url.revokeObjectUrl(url);
+      _showSnack(filename);
+    } catch (_) {
+      _showSnack(t['save_failed'] ?? 'Export failed', isError: true);
+    } finally {
+      if (mounted) setState(() => _exportingSubjects = false);
+    }
+  }
+
+  Future<void> _deleteCheckedSubjects(Map<String, String> t) async {
+    if (_checkedSubjectIds.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(t['confirm_delete'] ?? 'Confirm Delete'),
+        content: Text(
+          (t['confirm_delete_multiple'] ?? 'Total delete is {count}. Are you sure want to delete?')
+              .replaceAll('{count}', '${_checkedSubjectIds.length}'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t['cancel'] ?? 'Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            child: Text(t['delete'] ?? 'Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      for (final id in _checkedSubjectIds.toList()) { await _api.deleteSubject(id); }
+      _checkedSubjectIds.clear();
+      _showSnack('Subjects deleted');
+      _loadSubjects();
+    } catch (_) {
+      _showSnack(t['delete_failed'] ?? 'Delete failed', isError: true);
+    }
+  }
 
   void _toggleClassFilter() {
     if (_classFilterOverlay != null) {
@@ -646,6 +800,79 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
   Widget _buildClassesTab(Map<String, String> t, {bool isMobile = false, bool isTablet = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white70 : AppColors.textPrimary;
+
+    final fieldBg = isDark ? const Color(0xFF0D0D1C) : const Color(0xFFF2F3F7);
+    final checkboxShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(4));
+    WidgetStateBorderSide classCheckboxSide(bool active) =>
+        WidgetStateBorderSide.resolveWith((_) => BorderSide(
+          color: active ? AppColors.primary : textColor,
+          width: 1.5,
+        ));
+
+    final allClassPageChecked = _classPaginated.isNotEmpty &&
+        _classPaginated.every((c) => _checkedClassIds.contains(c['id']));
+    final anyClassPageChecked = _classPaginated.any((c) => _checkedClassIds.contains(c['id']));
+    final classHeaderActive = allClassPageChecked || anyClassPageChecked;
+
+    final classHeaderCheckbox = Row(children: [
+      SizedBox(
+        width: 32,
+        child: Checkbox(
+          value: allClassPageChecked ? true : (anyClassPageChecked ? null : false),
+          tristate: true,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+          shape: checkboxShape,
+          side: classCheckboxSide(classHeaderActive),
+          fillColor: WidgetStateProperty.all(classHeaderActive ? AppColors.primary : fieldBg),
+          checkColor: Colors.white,
+          onChanged: (_) {
+            setState(() {
+              if (allClassPageChecked) {
+                for (final c in _classPaginated) { _checkedClassIds.remove(c['id']); }
+              } else {
+                for (final c in _classPaginated) { _checkedClassIds.add(c['id']); }
+              }
+            });
+          },
+        ),
+      ),
+      const SizedBox(width: 10),
+    ]);
+
+    Widget classRowCheckbox(Map<String, dynamic> c) {
+      final checked = _checkedClassIds.contains(c['id']);
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            if (checked) { _checkedClassIds.remove(c['id']); }
+            else { _checkedClassIds.add(c['id']); }
+          });
+        },
+        child: Row(children: [
+          SizedBox(
+            width: 32,
+            child: Checkbox(
+              value: checked,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+              shape: checkboxShape,
+              side: classCheckboxSide(checked),
+              fillColor: WidgetStateProperty.all(checked ? AppColors.primary : fieldBg),
+              checkColor: Colors.white,
+              onChanged: (v) {
+                setState(() {
+                  if (v == true) { _checkedClassIds.add(c['id']); }
+                  else { _checkedClassIds.remove(c['id']); }
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 10),
+        ]),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -680,7 +907,9 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
               _DeleteButton(
                 label: t['delete'] ?? 'Delete',
                 onTap: () {
-                  if (_selectedClass != null) {
+                  if (_checkedClassIds.isNotEmpty) {
+                    _deleteCheckedClasses(t);
+                  } else if (_selectedClass != null) {
                     _deleteClass(_selectedClass!);
                   } else {
                     _showSnack(
@@ -694,7 +923,9 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                 label: t['export'] ?? 'Export',
                 exporting: _exportingClasses,
                 isDark: isDark,
-                onTap: () => _exportClasses(t),
+                onTap: _checkedClassIds.isNotEmpty
+                    ? () => _exportCheckedClasses(t)
+                    : (_filteredClasses.isEmpty ? null : () => _exportClasses(t)),
               ),
             ]),
           ])
@@ -717,7 +948,9 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
               _DeleteButton(
                 label: t['delete'] ?? 'Delete',
                 onTap: () {
-                  if (_selectedClass != null) {
+                  if (_checkedClassIds.isNotEmpty) {
+                    _deleteCheckedClasses(t);
+                  } else if (_selectedClass != null) {
                     _deleteClass(_selectedClass!);
                   } else {
                     _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
@@ -729,7 +962,9 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                 label: t['export'] ?? 'Export',
                 exporting: _exportingClasses,
                 isDark: isDark,
-                onTap: () => _exportClasses(t),
+                onTap: _checkedClassIds.isNotEmpty
+                    ? () => _exportCheckedClasses(t)
+                    : (_filteredClasses.isEmpty ? null : () => _exportClasses(t)),
               ),
             ];
             if (constraints.maxWidth > 650) {
@@ -771,9 +1006,11 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             empty: _filteredClasses.isEmpty,
             emptyIcon: Icons.class_outlined,
             emptyLabel: t['no_data'] ?? 'No classes found',
+            headerPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             header: isMobile
                 ? Row(children: [
-                    const TableHeader(label: '#', flex: 1),
+                    classHeaderCheckbox,
+                    const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
                     TableHeader(
                       label: t['class_name'] ?? 'Class',
                       flex: 6,
@@ -792,7 +1029,8 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                   ])
                 : isTablet
                 ? Row(children: [
-                    const TableHeader(label: '#', flex: 1),
+                    classHeaderCheckbox,
+                    const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
                     TableHeader(
                       label: t['code'] ?? 'Code',
                       flex: 2,
@@ -817,7 +1055,8 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                     ),
                   ])
                 : Row(children: [
-                    const TableHeader(label: '#', flex: 1),
+                    classHeaderCheckbox,
+                    const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
                     TableHeader(
                       label: t['code'] ?? 'Code',
                       flex: 2,
@@ -856,16 +1095,17 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                     (_classCurrentPage - 1) * _classPageSize + i;
                 return _TableRow(
                   index: i,
-                  isSelected: _selectedClass != null &&
-                      _selectedClass!['id'] == c['id'],
+                  isSelected: (_selectedClass != null && _selectedClass!['id'] == c['id']) || _checkedClassIds.contains(c['id']),
                   onTap: () => _openClassDetail(c),
                   onDoubleTap: () => _openClassDetailPanel(c),
                   children: isMobile
                       ? [
+                          classRowCheckbox(c),
                           Expanded(
                             flex: 1,
                             child: Text(
                               (globalIndex + 1).toString(),
+                              textAlign: TextAlign.center,
                               style: AppTextStyles.body.copyWith(color: textColor),
                             ),
                           ),
@@ -885,10 +1125,12 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                         ]
                       : isTablet
                       ? [
+                          classRowCheckbox(c),
                           Expanded(
                             flex: 1,
                             child: Text(
                               (globalIndex + 1).toString(),
+                              textAlign: TextAlign.center,
                               style: AppTextStyles.body.copyWith(color: textColor),
                             ),
                           ),
@@ -914,10 +1156,12 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                           ),
                         ]
                       : [
+                          classRowCheckbox(c),
                           Expanded(
                             flex: 1,
                             child: Text(
                               (globalIndex + 1).toString(),
+                              textAlign: TextAlign.center,
                               style: AppTextStyles.body.copyWith(color: textColor),
                             ),
                           ),
@@ -961,6 +1205,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
           currentPage: _classCurrentPage,
           totalPages: _classTotalPages,
           pageSize: _classPageSize,
+          selectedCount: _checkedClassIds.length,
           translations: t,
           onPageChanged: (p) => setState(() => _classCurrentPage = p),
           onPageSizeChanged: (s) => setState(() {
@@ -976,6 +1221,79 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
       {bool isMobile = false, bool isTablet = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white70 : AppColors.textPrimary;
+
+    final fieldBg = isDark ? const Color(0xFF0D0D1C) : const Color(0xFFF2F3F7);
+    final checkboxShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(4));
+    WidgetStateBorderSide subjectCheckboxSide(bool active) =>
+        WidgetStateBorderSide.resolveWith((_) => BorderSide(
+          color: active ? AppColors.primary : textColor,
+          width: 1.5,
+        ));
+
+    final allSubjectPageChecked = _subjectPaginated.isNotEmpty &&
+        _subjectPaginated.every((s) => _checkedSubjectIds.contains(s['id']));
+    final anySubjectPageChecked = _subjectPaginated.any((s) => _checkedSubjectIds.contains(s['id']));
+    final subjectHeaderActive = allSubjectPageChecked || anySubjectPageChecked;
+
+    final subjectHeaderCheckbox = Row(children: [
+      SizedBox(
+        width: 32,
+        child: Checkbox(
+          value: allSubjectPageChecked ? true : (anySubjectPageChecked ? null : false),
+          tristate: true,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+          shape: checkboxShape,
+          side: subjectCheckboxSide(subjectHeaderActive),
+          fillColor: WidgetStateProperty.all(subjectHeaderActive ? AppColors.primary : fieldBg),
+          checkColor: Colors.white,
+          onChanged: (_) {
+            setState(() {
+              if (allSubjectPageChecked) {
+                for (final s in _subjectPaginated) { _checkedSubjectIds.remove(s['id']); }
+              } else {
+                for (final s in _subjectPaginated) { _checkedSubjectIds.add(s['id']); }
+              }
+            });
+          },
+        ),
+      ),
+      const SizedBox(width: 10),
+    ]);
+
+    Widget subjectRowCheckbox(Map<String, dynamic> s) {
+      final checked = _checkedSubjectIds.contains(s['id']);
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            if (checked) { _checkedSubjectIds.remove(s['id']); }
+            else { _checkedSubjectIds.add(s['id']); }
+          });
+        },
+        child: Row(children: [
+          SizedBox(
+            width: 32,
+            child: Checkbox(
+              value: checked,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+              shape: checkboxShape,
+              side: subjectCheckboxSide(checked),
+              fillColor: WidgetStateProperty.all(checked ? AppColors.primary : fieldBg),
+              checkColor: Colors.white,
+              onChanged: (v) {
+                setState(() {
+                  if (v == true) { _checkedSubjectIds.add(s['id']); }
+                  else { _checkedSubjectIds.remove(s['id']); }
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 10),
+        ]),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1012,7 +1330,9 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
               _DeleteButton(
                 label: t['delete'] ?? 'Delete',
                 onTap: () {
-                  if (_selectedSubject != null) {
+                  if (_checkedSubjectIds.isNotEmpty) {
+                    _deleteCheckedSubjects(t);
+                  } else if (_selectedSubject != null) {
                     _deleteSubject(_selectedSubject!);
                   } else {
                     _showSnack(
@@ -1026,7 +1346,9 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                 label: t['export'] ?? 'Export',
                 exporting: _exportingSubjects,
                 isDark: isDark,
-                onTap: () => _exportSubjects(t),
+                onTap: _checkedSubjectIds.isNotEmpty
+                    ? () => _exportCheckedSubjects(t)
+                    : (_filteredSubjects.isEmpty ? null : () => _exportSubjects(t)),
               ),
             ]),
           ])
@@ -1049,7 +1371,9 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
               _DeleteButton(
                 label: t['delete'] ?? 'Delete',
                 onTap: () {
-                  if (_selectedSubject != null) {
+                  if (_checkedSubjectIds.isNotEmpty) {
+                    _deleteCheckedSubjects(t);
+                  } else if (_selectedSubject != null) {
                     _deleteSubject(_selectedSubject!);
                   } else {
                     _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
@@ -1061,7 +1385,9 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                 label: t['export'] ?? 'Export',
                 exporting: _exportingSubjects,
                 isDark: isDark,
-                onTap: () => _exportSubjects(t),
+                onTap: _checkedSubjectIds.isNotEmpty
+                    ? () => _exportCheckedSubjects(t)
+                    : (_filteredSubjects.isEmpty ? null : () => _exportSubjects(t)),
               ),
             ];
             if (constraints.maxWidth > 650) {
@@ -1103,9 +1429,11 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             empty: _filteredSubjects.isEmpty,
             emptyIcon: Icons.book_outlined,
             emptyLabel: t['no_data'] ?? 'No subjects found',
+            headerPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             header: isMobile
                 ? Row(children: [
-                    const TableHeader(label: '#', flex: 1),
+                    subjectHeaderCheckbox,
+                    const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
                     TableHeader(
                       label: t['subject_name'] ?? 'Subject',
                       flex: 6,
@@ -1124,7 +1452,8 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                   ])
                 : isTablet
                 ? Row(children: [
-                    const TableHeader(label: '#', flex: 1),
+                    subjectHeaderCheckbox,
+                    const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
                     TableHeader(
                       label: t['code'] ?? 'Code',
                       flex: 2,
@@ -1149,7 +1478,8 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                     ),
                   ])
                 : Row(children: [
-                    const TableHeader(label: '#', flex: 1),
+                    subjectHeaderCheckbox,
+                    const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
                     TableHeader(
                       label: t['code'] ?? 'Code',
                       flex: 2,
@@ -1188,25 +1518,27 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
                     (_subjectCurrentPage - 1) * _subjectPageSize + i;
                 return _TableRow(
                   index: i,
-                  isSelected: _selectedSubject != null &&
-                      _selectedSubject!['id'] == s['id'],
+                  isSelected: (_selectedSubject != null && _selectedSubject!['id'] == s['id']) || _checkedSubjectIds.contains(s['id']),
                   onTap: () => _openSubjectDetail(s),
                   onDoubleTap: () => _openSubjectDetailPanel(s),
                   children: isMobile
                       ? [
-                          Expanded(flex: 1, child: Text((globalIndex + 1).toString(), style: AppTextStyles.body.copyWith(color: textColor))),
+                          subjectRowCheckbox(s),
+                          Expanded(flex: 1, child: Text((globalIndex + 1).toString(), textAlign: TextAlign.center, style: AppTextStyles.body.copyWith(color: textColor))),
                           Expanded(flex: 6, child: Text(s['name'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
                           Expanded(flex: 2, child: Center(child: _StatusBadge(status: s['status'] ?? true))),
                         ]
                       : isTablet
                       ? [
-                          Expanded(flex: 1, child: Text((globalIndex + 1).toString(), style: AppTextStyles.body.copyWith(color: textColor))),
+                          subjectRowCheckbox(s),
+                          Expanded(flex: 1, child: Text((globalIndex + 1).toString(), textAlign: TextAlign.center, style: AppTextStyles.body.copyWith(color: textColor))),
                           Expanded(flex: 2, child: Text(s['code'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
                           Expanded(flex: 4, child: Text(s['name'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
                           Expanded(flex: 2, child: Center(child: _StatusBadge(status: s['status'] ?? true))),
                         ]
                       : [
-                          Expanded(flex: 1, child: Text((globalIndex + 1).toString(), style: AppTextStyles.body.copyWith(color: textColor))),
+                          subjectRowCheckbox(s),
+                          Expanded(flex: 1, child: Text((globalIndex + 1).toString(), textAlign: TextAlign.center, style: AppTextStyles.body.copyWith(color: textColor))),
                           Expanded(flex: 2, child: Text(s['code'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor))),
                           Expanded(flex: 3, child: Text(s['name'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
                           Expanded(flex: 4, child: Text(s['description'] ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -1222,6 +1554,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
           currentPage: _subjectCurrentPage,
           totalPages: _subjectTotalPages,
           pageSize: _subjectPageSize,
+          selectedCount: _checkedSubjectIds.length,
           translations: t,
           onPageChanged: (p) => setState(() => _subjectCurrentPage = p),
           onPageSizeChanged: (s) => setState(() {
@@ -1669,6 +2002,7 @@ class _TableCard extends StatelessWidget {
   final String emptyLabel;
   final Widget header;
   final Widget body;
+  final EdgeInsetsGeometry? headerPadding;
   const _TableCard({
     required this.loading,
     required this.empty,
@@ -1676,6 +2010,7 @@ class _TableCard extends StatelessWidget {
     required this.emptyLabel,
     required this.header,
     required this.body,
+    this.headerPadding,
   });
 
   @override
@@ -1694,8 +2029,8 @@ class _TableCard extends StatelessWidget {
               child: CircularProgressIndicator(color: AppColors.primary))
           : Column(children: [
               Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                padding: headerPadding ??
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: header,
               ),
               if (empty)
@@ -1942,6 +2277,7 @@ class _PaginationRow extends StatelessWidget {
   final int currentPage;
   final int totalPages;
   final int pageSize;
+  final int selectedCount;
   final Map<String, String> translations;
   final ValueChanged<int> onPageChanged;
   final ValueChanged<int> onPageSizeChanged;
@@ -1953,6 +2289,7 @@ class _PaginationRow extends StatelessWidget {
     required this.translations,
     required this.onPageChanged,
     required this.onPageSizeChanged,
+    this.selectedCount = 0,
   });
 
   @override
@@ -1971,6 +2308,30 @@ class _PaginationRow extends StatelessWidget {
       side: BorderSide(color: borderColor, width: 1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
     );
+
+    final selectedBadge = selectedCount > 0
+        ? Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 7, height: 7,
+                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 6),
+                Text('$selectedCount selected',
+                    style: AppTextStyles.body.copyWith(
+                        color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+              ]),
+            ),
+            const SizedBox(width: 16),
+          ])
+        : const SizedBox.shrink();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -2009,6 +2370,7 @@ class _PaginationRow extends StatelessWidget {
           child: const Icon(Icons.last_page, size: 18),
         ),
         const Spacer(),
+        if (selectedCount > 0) ...[selectedBadge],
         Text(translations['show'] ?? 'Show',
             style: AppTextStyles.body.copyWith(color: textColor)),
         const SizedBox(width: 8),
