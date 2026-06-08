@@ -72,5 +72,14 @@ namespace SchoolMS.Infrastructure.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<Teacher?> UpdatePhotoAsync(int id, string photoUrl)
+        {
+            var teacher = await _context.Teachers.FindAsync(id);
+            if (teacher == null) return null;
+            teacher.PhotoUrl = photoUrl;
+            await _context.SaveChangesAsync();
+            return (await GetByIdAsync(id))!;
+        }
     }
 }

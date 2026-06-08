@@ -442,19 +442,33 @@ class _TeachersScreenState extends State<TeachersScreen> {
       return TeacherFormPanel(
         teacher: _formTeacher,
         onCancel: _closeForm,
-        onSave: (data) async {
+        onSave: (data, photoFile) async {
+          final isCreate = _formTeacher == null;
+          late int teacherId;
           try {
-            if (_formTeacher == null) {
-              await _api.createTeacher(data);
-              _showSnack(t['teacher_created'] ?? 'Teacher created!');
+            if (isCreate) {
+              final created = await _api.createTeacher(data);
+              teacherId = (created['id'] as num).toInt();
             } else {
-              await _api.updateTeacher(_formTeacher!['id'], data);
-              _showSnack(t['teacher_updated'] ?? 'Teacher updated!');
+              teacherId = (_formTeacher!['id'] as num).toInt();
+              await _api.updateTeacher(teacherId, data);
             }
             _closeForm();
-            await _load();
-          } catch (_) {
-            _showSnack(t['save_failed'] ?? 'Save failed', isError: true);
+            _load();
+            _showSnack(isCreate
+                ? (t['teacher_created'] ?? 'Teacher created!')
+                : (t['teacher_updated'] ?? 'Teacher updated!'));
+          } catch (e) {
+            _showSnack('${t['save_failed'] ?? 'Save failed'}: $e', isError: true);
+            return;
+          }
+          if (photoFile != null) {
+            try {
+              await _api.uploadTeacherPhoto(teacherId, photoFile);
+              _load();
+            } catch (e) {
+              _showSnack('${t['photo_upload_failed'] ?? 'Photo upload failed'}: $e', isWarning: true);
+            }
           }
         },
       );

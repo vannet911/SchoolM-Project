@@ -13,6 +13,7 @@ namespace SchoolMS.API.DTOs
         public List<SubjectDto> Subjects { get; set; } = [];
         public DateTime? CreateDate { get; set; }
         public bool Status { get; set; }
+        public string? PhotoUrl { get; set; }
     }
 
     public class CreateTeacherDto

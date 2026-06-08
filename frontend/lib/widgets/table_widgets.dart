@@ -2,6 +2,7 @@
 import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:schoolms_portal/providers/auth_provider.dart';
 import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/services/api_service.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
@@ -270,17 +271,13 @@ class _StudentAvatar extends StatelessWidget {
     this.onTap,
   });
 
-  String get _initials {
-    final f = firstName.isNotEmpty ? firstName[0].toUpperCase() : '';
-    final l = lastName.isNotEmpty ? lastName[0].toUpperCase() : '';
-    return '$f$l'.isNotEmpty ? '$f$l' : '?';
-  }
-
   @override
   Widget build(BuildContext context) {
     final borderColor = AppColors.primary.withValues(alpha: 0.3);
     final bg = isDark ? const Color(0xFF1C2A4A) : AppColors.primarySurface;
-    final hasPhoto = photoUrl != null && photoUrl!.isNotEmpty;
+    final effectiveUrl = (photoUrl != null && photoUrl!.isNotEmpty)
+        ? photoUrl!
+        : AuthProvider.defaultPhotoUrl;
 
     final avatar = Container(
       width: size,
@@ -294,27 +291,13 @@ class _StudentAvatar extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (hasPhoto)
-              Image.network(
-                photoUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Icon(
-                  Icons.person,
-                  size: size * 0.45,
-                  color: AppColors.primary,
-                ),
-              )
-            else
-              Center(
-                child: Text(
-                  _initials,
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontSize: size * 0.28,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+            Image.network(
+              effectiveUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Center(
+                child: Icon(Icons.person_rounded, size: size * 0.55, color: AppColors.primary.withValues(alpha: 0.7)),
               ),
+            ),
             if (showCamera)
               Positioned(
                 bottom: 0, left: 0, right: 0,
@@ -857,7 +840,20 @@ class TeacherDetailPanel extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: _StudentAvatar(
+                          photoUrl: s['photoUrl']?.toString(),
+                          firstName: s['name']?.toString() ?? '',
+                          lastName: '',
+                          size: 104,
+                          isDark: isDark,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
@@ -932,12 +928,14 @@ class TeacherDetailPanel extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
             ),
           ),
         ),
-      ],
+      ),
+    ),
+  ],
     );
   }
 }
@@ -945,7 +943,7 @@ class TeacherDetailPanel extends StatelessWidget {
 /// Inline add / edit teacher form panel
 class TeacherFormPanel extends StatefulWidget {
   final Map<String, dynamic>? teacher;
-  final Future<void> Function(Map<String, dynamic>) onSave;
+  final Future<void> Function(Map<String, dynamic> data, html.File? photoFile) onSave;
   final VoidCallback onCancel;
 
   const TeacherFormPanel({super.key, this.teacher, required this.onSave, required this.onCancel});
@@ -970,6 +968,8 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
   List<int> _selectedSubjectIds = [];
   List<Map<String, dynamic>> _availableSubjects = [];
   bool _loadingSubjects = false;
+  html.File? _pickedPhoto;
+  String? _photoPreviewUrl;
 
   @override
   void initState() {
@@ -988,10 +988,25 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
       _gender = ['Male', 'Female'].contains(g) ? g : 'Male';
       final st = s['status'];
       _status = st is bool ? st : true;
-      // Parse existing subject IDs
       final subjects = s['subjects'] as List<dynamic>? ?? [];
       _selectedSubjectIds = subjects.map((sub) => (sub is Map ? sub['id'] : sub) as int).toList();
+      _photoPreviewUrl = s['photoUrl']?.toString();
     }
+  }
+
+  Future<void> _pickPhoto() async {
+    final input = html.FileUploadInputElement()..accept = 'image/*';
+    input.click();
+    await input.onChange.first;
+    if (input.files == null || input.files!.isEmpty) return;
+    final file = input.files!.first;
+    final reader = html.FileReader();
+    reader.readAsDataUrl(file);
+    await reader.onLoad.first;
+    setState(() {
+      _pickedPhoto = file;
+      _photoPreviewUrl = reader.result as String?;
+    });
   }
 
   Future<void> _loadSubjects() async {
@@ -1086,7 +1101,7 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
         'address': _addressCtrl.text.trim(),
         'status': _status,
         'createDate': DateTime.now().toUtc().toIso8601String(),
-      });
+      }, _pickedPhoto);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1192,7 +1207,22 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: _StudentAvatar(
+                          photoUrl: _photoPreviewUrl,
+                          firstName: _nameCtrl.text.split(' ').first,
+                          lastName: _nameCtrl.text.split(' ').skip(1).join(' '),
+                          size: 104,
+                          isDark: isDark,
+                          showCamera: true,
+                          onTap: _pickPhoto,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
@@ -1285,12 +1315,14 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
             ),
           ),
         ),
-      ],
+      ),
+    ),
+        ],
     );
   }
 }

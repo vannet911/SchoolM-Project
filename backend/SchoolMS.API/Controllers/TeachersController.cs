@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SchoolMS.Core.Entities;
 using SchoolMS.Core.Interfaces;
 using SchoolMS.API.DTOs;
+using Microsoft.AspNetCore.Hosting;
 
 namespace SchoolMS.API.Controllers
 {
@@ -9,7 +10,7 @@ namespace SchoolMS.API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
-    public class TeachersController(ITeacherService service) : ControllerBase
+    public class TeachersController(ITeacherService service, IWebHostEnvironment env) : ControllerBase
     {
         /// <summary>Get all teachers.</summary>
         /// <response code="200">Returns the list of all teachers with their assigned subjects.</response>
@@ -97,6 +98,50 @@ namespace SchoolMS.API.Controllers
             return NoContent();
         }
 
+        /// <summary>Upload a profile photo for a teacher.</summary>
+        /// <param name="id">Teacher ID.</param>
+        /// <param name="file">Image file (multipart/form-data).</param>
+        /// <response code="200">Returns the new photo URL.</response>
+        /// <response code="400">No file provided or invalid file type.</response>
+        /// <response code="404">Teacher not found.</response>
+        [HttpPost("{id}/photo")]
+        [Consumes("multipart/form-data")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UploadPhoto(int id, IFormFile? file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "No file provided" });
+
+            var ext = Path.GetExtension(file.FileName).ToLower();
+            var allowedExt = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            if (!allowedExt.Contains(ext))
+                return BadRequest(new { message = "Invalid file type" });
+
+            try
+            {
+                var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+                var uploadsDir = Path.Combine(webRoot, "uploads", "teachers");
+                Directory.CreateDirectory(uploadsDir);
+
+                var filename = $"teacher_{id}_{Guid.NewGuid()}{ext}";
+                var filePath = Path.Combine(uploadsDir, filename);
+
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await file.CopyToAsync(stream);
+
+                var photoUrl = $"{Request.Scheme}://{Request.Host}/uploads/teachers/{filename}";
+                var teacher = await service.UpdatePhotoAsync(id, photoUrl);
+                if (teacher == null) return NotFound();
+                return Ok(new { photoUrl = teacher.PhotoUrl });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Upload failed" });
+            }
+        }
+
         private static TeacherDto MapToDto(Teacher t) => new()
         {
             Id = t.Id,
@@ -109,6 +154,7 @@ namespace SchoolMS.API.Controllers
             Address = t.Address,
             Status = t.Status,
             CreateDate = t.CreateDate,
+            PhotoUrl = t.PhotoUrl,
             Subjects = [.. t.TeacherSubjects.Select(ts => new SubjectDto
                 {
                     Id = ts.Subject.Id,

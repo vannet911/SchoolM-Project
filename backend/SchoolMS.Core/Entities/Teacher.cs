@@ -31,6 +31,8 @@ namespace SchoolMS.Core.Entities
 
         public bool Status { get; set; }
 
+        public string? PhotoUrl { get; set; }
+
         // Navigation
         public ICollection<TeacherSubject> TeacherSubjects { get; set; } = [];
     }

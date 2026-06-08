@@ -9,5 +9,6 @@ namespace SchoolMS.Core.Interfaces
         Task<Teacher> CreateAsync(Teacher teacher, List<int> subjectIds);
         Task<Teacher?> UpdateAsync(int id, Teacher teacher, List<int> subjectIds);
         Task<bool> DeleteAsync(int id);
+        Task<Teacher?> UpdatePhotoAsync(int id, string photoUrl);
     }
 }
