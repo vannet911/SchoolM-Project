@@ -180,39 +180,8 @@ class _AppRoot extends StatelessWidget {
     switch (auth.status) {
       case AuthStatus.authenticated:
         return const MainShell();
-      case AuthStatus.loading:
-        return const _SplashScreen();
       default:
         return const LoginScreen();
     }
-  }
-}
-
-class _SplashScreen extends StatelessWidget {
-  const _SplashScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.white,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: AppColors.primary),
-            SizedBox(height: 20),
-            Text(
-              AppConstants.appName,
-              style: AppTextStyles.heading2,
-            ),
-            SizedBox(height: 6),
-            Text(
-              AppConstants.appSubtitle,
-              style: AppTextStyles.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

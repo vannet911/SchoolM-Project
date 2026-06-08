@@ -1432,8 +1432,13 @@ class _TableCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppConstants.cardRadius),
       ),
       child: loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary))
+          ? Column(children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: header,
+              ),
+              const Expanded(child: SkeletonTableLoader()),
+            ])
           : Column(children: [
               Padding(
                 padding: const EdgeInsets.symmetric(

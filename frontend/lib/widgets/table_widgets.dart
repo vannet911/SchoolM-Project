@@ -1327,6 +1327,163 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
   }
 }
 
+/// Animated shimmer skeleton loader for data tables
+class SkeletonTableLoader extends StatefulWidget {
+  final int rowCount;
+  const SkeletonTableLoader({super.key, this.rowCount = 9});
+
+  @override
+  State<SkeletonTableLoader> createState() => _SkeletonTableLoaderState();
+}
+
+class _SkeletonTableLoaderState extends State<SkeletonTableLoader>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark ? const Color(0xFF1C2A4A) : const Color(0xFFE8EBF2);
+    final shimmer = isDark ? const Color(0xFF2A3D60) : const Color(0xFFF5F6FA);
+    final divider = isDark ? const Color(0xFF162035) : const Color(0xFFF0F2F5);
+
+    // widths used to stagger row content so rows don't look identical
+    final widths = [0.55, 0.70, 0.45, 0.60, 0.50, 0.65, 0.40, 0.55, 0.70];
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        // single shimmer sweep across the whole column at once
+        final t = _ctrl.value;
+        final shimmerBegin = Alignment(-3.0 + t * 6.0, 0);
+        final shimmerEnd = Alignment(-1.0 + t * 6.0, 0);
+
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) => LinearGradient(
+            begin: shimmerBegin,
+            end: shimmerEnd,
+            colors: [base, shimmer, base],
+            stops: const [0.0, 0.5, 1.0],
+          ).createShader(bounds),
+          child: Column(
+            children: List.generate(widget.rowCount, (i) {
+              final w = widths[i % widths.length];
+              return _SkeletonRow(
+                fillRatio: w,
+                base: base,
+                divider: divider,
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SkeletonRow extends StatelessWidget {
+  final double fillRatio;
+  final Color base;
+  final Color divider;
+
+  const _SkeletonRow({
+    required this.fillRatio,
+    required this.base,
+    required this.divider,
+  });
+
+  Widget _block({double? w, double h = 12, double r = 5}) =>
+      Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: base,
+          borderRadius: BorderRadius.circular(r),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: divider, width: 1)),
+      ),
+      child: Row(
+        children: [
+          // Checkbox
+          _block(w: 16, h: 16, r: 3),
+          const SizedBox(width: 14),
+          // Index
+          Expanded(flex: 1, child: Center(child: _block(w: 18, h: 11))),
+          const SizedBox(width: 8),
+          // Col 1 — code
+          Expanded(flex: 2, child: _block(w: double.infinity, h: 12)),
+          const SizedBox(width: 8),
+          // Col 2 — name (longer)
+          Expanded(flex: 3, child: FractionallySizedBox(
+            widthFactor: fillRatio,
+            alignment: Alignment.centerLeft,
+            child: _block(w: double.infinity, h: 12),
+          )),
+          const SizedBox(width: 8),
+          // Col 3
+          Expanded(flex: 2, child: FractionallySizedBox(
+            widthFactor: 0.65,
+            alignment: Alignment.centerLeft,
+            child: _block(w: double.infinity, h: 12),
+          )),
+          const SizedBox(width: 8),
+          // Col 4
+          Expanded(flex: 2, child: FractionallySizedBox(
+            widthFactor: 0.55,
+            alignment: Alignment.centerLeft,
+            child: _block(w: double.infinity, h: 12),
+          )),
+          const SizedBox(width: 8),
+          // Col 5
+          Expanded(flex: 3, child: FractionallySizedBox(
+            widthFactor: fillRatio * 0.9,
+            alignment: Alignment.centerLeft,
+            child: _block(w: double.infinity, h: 12),
+          )),
+          const SizedBox(width: 8),
+          // Status pill
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: Container(
+                width: 62,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: base,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Labelled text input used in form dialogs
 class FormFieldInput extends StatelessWidget {
   final String label;

@@ -14,10 +14,12 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
+  late AnimationController _shimmerCtrl;
   String? _emailError;
   String? _passwordError;
   final List<Map<String, String>> _languages = [
@@ -65,11 +67,125 @@ class _LoginScreenState extends State<LoginScreen> {
   final FocusNode _passwordFocus = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    _shimmerCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat();
+  }
+
+  @override
   void dispose() {
+    _shimmerCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _passwordFocus.dispose();
     super.dispose();
+  }
+
+  Widget _buildSkeleton(bool isDark, Color borderColor) {
+    final base = isDark ? const Color(0xFF1C2A4A) : const Color(0xFFE8EBF2);
+    final shimmer =
+        isDark ? const Color(0xFF2A3D60) : const Color(0xFFF5F6FA);
+
+    Widget block({double? w, double h = 14, double r = 7}) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: base,
+            borderRadius: BorderRadius.circular(r),
+          ),
+        );
+
+    return AnimatedBuilder(
+      animation: _shimmerCtrl,
+      builder: (_, __) {
+        final t = _shimmerCtrl.value;
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) => LinearGradient(
+            begin: Alignment(-3.0 + t * 6.0, 0),
+            end: Alignment(-1.0 + t * 6.0, 0),
+            colors: [base, shimmer, base],
+            stops: const [0.0, 0.5, 1.0],
+          ).createShader(bounds),
+          child: Center(
+            child: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: base,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: borderColor),
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 52,
+                        margin: const EdgeInsets.symmetric(horizontal: 14),
+                        color: borderColor,
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          block(w: 160, h: 18),
+                          const SizedBox(height: 8),
+                          block(w: 120, h: 13),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Divider(color: borderColor),
+                  const SizedBox(height: 20),
+                  Container(
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: base,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: borderColor),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: base,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: borderColor),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: block(w: 110, h: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: base,
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _validateAndLogin() async {
@@ -188,169 +304,170 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // ── Login form centered ───────────────────────────────────
           Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                child: SizedBox(
-                  width: 320,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Logo + Name
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Circular logo
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: mutedColor, width: 1.5),
+            child: isLoading
+                ? _buildSkeleton(isDark, borderColor)
+                : Center(
+                    child: SingleChildScrollView(
+                      child: SizedBox(
+                        width: 320,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Logo + Name
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border:
+                                        Border.all(color: mutedColor, width: 1.5),
+                                  ),
+                                  child: Center(
+                                    child: Icon(Icons.school,
+                                        size: 28, color: textColor),
+                                  ),
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 52,
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 14),
+                                  color: borderColor,
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      t['app_name'] ?? 'KOMPONG PHNOM',
+                                      style: AppTextStyles.heading2
+                                          .copyWith(
+                                              fontSize: 18, color: textColor),
+                                    ),
+                                    Text(
+                                      t['app_subtitle'] ??
+                                          'School Management System',
+                                      style: AppTextStyles.body.copyWith(
+                                          color: mutedColor, fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                            child: Center(
-                              child: Icon(Icons.school,
-                                  size: 28, color: textColor),
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: 52,
-                            margin: const EdgeInsets.symmetric(horizontal: 14),
-                            color: borderColor,
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                t['app_name'] ?? 'KOMPONG PHNOM',
-                                style: AppTextStyles.heading2
-                                    .copyWith(fontSize: 18, color: textColor),
+
+                            const SizedBox(height: 8),
+                            Divider(color: borderColor),
+                            const SizedBox(height: 20),
+
+                            // Error message
+                            if (auth.status == AuthStatus.error &&
+                                auth.errorMessage != null)
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: AppColors.error.withOpacity(0.3)),
+                                ),
+                                child: Row(children: [
+                                  const Icon(Icons.error_outline,
+                                      size: 16, color: AppColors.error),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      t[auth.errorMessage] ??
+                                          auth.errorMessage!,
+                                      style: AppTextStyles.bodySmall
+                                          .copyWith(color: AppColors.error),
+                                    ),
+                                  ),
+                                ]),
                               ),
-                              Text(
-                                t['app_subtitle'] ?? 'School Management System',
-                                style: AppTextStyles.body
-                                    .copyWith(color: mutedColor, fontSize: 14),
+
+                            // Email field
+                            _LoginField(
+                              controller: _emailCtrl,
+                              hint: t['email'] ?? 'Email',
+                              prefixIcon: Icons.email_outlined,
+                              keyboardType: TextInputType.emailAddress,
+                              errorText: _emailError,
+                              onSubmitted: (_) => _validateAndLogin(),
+                              onChanged: (_) =>
+                                  setState(() => _emailError = null),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Password field
+                            _LoginField(
+                              controller: _passwordCtrl,
+                              focusNode: _passwordFocus,
+                              hint: t['password'] ?? 'Password',
+                              prefixIcon: Icons.lock_outlined,
+                              obscureText: _obscurePassword,
+                              errorText: _passwordError,
+                              suffixIcon: InkWell(
+                                onTap: () => setState(() =>
+                                    _obscurePassword = !_obscurePassword),
+                                child: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  size: 20,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : AppColors.textSecondary,
+                                ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 8),
-                      Divider(color: borderColor),
-                      const SizedBox(height: 20),
-
-                      // Error message
-                      if (auth.status == AuthStatus.error &&
-                          auth.errorMessage != null)
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: AppColors.error.withOpacity(0.3)),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.error_outline,
-                                size: 16, color: AppColors.error),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                t[auth.errorMessage] ?? auth.errorMessage!,
-                                style: AppTextStyles.bodySmall
-                                    .copyWith(color: AppColors.error),
+                              onSubmitted: (_) => _validateAndLogin(),
+                              onChanged: (_) =>
+                                  setState(() => _passwordError = null),
+                            ),
+                            const SizedBox(height: 8),
+                            // Forgot password
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {},
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 2, horizontal: 8),
+                                ),
+                                child: Text(
+                                  t['forgot_password'] ?? 'Forgot Password?',
+                                  style: AppTextStyles.body.copyWith(
+                                    color: isDark
+                                        ? AppColors.textLink.withOpacity(0.8)
+                                        : AppColors.textLink,
+                                  ),
+                                ),
                               ),
                             ),
-                          ]),
-                        ),
 
-                      // Email field
-                      _LoginField(
-                        controller: _emailCtrl,
-                        hint: t['email'] ?? 'Email',
-                        prefixIcon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                        errorText: _emailError,
-                        onSubmitted: (_) => _validateAndLogin(),
-                        onChanged: (_) => setState(() => _emailError = null),
-                      ),
-                      const SizedBox(height: 14),
+                            const SizedBox(height: 8),
 
-                      // Password field
-                      _LoginField(
-                        controller: _passwordCtrl,
-                        focusNode: _passwordFocus,
-                        hint: t['password'] ?? 'Password',
-                        prefixIcon: Icons.lock_outlined,
-                        obscureText: _obscurePassword,
-                        errorText: _passwordError,
-                        suffixIcon: InkWell(
-                          onTap: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                          child: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                            size: 20,
-                            color: isDark
-                                ? Colors.white70
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                        onSubmitted: (_) => _validateAndLogin(),
-                        onChanged: (_) => setState(() => _passwordError = null),
-                      ),
-                      const SizedBox(height: 8),
-                      // Forgot password
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {},
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 2, horizontal: 8),
-                          ),
-                          child: Text(
-                            t['forgot_password'] ?? 'Forgot Password?',
-                            style: AppTextStyles.body.copyWith(
-                              color: isDark
-                                  ? AppColors.textLink.withOpacity(0.8)
-                                  : AppColors.textLink,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // Login button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 40,
-                        child: ElevatedButton(
-                          onPressed: isLoading ? null : _validateAndLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                          ),
-                          child: isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2),
-                                )
-                              : Text(
+                            // Login button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 40,
+                              child: ElevatedButton(
+                                onPressed: _validateAndLogin,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(28),
+                                  ),
+                                ),
+                                child: Text(
                                   t['login'] ?? 'Log In',
                                   style: const TextStyle(
                                     fontSize: 16,
@@ -358,13 +475,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                     letterSpacing: 0.5,
                                   ),
                                 ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ),
           ),
 
           // ── Footer ────────────────────────────────────────────────

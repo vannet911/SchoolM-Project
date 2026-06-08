@@ -5,7 +5,7 @@ import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/providers/theme_provider.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
 
-class TopBar extends StatelessWidget implements PreferredSizeWidget {
+class TopBar extends StatefulWidget implements PreferredSizeWidget {
   final String title;
   final bool showMenuIcon;
   final VoidCallback? onMenuTap;
@@ -21,7 +21,24 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(AppConstants.topBarHeight);
 
   @override
+  State<TopBar> createState() => _TopBarState();
+}
+
+class _TopBarState extends State<TopBar> {
+  bool _showSkeleton = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _showSkeleton = false);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_showSkeleton) return TopBarSkeleton(showMenuIcon: widget.showMenuIcon);
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
@@ -36,11 +53,12 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          if (showMenuIcon) ...[
-            _MenuButton(onTap: onMenuTap, isDark: isDark),
+          if (widget.showMenuIcon) ...[
+            _MenuButton(onTap: widget.onMenuTap, isDark: isDark),
             const SizedBox(width: 12),
           ],
-          Text(title, style: AppTextStyles.heading3.copyWith(color: textColor)),
+          Text(widget.title,
+              style: AppTextStyles.heading3.copyWith(color: textColor)),
           const Spacer(),
           _TopBarIconButton(
             icon: Icons.info_outline,
@@ -54,7 +72,8 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
                 icon: themeProvider.isDarkMode
                     ? Icons.light_mode_outlined
                     : Icons.dark_mode_outlined,
-                tooltip: themeProvider.isDarkMode ? 'Light Mode' : 'Dark Mode',
+                tooltip:
+                    themeProvider.isDarkMode ? 'Light Mode' : 'Dark Mode',
                 onTap: () => themeProvider.toggleTheme(),
               );
             },
@@ -496,6 +515,99 @@ class _LanguageSelectorState extends State<_LanguageSelector> {
             Icon(Icons.keyboard_arrow_up, size: 16, color: iconColor),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── TopBar skeleton loader ────────────────────────────────────────────────────
+
+class TopBarSkeleton extends StatefulWidget {
+  final bool showMenuIcon;
+  const TopBarSkeleton({super.key, this.showMenuIcon = true});
+
+  @override
+  State<TopBarSkeleton> createState() => _TopBarSkeletonState();
+}
+
+class _TopBarSkeletonState extends State<TopBarSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final base = isDark ? const Color(0xFF1C2A4A) : const Color(0xFFE8EBF2);
+    final shimmer = isDark ? const Color(0xFF2A3D60) : const Color(0xFFF5F6FA);
+
+    Widget block(double w, double h, {double r = 6}) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: base,
+            borderRadius: BorderRadius.circular(r),
+          ),
+        );
+    Widget circle(double size) => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(color: base, shape: BoxShape.circle),
+        );
+
+    return Container(
+      height: AppConstants.topBarHeight,
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (_, __) {
+          final t = _ctrl.value;
+          return ShaderMask(
+            blendMode: BlendMode.srcATop,
+            shaderCallback: (bounds) => LinearGradient(
+              begin: Alignment(-3.0 + t * 6.0, 0),
+              end: Alignment(-1.0 + t * 6.0, 0),
+              colors: [base, shimmer, base],
+              stops: const [0.0, 0.5, 1.0],
+            ).createShader(bounds),
+            child: Row(
+              children: [
+                if (widget.showMenuIcon) ...[
+                  circle(38),
+                  const SizedBox(width: 12),
+                ],
+                block(120, 16),
+                const Spacer(),
+                circle(36),
+                const SizedBox(width: 8),
+                circle(36),
+                const SizedBox(width: 12),
+                // Language selector
+                block(90, 34, r: 8),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

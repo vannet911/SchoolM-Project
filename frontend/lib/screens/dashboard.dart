@@ -97,6 +97,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) return const _DashboardSkeleton();
+
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 600;
     final isDesktop = width >= 1024;
@@ -110,10 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // ── Stat cards ─────────────────────────────────────────────
     Widget statCards;
-    if (_loading) {
-      statCards = const Center(
-          child: CircularProgressIndicator(color: AppColors.primary));
-    } else if (isMobile) {
+    if (isMobile) {
       // Mobile: 2-column grid
       statCards = Column(children: [
         Row(children: [
@@ -213,17 +212,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           statCards,
           const SizedBox(height: 16),
 
-          if (!_loading) chartsRow1,
+          chartsRow1,
           const SizedBox(height: 16),
 
-          if (!_loading)
-            _SchoolOverviewChart(
-              students: _stats['students'] ?? 0,
-              teachers: _stats['teachers'] ?? 0,
-              classes: _stats['classes'] ?? 0,
-              subjects: _subjectCount,
-              t: t,
-            ),
+          _SchoolOverviewChart(
+            students: _stats['students'] ?? 0,
+            teachers: _stats['teachers'] ?? 0,
+            classes: _stats['classes'] ?? 0,
+            subjects: _subjectCount,
+            t: t,
+          ),
 
           // Inline subject panel on mobile/tablet
           if (!isDesktop) ...[
@@ -249,6 +247,542 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // ── Tablet / Mobile: full-width scroll ────────────────────
     return mainScroll;
   }
+}
+
+// ── Dashboard Skeleton ────────────────────────────────────────────────────
+class _DashboardSkeleton extends StatefulWidget {
+  const _DashboardSkeleton();
+  @override
+  State<_DashboardSkeleton> createState() => _DashboardSkeletonState();
+}
+
+class _DashboardSkeletonState extends State<_DashboardSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 600;
+    final isDesktop = width >= 1024;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark ? const Color(0xFF1C2A4A) : const Color(0xFFE8EBF2);
+    final shimmer = isDark ? const Color(0xFF2A3D60) : const Color(0xFFF5F6FA);
+    final cardColor = isDark ? const Color(0xFF16213E) : AppColors.cardBg;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+
+    Widget block({double? w, double h = 14, double r = 7}) => Container(
+          width: w,
+          height: h,
+          decoration:
+              BoxDecoration(color: base, borderRadius: BorderRadius.circular(r)),
+        );
+
+    // ── Stat card — mirrors _StatCard exactly ──────────────────
+    Widget statCard() => Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+            border: Border.all(color: borderColor),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(child: block(w: 110, h: 14)),
+              Container(
+                  width: 48,
+                  height: 48,
+                  decoration:
+                      BoxDecoration(color: base, shape: BoxShape.circle)),
+            ]),
+            const SizedBox(height: 12),
+            block(w: 48, h: 28, r: 6),
+            const SizedBox(height: 12),
+            Divider(color: borderColor, height: 1),
+            const SizedBox(height: 10),
+            block(w: 72, h: 12),
+          ]),
+        );
+
+    // ── Donut chart — mirrors _GenderDonutChart ────────────────
+    Widget legendRow() => Row(children: [
+          Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: base, shape: BoxShape.circle)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                block(w: 48, h: 11),
+                const SizedBox(height: 4),
+                block(w: 68, h: 14),
+              ],
+            ),
+          ),
+        ]);
+
+    Widget donutChartCard() => Container(
+          height: 240,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+            border: Border.all(color: borderColor),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            block(w: 170, h: 14),
+            Expanded(
+              child: Row(children: [
+                // Donut — flex 3 (matches actual)
+                Expanded(
+                  flex: 3,
+                  child: Center(
+                    child: Stack(alignment: Alignment.center, children: [
+                      Container(
+                        width: 140,
+                        height: 140,
+                        decoration: BoxDecoration(
+                            color: base, shape: BoxShape.circle),
+                      ),
+                      Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                            color: cardColor, shape: BoxShape.circle),
+                      ),
+                      Column(mainAxisSize: MainAxisSize.min, children: [
+                        block(w: 36, h: 26, r: 6),
+                        const SizedBox(height: 4),
+                        block(w: 44, h: 12),
+                      ]),
+                    ]),
+                  ),
+                ),
+                // Legend — flex 2 (matches actual)
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      legendRow(),
+                      const SizedBox(height: 16),
+                      legendRow(),
+                    ],
+                  ),
+                ),
+              ]),
+            ),
+          ]),
+        );
+
+    // ── Bar chart — mirrors _StudentsPerClassChart ─────────────
+    Widget barChartCard() {
+      const ratios = [0.80, 0.55, 0.90, 0.65, 0.40];
+      return Container(
+        height: 240,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          block(w: 170, h: 14),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: ratios.map((pct) {
+                return Row(children: [
+                  // Label — 72px wide (matches actual)
+                  Container(
+                      width: 72,
+                      height: 12,
+                      decoration: BoxDecoration(
+                          color: base,
+                          borderRadius: BorderRadius.circular(6))),
+                  const SizedBox(width: 8),
+                  // Bar — Expanded (matches actual)
+                  Expanded(
+                    child: Stack(children: [
+                      Container(
+                          height: 18,
+                          decoration: BoxDecoration(
+                              color: base.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(4))),
+                      FractionallySizedBox(
+                        widthFactor: pct,
+                        child: Container(
+                            height: 18,
+                            decoration: BoxDecoration(
+                                color: base,
+                                borderRadius: BorderRadius.circular(4))),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(width: 8),
+                  // Count — 24px wide (matches actual)
+                  Container(
+                      width: 24,
+                      height: 12,
+                      decoration: BoxDecoration(
+                          color: base,
+                          borderRadius: BorderRadius.circular(6))),
+                ]);
+              }).toList(),
+            ),
+          ),
+        ]),
+      );
+    }
+
+    // ── Area chart — mirrors _SchoolOverviewChart ──────────────
+    Widget areaChartCard() => Container(
+          height: 300,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+            border: Border.all(color: borderColor),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            block(w: 150, h: 14),
+            const SizedBox(height: 8),
+            Expanded(
+              child: CustomPaint(
+                painter: _SkeletonCurvePainter(base: base),
+                size: Size.infinite,
+              ),
+            ),
+          ]),
+        );
+
+    // ── Subject item — mirrors _CourseItem ─────────────────────
+    Widget subjectItem() => Container(
+          height: 120,
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+              color: base, borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.all(16),
+          child: Stack(children: [
+            Positioned(
+              right: -20,
+              bottom: -20,
+              child: Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                      color: cardColor.withValues(alpha: 0.15),
+                      shape: BoxShape.circle)),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                        color: cardColor.withValues(alpha: 0.2),
+                        shape: BoxShape.circle)),
+                const SizedBox(height: 8),
+                block(w: 100, h: 14),
+                const SizedBox(height: 2),
+                block(w: 72, h: 12),
+              ],
+            ),
+          ]),
+        );
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        final t = _ctrl.value;
+        Shader shader(Rect bounds) => LinearGradient(
+              begin: Alignment(-3.0 + t * 6.0, 0),
+              end: Alignment(-1.0 + t * 6.0, 0),
+              colors: [base, shimmer, base],
+              stops: const [0.0, 0.5, 1.0],
+            ).createShader(bounds);
+
+        Widget mainContent = ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: shader,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppConstants.pagePadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome row
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        block(w: 200, h: isMobile ? 22 : 28, r: 8),
+                        const SizedBox(height: 8),
+                        block(w: 280, h: 14),
+                      ],
+                    ),
+                  ),
+                  if (!isMobile) ...[
+                    const SizedBox(width: 16),
+                    Column(children: [
+                      Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                              color: base,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: borderColor))),
+                      const SizedBox(height: 8),
+                      block(w: 140, h: 14),
+                      const SizedBox(height: 6),
+                      block(w: 180, h: 12),
+                    ]),
+                  ],
+                ]),
+                const SizedBox(height: 24),
+
+                // Stat cards
+                if (isMobile)
+                  Column(children: [
+                    Row(children: [
+                      Expanded(child: statCard()),
+                      const SizedBox(width: 12),
+                      Expanded(child: statCard()),
+                    ]),
+                    const SizedBox(height: 12),
+                    statCard(),
+                  ])
+                else
+                  Row(children: [
+                    Expanded(child: statCard()),
+                    const SizedBox(width: 16),
+                    Expanded(child: statCard()),
+                    const SizedBox(width: 16),
+                    Expanded(child: statCard()),
+                  ]),
+                const SizedBox(height: 16),
+
+                // Charts row 1
+                if (isMobile)
+                  Column(children: [
+                    donutChartCard(),
+                    const SizedBox(height: 16),
+                    barChartCard(),
+                  ])
+                else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: donutChartCard()),
+                      const SizedBox(width: 16),
+                      Expanded(child: barChartCard()),
+                    ],
+                  ),
+                const SizedBox(height: 16),
+
+                // Wide chart
+                areaChartCard(),
+
+                // Inline subject panel (mobile/tablet)
+                if (!isDesktop) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.cardRadius),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        block(w: 160, h: 16),
+                        const SizedBox(height: 8),
+                        block(w: 220, h: 12),
+                        const SizedBox(height: 16),
+                        subjectItem(),
+                        subjectItem(),
+                        subjectItem(),
+                        subjectItem(),
+                        subjectItem(),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+
+        if (!isDesktop) return mainContent;
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: mainContent),
+            ShaderMask(
+              blendMode: BlendMode.srcATop,
+              shaderCallback: shader,
+              child: Container(
+                width: AppConstants.rightPanelWidth,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  border: Border(left: BorderSide(color: borderColor)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          block(w: 160, h: 16),
+                          const SizedBox(height: 8),
+                          block(w: 220, h: 12),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.all(12),
+                        children: [
+                          subjectItem(),
+                          subjectItem(),
+                          subjectItem(),
+                          subjectItem(),
+                          subjectItem(),
+                          subjectItem(),
+                          subjectItem(),
+                          subjectItem(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ── Skeleton curve painter ────────────────────────────────────────────────
+class _SkeletonCurvePainter extends CustomPainter {
+  final Color base;
+  const _SkeletonCurvePainter({required this.base});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const topPad = 24.0;
+    const bottomPad = 30.0;
+    const hPad = 20.0;
+    final chartW = size.width - hPad * 2;
+    final chartH = size.height - topPad - bottomPad;
+
+    // Horizontal grid lines
+    final gridPaint = Paint()
+      ..color = base.withValues(alpha: 0.45)
+      ..strokeWidth = 1;
+    for (int i = 0; i <= 4; i++) {
+      final y = topPad + chartH * i / 4;
+      canvas.drawLine(Offset(hPad, y), Offset(hPad + chartW, y), gridPaint);
+    }
+
+    // Data points
+    const ratios = [0.85, 0.28, 0.52, 0.72];
+    final n = ratios.length;
+    final xStep = chartW / (n - 1);
+    final points = List.generate(
+        n,
+        (i) => Offset(
+              hPad + i * xStep,
+              topPad + chartH * (1.0 - ratios[i]),
+            ));
+
+    // Smooth bezier path
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
+    for (int i = 1; i < n; i++) {
+      final mid = (points[i - 1].dx + points[i].dx) / 2;
+      path.cubicTo(
+          mid, points[i - 1].dy, mid, points[i].dy, points[i].dx, points[i].dy);
+    }
+
+    // Filled area under curve
+    final fill = Path.from(path)
+      ..lineTo(points.last.dx, topPad + chartH)
+      ..lineTo(points.first.dx, topPad + chartH)
+      ..close();
+    canvas.drawPath(fill, Paint()..color = base.withValues(alpha: 0.35));
+
+    // Curve line
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = base
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+
+    // Value labels above dots
+    for (final p in points) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+              center: Offset(p.dx, p.dy - 16), width: 28, height: 12),
+          const Radius.circular(4),
+        ),
+        Paint()..color = base,
+      );
+    }
+
+    // Dots (ring + fill)
+    for (final p in points) {
+      canvas.drawCircle(p, 6, Paint()..color = base.withValues(alpha: 0.4));
+      canvas.drawCircle(p, 4, Paint()..color = base);
+    }
+
+    // X-axis labels
+    for (int i = 0; i < n; i++) {
+      final x = hPad + i * xStep;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+              center: Offset(x, topPad + chartH + 16), width: 52, height: 10),
+          const Radius.circular(5),
+        ),
+        Paint()..color = base,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SkeletonCurvePainter old) => old.base != base;
 }
 
 // ── Stat Card ──────────────────────────────────────────────────────────────
@@ -852,6 +1386,118 @@ class _AreaChartPainter extends CustomPainter {
 }
 
 // ── Right panel ───────────────────────────────────────────────────────────────
+// ── Subject list skeleton ─────────────────────────────────────────────────
+class _SubjectListSkeleton extends StatefulWidget {
+  final bool shrink;
+  const _SubjectListSkeleton({this.shrink = false});
+
+  @override
+  State<_SubjectListSkeleton> createState() => _SubjectListSkeletonState();
+}
+
+class _SubjectListSkeletonState extends State<_SubjectListSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark ? const Color(0xFF1C2A4A) : const Color(0xFFE8EBF2);
+    final shimmer = isDark ? const Color(0xFF2A3D60) : const Color(0xFFF5F6FA);
+    final cardColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    const nameWidths = [110.0, 90.0, 130.0, 100.0, 80.0, 120.0];
+
+    Widget item(int i) => ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            height: 120,
+            color: base,
+            child: Stack(children: [
+              Positioned(
+                right: -20,
+                bottom: -20,
+                child: Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                        color: cardColor.withValues(alpha: 0.15),
+                        shape: BoxShape.circle)),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                            color: cardColor.withValues(alpha: 0.2),
+                            shape: BoxShape.circle)),
+                    const SizedBox(height: 8),
+                    Container(
+                        width: nameWidths[i % nameWidths.length],
+                        height: 14,
+                        decoration: BoxDecoration(
+                            color: base,
+                            borderRadius: BorderRadius.circular(7))),
+                    const SizedBox(height: 4),
+                    Container(
+                        width: 72,
+                        height: 12,
+                        decoration: BoxDecoration(
+                            color: base,
+                            borderRadius: BorderRadius.circular(6))),
+                  ],
+                ),
+              ),
+            ]),
+          ),
+        );
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        final t = _ctrl.value;
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) => LinearGradient(
+            begin: Alignment(-3.0 + t * 6.0, 0),
+            end: Alignment(-1.0 + t * 6.0, 0),
+            colors: [base, shimmer, base],
+            stops: const [0.0, 0.5, 1.0],
+          ).createShader(bounds),
+          child: ListView.separated(
+            padding: const EdgeInsets.all(12),
+            shrinkWrap: widget.shrink,
+            physics: widget.shrink
+                ? const NeverScrollableScrollPhysics()
+                : null,
+            itemCount: nameWidths.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) => item(i),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _CourseInfoPanel extends StatelessWidget {
   final List<Map<String, dynamic>> subjects;
   final bool loading;
@@ -914,10 +1560,7 @@ class _CourseInfoPanel extends StatelessWidget {
 
     Widget buildList({bool shrink = false}) {
       if (loading) {
-        return const Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        );
+        return _SubjectListSkeleton(shrink: shrink);
       }
       if (subjects.isEmpty) {
         return Padding(
