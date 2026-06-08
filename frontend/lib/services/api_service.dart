@@ -186,6 +186,47 @@ class ApiService {
     return completer.future;
   }
 
+  Future<Map<String, dynamic>> uploadStudentPhoto(int studentId, html.File file) async {
+    final completer = Completer<Map<String, dynamic>>();
+    final formData = html.FormData();
+    formData.appendBlob('file', file, file.name);
+
+    final request = html.HttpRequest();
+    request.open('POST', '$_base/students/$studentId/photo');
+    if (_headers.containsKey('Authorization')) {
+      request.setRequestHeader('Authorization', _headers['Authorization']!);
+    }
+
+    request.onLoad.listen((_) {
+      final status = request.status ?? 0;
+      final body = request.responseText ?? '';
+      if (status >= 200 && status < 300) {
+        try {
+          completer.complete(jsonDecode(body) as Map<String, dynamic>);
+        } catch (_) {
+          completer.completeError(ApiException('Invalid server response'));
+        }
+      } else {
+        String message;
+        try {
+          final decoded = jsonDecode(body) as Map<String, dynamic>;
+          message = decoded['message'] as String?
+              ?? decoded['title'] as String?
+              ?? 'Upload failed (HTTP $status)';
+        } catch (_) {
+          message = 'Upload failed (HTTP $status)';
+        }
+        completer.completeError(ApiException(message, statusCode: status));
+      }
+    });
+
+    request.onError.listen((_) =>
+        completer.completeError(ApiException('Network error: upload failed')));
+
+    request.send(formData);
+    return completer.future;
+  }
+
   // ── Dashboard Stats ───────────────────────────────────────────────
   Future<Map<String, int>> getDashboardStats() async {
     final results = await Future.wait([

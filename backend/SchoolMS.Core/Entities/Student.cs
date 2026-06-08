@@ -19,6 +19,7 @@ namespace SchoolMS.Core.Entities
         public string? Address { get; set; } = string.Empty;
         public DateTime? CreateDate { get; set; }
         public bool? Status { get; set; }
+        public string? PhotoUrl { get; set; }
 
         public int? ClassId { get; set; }
 

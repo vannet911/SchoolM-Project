@@ -9,5 +9,6 @@ namespace SchoolMS.Core.Interfaces
         Task<Student> CreateStudentAsync(Student student);
         Task<Student?> UpdateStudentAsync(int id, Student student);
         Task<bool> DeleteStudentAsync(int id);
+        Task<Student?> UpdatePhotoAsync(int id, string photoUrl);
     }
 }

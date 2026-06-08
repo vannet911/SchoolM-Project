@@ -15,6 +15,7 @@ namespace SchoolMS.API.DTOs
         public string? ClassName { get; set; }
         public DateTime? CreateDate { get; set; }
         public bool? Status { get; set; } = true;
+        public string? PhotoUrl { get; set; }
     }
 
     public class CreateStudentDto

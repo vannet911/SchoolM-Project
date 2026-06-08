@@ -1,4 +1,5 @@
 // lib/widgets/table_widgets.dart
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/locale_provider.dart';
@@ -91,7 +92,7 @@ class StudentDetailPanel extends StatelessWidget {
               child: InkWell(
                 onTap: onBack,
                 borderRadius: BorderRadius.circular(18),
-                child: const Center(child: Icon(Icons.chevron_left, size: 24, color: AppColors.textSecondary)),
+                child: const Center(child: Icon(Icons.arrow_back_rounded, size: 22, color: AppColors.textSecondary)),
               ),
             ),
             const SizedBox(width: 12),
@@ -150,77 +151,92 @@ class StudentDetailPanel extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              Expanded(child: _readField('${t['code'] ?? 'Code'}:', s['code']?.toString(), isDark: isDark)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _labeled(
-                                  '${t['gender'] ?? 'Gender'}:',
-                                  SizedBox(
-                                    height: 44,
-                                    child: TextField(
-                                      readOnly: true,
-                                      controller: TextEditingController(text: s['gender']?.toString() ?? ''),
-                                      style: AppTextStyles.body.copyWith(color: textColor),
-                                      decoration: _inputDecoration(isDark: isDark, suffix: const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.textSecondary)),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ]),
-                            const SizedBox(height: 16),
-                            _readField('${t['first_name'] ?? 'First Name'}:', s['firstName']?.toString(), isDark: isDark),
-                            const SizedBox(height: 16),
-                            _readField('${t['last_name'] ?? 'Last Name'}:', s['lastName']?.toString(), isDark: isDark),
-                            const SizedBox(height: 16),
-                            _readField(
-                              '${t['date_of_birth'] ?? 'Date of Birth'}:',
-                              _fmtDate(s['dateOfBirth']),
-                              suffix: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
-                              isDark: isDark,
-                            ),
-                            const SizedBox(height: 16),
-                            _labeled(
-                              '${t['status'] ?? 'Status'}:',
-                              Row(children: [
-                                Switch(value: isActive, onChanged: null, activeThumbColor: AppColors.primary),
-                                const SizedBox(width: 8),
-                                Text(statusLabel, style: AppTextStyles.body.copyWith(color: statusColor)),
-                              ]),
-                            ),
-                          ],
+                      Center(
+                        child: _StudentAvatar(
+                          photoUrl: s['photoUrl']?.toString(),
+                          firstName: s['firstName']?.toString() ?? '',
+                          lastName: s['lastName']?.toString() ?? '',
+                          size: 104,
+                          isDark: isDark,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _readField('${t['email'] ?? 'Email'}:', s['email']?.toString(), isDark: isDark),
-                            const SizedBox(height: 16),
-                            _readField('${t['phone'] ?? 'Phone'}:', s['phoneNumber']?.toString(), isDark: isDark),
-                            const SizedBox(height: 16),
-                            _readField('${t['classes'] ?? 'Class'}:', s['className']?.toString(), isDark: isDark),
-                            const SizedBox(height: 16),
-                            _labeled(
-                              '${t['address'] ?? 'Address'}:',
-                              TextField(
-                                readOnly: true,
-                                controller: TextEditingController(text: s['address']?.toString() ?? ''),
-                                maxLines: 4,
-                                style: AppTextStyles.body.copyWith(color: textColor),
-                                decoration: _inputDecoration(hint: '—', multiline: true, isDark: isDark),
-                              ),
+                      const SizedBox(height: 24),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  Expanded(child: _readField('${t['code'] ?? 'Code'}:', s['code']?.toString(), isDark: isDark)),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _labeled(
+                                      '${t['gender'] ?? 'Gender'}:',
+                                      SizedBox(
+                                        height: 44,
+                                        child: TextField(
+                                          readOnly: true,
+                                          controller: TextEditingController(text: s['gender']?.toString() ?? ''),
+                                          style: AppTextStyles.body.copyWith(color: textColor),
+                                          decoration: _inputDecoration(isDark: isDark, suffix: const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.textSecondary)),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ]),
+                                const SizedBox(height: 16),
+                                _readField('${t['first_name'] ?? 'First Name'}:', s['firstName']?.toString(), isDark: isDark),
+                                const SizedBox(height: 16),
+                                _readField('${t['last_name'] ?? 'Last Name'}:', s['lastName']?.toString(), isDark: isDark),
+                                const SizedBox(height: 16),
+                                _readField(
+                                  '${t['date_of_birth'] ?? 'Date of Birth'}:',
+                                  _fmtDate(s['dateOfBirth']),
+                                  suffix: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
+                                  isDark: isDark,
+                                ),
+                                const SizedBox(height: 16),
+                                _labeled(
+                                  '${t['status'] ?? 'Status'}:',
+                                  Row(children: [
+                                    Switch(value: isActive, onChanged: null, activeThumbColor: AppColors.primary),
+                                    const SizedBox(width: 8),
+                                    Text(statusLabel, style: AppTextStyles.body.copyWith(color: statusColor)),
+                                  ]),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _readField('${t['email'] ?? 'Email'}:', s['email']?.toString(), isDark: isDark),
+                                const SizedBox(height: 16),
+                                _readField('${t['phone'] ?? 'Phone'}:', s['phoneNumber']?.toString(), isDark: isDark),
+                                const SizedBox(height: 16),
+                                _readField('${t['classes'] ?? 'Class'}:', s['className']?.toString(), isDark: isDark),
+                                const SizedBox(height: 16),
+                                _labeled(
+                                  '${t['address'] ?? 'Address'}:',
+                                  TextField(
+                                    readOnly: true,
+                                    controller: TextEditingController(text: s['address']?.toString() ?? ''),
+                                    maxLines: 4,
+                                    style: AppTextStyles.body.copyWith(color: textColor),
+                                    decoration: _inputDecoration(hint: '—', multiline: true, isDark: isDark),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -234,10 +250,99 @@ class StudentDetailPanel extends StatelessWidget {
   }
 }
 
+/// Circular avatar — matches user profile style (bordered circle, cover image, initials fallback)
+class _StudentAvatar extends StatelessWidget {
+  final String? photoUrl;
+  final String firstName;
+  final String lastName;
+  final double size;
+  final bool isDark;
+  final bool showCamera;
+  final VoidCallback? onTap;
+
+  const _StudentAvatar({
+    this.photoUrl,
+    required this.firstName,
+    required this.lastName,
+    this.size = 80,
+    this.isDark = false,
+    this.showCamera = false,
+    this.onTap,
+  });
+
+  String get _initials {
+    final f = firstName.isNotEmpty ? firstName[0].toUpperCase() : '';
+    final l = lastName.isNotEmpty ? lastName[0].toUpperCase() : '';
+    return '$f$l'.isNotEmpty ? '$f$l' : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = AppColors.primary.withValues(alpha: 0.3);
+    final bg = isDark ? const Color(0xFF1C2A4A) : AppColors.primarySurface;
+    final hasPhoto = photoUrl != null && photoUrl!.isNotEmpty;
+
+    final avatar = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: bg,
+        border: Border.all(color: borderColor, width: 2),
+      ),
+      child: ClipOval(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (hasPhoto)
+              Image.network(
+                photoUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.person,
+                  size: size * 0.45,
+                  color: AppColors.primary,
+                ),
+              )
+            else
+              Center(
+                child: Text(
+                  _initials,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: size * 0.28,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            if (showCamera)
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: Container(
+                  height: size * 0.28,
+                  color: Colors.black.withValues(alpha: 0.45),
+                  child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (onTap != null) {
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(onTap: onTap, child: avatar),
+      );
+    }
+    return avatar;
+  }
+}
+
 /// Inline add / edit student form panel
 class StudentFormPanel extends StatefulWidget {
   final Map<String, dynamic>? student;
-  final Future<void> Function(Map<String, dynamic>) onSave;
+  final Future<void> Function(Map<String, dynamic> data, html.File? photoFile) onSave;
   final VoidCallback onCancel;
 
   const StudentFormPanel({super.key, this.student, required this.onSave, required this.onCancel});
@@ -262,6 +367,8 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
   bool _firstError = false;
   int? _selectedClassId;
   List<Map<String, dynamic>> _availableClasses = [];
+  html.File? _pickedPhoto;
+  String? _photoPreviewUrl;
   bool _loadingClasses = false;
 
   @override
@@ -283,7 +390,27 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
       final st = s['status'];
       _status = st is bool ? st : true;
       _selectedClassId = s['classId'] as int?;
+      _photoPreviewUrl = s['photoUrl']?.toString();
     }
+  }
+
+  void _pickPhoto() {
+    final input = html.FileUploadInputElement()
+      ..accept = 'image/jpeg,image/png,image/webp,image/gif'
+      ..click();
+    input.onChange.listen((_) {
+      final file = input.files?.first;
+      if (file == null) return;
+      final reader = html.FileReader();
+      reader.readAsDataUrl(file);
+      reader.onLoad.listen((_) {
+        if (!mounted) return;
+        setState(() {
+          _pickedPhoto = file;
+          _photoPreviewUrl = reader.result as String?;
+        });
+      });
+    });
   }
 
   Future<void> _loadClasses() async {
@@ -321,18 +448,21 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
     }
     setState(() { _saving = true; _codeError = false; _firstError = false; });
     try {
-      await widget.onSave({
-        'code': _codeCtrl.text.trim(),
-        'firstName': _firstCtrl.text.trim(),
-        'lastName': _lastCtrl.text.trim(),
-        'email': _emailCtrl.text.trim(),
-        'phoneNumber': _phoneCtrl.text.trim(),
-        'gender': _gender,
-        'dateOfBirth': _dobCtrl.text.isNotEmpty ? _dobCtrl.text.replaceAll('/', '-') : null,
-        'address': _addressCtrl.text.trim(),
-        'classId': _selectedClassId,
-        'status': _status,
-      });
+      await widget.onSave(
+        {
+          'code': _codeCtrl.text.trim(),
+          'firstName': _firstCtrl.text.trim(),
+          'lastName': _lastCtrl.text.trim(),
+          'email': _emailCtrl.text.trim(),
+          'phoneNumber': _phoneCtrl.text.trim(),
+          'gender': _gender,
+          'dateOfBirth': _dobCtrl.text.isNotEmpty ? _dobCtrl.text.replaceAll('/', '-') : null,
+          'address': _addressCtrl.text.trim(),
+          'classId': _selectedClassId,
+          'status': _status,
+        },
+        _pickedPhoto,
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -408,7 +538,7 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
               child: InkWell(
                 onTap: widget.onCancel,
                 borderRadius: BorderRadius.circular(18),
-                child: const Center(child: Icon(Icons.chevron_left, size: 24, color: AppColors.textSecondary)),
+                child: const Center(child: Icon(Icons.arrow_back_rounded, size: 22, color: AppColors.textSecondary)),
               ),
             ),
             const SizedBox(width: 12),
@@ -438,84 +568,99 @@ class _StudentFormPanelState extends State<StudentFormPanel> {
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              Expanded(
-                                child: _requiredLabeled('${t['code'] ?? 'Code'}:',
-                                  SizedBox(height: 44, child: TextField(controller: _codeCtrl, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: 'Code', isDark: isDark, hasError: _codeError)))),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _labeled('${t['gender'] ?? 'Gender'}:',
-                                  _StyledDropdown<String>(
-                                    value: _gender,
-                                    items: const ['Male', 'Female'],
-                                    labels: [t['male'] ?? 'Male', t['female'] ?? 'Female'],
-                                    hint: t['gender'] ?? 'Gender',
-                                    isDark: isDark,
-                                    onChanged: (v) => setState(() => _gender = v),
-                                  )),
-                              ),
-                            ]),
-                            const SizedBox(height: 16),
-                            _requiredLabeled('${t['first_name'] ?? 'First Name'}:',
-                              SizedBox(height: 44, child: TextField(controller: _firstCtrl, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: t['first_name'] ?? 'First name', isDark: isDark, hasError: _firstError)))),
-                            const SizedBox(height: 16),
-                            _labeled('${t['last_name'] ?? 'Last Name'}:',
-                              SizedBox(height: 44, child: TextField(controller: _lastCtrl, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: t['last_name'] ?? 'Last name', isDark: isDark)))),
-                            const SizedBox(height: 16),
-                            _labeled('${t['date_of_birth'] ?? 'Date of Birth'}:',
-                              SizedBox(height: 44, child: TextField(
-                                controller: _dobCtrl, readOnly: true, onTap: _pickDate,
-                                style: AppTextStyles.body.copyWith(color: textColor),
-                                decoration: _inputDecoration(hint: 'YYYY/MM/DD', isDark: isDark, suffix: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary)),
-                              ))),
-                            const SizedBox(height: 16),
-                            _labeled('${t['status'] ?? 'Status'}:',
-                              Row(children: [
-                                Switch(value: _status, onChanged: (v) => setState(() => _status = v), activeThumbColor: AppColors.primary),
-                                const SizedBox(width: 8),
-                                Text(_status ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive'), style: AppTextStyles.bodySmall),
-                              ])),
-                          ],
+                      Center(
+                        child: _StudentAvatar(
+                          photoUrl: _photoPreviewUrl,
+                          firstName: _firstCtrl.text,
+                          lastName: _lastCtrl.text,
+                          size: 104,
+                          isDark: isDark,
+                          showCamera: true,
+                          onTap: _pickPhoto,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _labeled('${t['email'] ?? 'Email'}:',
-                              SizedBox(height: 44, child: TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: 'student@school.edu', isDark: isDark)))),
-                            const SizedBox(height: 16),
-                            _labeled('${t['phone'] ?? 'Phone'}:',
-                              SizedBox(height: 44, child: TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: '+855 XX XXX XXX', isDark: isDark)))),
-                            const SizedBox(height: 16),
-                            _labeled('${t['classes'] ?? 'Class'}:',
-                              SizedBox(
-                                height: 44,
-                                child: _loadingClasses
-                                  ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
-                                  : _StyledDropdown<int?>(
-                                      value: _selectedClassId,
-                                      items: [null, ..._availableClasses.map((c) => c['id'] as int?)],
-                                      labels: [t['select_class'] ?? 'Select Class', ..._availableClasses.map((c) => c['name']?.toString() ?? '')],
-                                      hint: t['select_class'] ?? 'Select Class',
+                      const SizedBox(height: 24),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left column: Code, Gender, First Name, Last Name, DOB, Status
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  Expanded(child: _requiredLabeled('${t['code'] ?? 'Code'}:',
+                                    SizedBox(height: 44, child: TextField(controller: _codeCtrl, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: 'Code', isDark: isDark, hasError: _codeError))))),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _labeled('${t['gender'] ?? 'Gender'}:',
+                                    _StyledDropdown<String>(
+                                      value: _gender,
+                                      items: const ['Male', 'Female'],
+                                      labels: [t['male'] ?? 'Male', t['female'] ?? 'Female'],
+                                      hint: t['gender'] ?? 'Gender',
                                       isDark: isDark,
-                                      onChanged: (v) => setState(() => _selectedClassId = v),
-                                    ),
-                              )),
-                            const SizedBox(height: 16),
-                            _labeled('${t['address'] ?? 'Address'}:',
-                              TextField(controller: _addressCtrl, maxLines: 5, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: t['address'] ?? 'Enter address', multiline: true, isDark: isDark))),
-                          ],
-                        ),
+                                      onChanged: (v) => setState(() => _gender = v),
+                                    ))),
+                                ]),
+                                const SizedBox(height: 16),
+                                _requiredLabeled('${t['first_name'] ?? 'First Name'}:',
+                                  SizedBox(height: 44, child: TextField(controller: _firstCtrl, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: t['first_name'] ?? 'First name', isDark: isDark, hasError: _firstError)))),
+                                const SizedBox(height: 16),
+                                _labeled('${t['last_name'] ?? 'Last Name'}:',
+                                  SizedBox(height: 44, child: TextField(controller: _lastCtrl, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: t['last_name'] ?? 'Last name', isDark: isDark)))),
+                                const SizedBox(height: 16),
+                                _labeled('${t['date_of_birth'] ?? 'Date of Birth'}:',
+                                  SizedBox(height: 44, child: TextField(
+                                    controller: _dobCtrl, readOnly: true, onTap: _pickDate,
+                                    style: AppTextStyles.body.copyWith(color: textColor),
+                                    decoration: _inputDecoration(hint: 'YYYY/MM/DD', isDark: isDark, suffix: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary)),
+                                  ))),
+                                const SizedBox(height: 16),
+                                _labeled('${t['status'] ?? 'Status'}:',
+                                  Row(children: [
+                                    Switch(value: _status, onChanged: (v) => setState(() => _status = v), activeThumbColor: AppColors.primary),
+                                    const SizedBox(width: 8),
+                                    Text(_status ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive'), style: AppTextStyles.bodySmall),
+                                  ])),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Right column: Email, Phone, Class, Address
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _labeled('${t['email'] ?? 'Email'}:',
+                                  SizedBox(height: 44, child: TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: 'student@school.edu', isDark: isDark)))),
+                                const SizedBox(height: 16),
+                                _labeled('${t['phone'] ?? 'Phone'}:',
+                                  SizedBox(height: 44, child: TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: '+855 XX XXX XXX', isDark: isDark)))),
+                                const SizedBox(height: 16),
+                                _labeled('${t['classes'] ?? 'Class'}:',
+                                  SizedBox(
+                                    height: 44,
+                                    child: _loadingClasses
+                                      ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                                      : _StyledDropdown<int?>(
+                                          value: _selectedClassId,
+                                          items: [null, ..._availableClasses.map((c) => c['id'] as int?)],
+                                          labels: [t['select_class'] ?? 'Select Class', ..._availableClasses.map((c) => c['name']?.toString() ?? '')],
+                                          hint: t['select_class'] ?? 'Select Class',
+                                          isDark: isDark,
+                                          onChanged: (v) => setState(() => _selectedClassId = v),
+                                        ),
+                                  )),
+                                const SizedBox(height: 16),
+                                _labeled('${t['address'] ?? 'Address'}:',
+                                  TextField(controller: _addressCtrl, maxLines: 4, style: AppTextStyles.body.copyWith(color: textColor), decoration: _inputDecoration(hint: t['address'] ?? 'Enter address', multiline: true, isDark: isDark))),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -658,7 +803,7 @@ class TeacherDetailPanel extends StatelessWidget {
           child: Row(children: [
             SizedBox(width: 38, height: 38,
               child: InkWell(onTap: onBack, borderRadius: BorderRadius.circular(18),
-                child: const Center(child: Icon(Icons.chevron_left, size: 24, color: AppColors.textSecondary)))),
+                child: const Center(child: Icon(Icons.arrow_back_rounded, size: 22, color: AppColors.textSecondary)))),
             const SizedBox(width: 12),
             Text(s['code']?.toString() ?? 'TC000', style: AppTextStyles.body.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 16)),
             const Spacer(),
@@ -1019,7 +1164,7 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
           child: Row(children: [
             SizedBox(width: 38, height: 38,
               child: InkWell(onTap: widget.onCancel, borderRadius: BorderRadius.circular(18),
-                child: const Center(child: Icon(Icons.chevron_left, size: 24, color: AppColors.textSecondary)))),
+                child: const Center(child: Icon(Icons.arrow_back_rounded, size: 22, color: AppColors.textSecondary)))),
             const SizedBox(width: 12),
             Text(
               isEdit ? (t['edit_teacher'] ?? 'Edit Teacher') : (t['add_teacher'] ?? 'Add Teacher'),

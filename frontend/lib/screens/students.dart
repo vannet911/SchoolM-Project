@@ -473,19 +473,33 @@ class _StudentsScreenState extends State<StudentsScreen> {
       return StudentFormPanel(
         student: _formStudent,
         onCancel: _closeForm,
-        onSave: (data) async {
+        onSave: (data, photoFile) async {
+          final isCreate = _formStudent == null;
+          late int studentId;
           try {
-            if (_formStudent == null) {
-              await _api.createStudent(data);
-              _showSnack(t['student_created'] ?? 'Student created!');
+            if (isCreate) {
+              final created = await _api.createStudent(data);
+              studentId = (created['id'] as num).toInt();
             } else {
-              await _api.updateStudent(_formStudent!['id'], data);
-              _showSnack(t['student_updated'] ?? 'Student updated!');
+              studentId = (_formStudent!['id'] as num).toInt();
+              await _api.updateStudent(studentId, data);
             }
             _closeForm();
             _load();
-          } catch (_) {
-            _showSnack(t['save_failed'] ?? 'Save failed', isError: true);
+            _showSnack(isCreate
+                ? (t['student_created'] ?? 'Student created!')
+                : (t['student_updated'] ?? 'Student updated!'));
+          } catch (e) {
+            _showSnack('${t['save_failed'] ?? 'Save failed'}: $e', isError: true);
+            return;
+          }
+          if (photoFile != null) {
+            try {
+              await _api.uploadStudentPhoto(studentId, photoFile);
+              _load();
+            } catch (e) {
+              _showSnack('${t['photo_upload_failed'] ?? 'Photo upload failed'}: $e', isWarning: true);
+            }
           }
         },
       );

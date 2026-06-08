@@ -113,9 +113,8 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = ctx =>
         ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*")
 });
-app.UseHttpsRedirection();
-app.UseRouting();
 app.UseCors("AllowAll");
+app.UseRouting();
 app.UseAuthorization();
 app.MapControllers();
 
