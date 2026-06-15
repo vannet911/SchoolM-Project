@@ -211,11 +211,12 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
   void _openClassDetail(Map<String, dynamic> c) {
     final id = c['id'];
     setState(() {
-      _selectedClass = c;
       if (_checkedClassIds.contains(id)) {
         _checkedClassIds.remove(id);
+        if (_selectedClass?['id'] == id) _selectedClass = null;
       } else {
         _checkedClassIds.add(id);
+        _selectedClass = c;
       }
     });
   }
@@ -345,11 +346,12 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
   void _openSubjectDetail(Map<String, dynamic> s) {
     final id = s['id'];
     setState(() {
-      _selectedSubject = s;
       if (_checkedSubjectIds.contains(id)) {
         _checkedSubjectIds.remove(id);
+        if (_selectedSubject?['id'] == id) _selectedSubject = null;
       } else {
         _checkedSubjectIds.add(id);
+        _selectedSubject = s;
       }
     });
   }
@@ -930,75 +932,56 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             ]),
           ])
         else
-          LayoutBuilder(builder: (_, constraints) {
-            final btns = [
-              _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm()),
-              const SizedBox(width: 8),
-              _EditButton(
-                label: t['edit'] ?? 'Edit',
-                onTap: () {
-                  if (_selectedClass != null) {
-                    _openClassForm(item: _selectedClass);
-                  } else {
-                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              _DeleteButton(
-                label: t['delete'] ?? 'Delete',
-                onTap: () {
-                  if (_checkedClassIds.isNotEmpty) {
-                    _deleteCheckedClasses(t);
-                  } else if (_selectedClass != null) {
-                    _deleteClass(_selectedClass!);
-                  } else {
-                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              _ExportButton(
-                label: t['export'] ?? 'Export',
-                exporting: _exportingClasses,
-                isDark: isDark,
-                onTap: _checkedClassIds.isNotEmpty
-                    ? () => _exportCheckedClasses(t)
-                    : (_filteredClasses.isEmpty ? null : () => _exportClasses(t)),
-              ),
-            ];
-            if (constraints.maxWidth > 650) {
-              return Row(children: [
-                KeyedSubtree(
-                  key: _classSearchBoxKey,
-                  child: _SearchBox(
-                    controller: _classSearchCtrl,
-                    hint: t['search'] ?? 'Search...',
-                    onFilter: _toggleClassFilter,
-                    filterCount: _classActiveFilterCount,
-                  ),
-                ),
-                const Spacer(),
-                ...btns,
-              ]);
-            }
-            return Row(children: [
-              Expanded(
-                child: KeyedSubtree(
-                  key: _classSearchBoxKey,
-                  child: _SearchBox(
-                    controller: _classSearchCtrl,
-                    hint: t['search'] ?? 'Search...',
-                    fullWidth: true,
-                    onFilter: _toggleClassFilter,
-                    filterCount: _classActiveFilterCount,
-                  ),
+          Row(children: [
+            Expanded(
+              child: KeyedSubtree(
+                key: _classSearchBoxKey,
+                child: _SearchBox(
+                  controller: _classSearchCtrl,
+                  hint: t['search'] ?? 'Search...',
+                  fullWidth: true,
+                  onFilter: _toggleClassFilter,
+                  filterCount: _classActiveFilterCount,
                 ),
               ),
-              const SizedBox(width: 10),
-              ...btns,
-            ]);
-          }),
+            ),
+            if (!isTablet) const Spacer(),
+            const SizedBox(width: 8),
+            _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm()),
+            const SizedBox(width: 8),
+            _EditButton(
+              label: t['edit'] ?? 'Edit',
+              onTap: () {
+                if (_selectedClass != null) {
+                  _openClassForm(item: _selectedClass);
+                } else {
+                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+            _DeleteButton(
+              label: t['delete'] ?? 'Delete',
+              onTap: () {
+                if (_checkedClassIds.isNotEmpty) {
+                  _deleteCheckedClasses(t);
+                } else if (_selectedClass != null) {
+                  _deleteClass(_selectedClass!);
+                } else {
+                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+            _ExportButton(
+              label: t['export'] ?? 'Export',
+              exporting: _exportingClasses,
+              isDark: isDark,
+              onTap: _checkedClassIds.isNotEmpty
+                  ? () => _exportCheckedClasses(t)
+                  : (_filteredClasses.isEmpty ? null : () => _exportClasses(t)),
+            ),
+          ]),
         const SizedBox(height: 12),
         Expanded(
           child: _TableCard(
@@ -1353,75 +1336,56 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             ]),
           ])
         else
-          LayoutBuilder(builder: (_, constraints) {
-            final btns = [
-              _AddButton(label: t['add'] ?? 'Add', onTap: () => _openSubjectForm()),
-              const SizedBox(width: 8),
-              _EditButton(
-                label: t['edit'] ?? 'Edit',
-                onTap: () {
-                  if (_selectedSubject != null) {
-                    _openSubjectForm(item: _selectedSubject);
-                  } else {
-                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              _DeleteButton(
-                label: t['delete'] ?? 'Delete',
-                onTap: () {
-                  if (_checkedSubjectIds.isNotEmpty) {
-                    _deleteCheckedSubjects(t);
-                  } else if (_selectedSubject != null) {
-                    _deleteSubject(_selectedSubject!);
-                  } else {
-                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              _ExportButton(
-                label: t['export'] ?? 'Export',
-                exporting: _exportingSubjects,
-                isDark: isDark,
-                onTap: _checkedSubjectIds.isNotEmpty
-                    ? () => _exportCheckedSubjects(t)
-                    : (_filteredSubjects.isEmpty ? null : () => _exportSubjects(t)),
-              ),
-            ];
-            if (constraints.maxWidth > 650) {
-              return Row(children: [
-                KeyedSubtree(
-                  key: _subjectSearchBoxKey,
-                  child: _SearchBox(
-                    controller: _subjectSearchCtrl,
-                    hint: t['search'] ?? 'Search...',
-                    onFilter: _toggleSubjectFilter,
-                    filterCount: _subjectActiveFilterCount,
-                  ),
-                ),
-                const Spacer(),
-                ...btns,
-              ]);
-            }
-            return Row(children: [
-              Expanded(
-                child: KeyedSubtree(
-                  key: _subjectSearchBoxKey,
-                  child: _SearchBox(
-                    controller: _subjectSearchCtrl,
-                    hint: t['search'] ?? 'Search...',
-                    fullWidth: true,
-                    onFilter: _toggleSubjectFilter,
-                    filterCount: _subjectActiveFilterCount,
-                  ),
+          Row(children: [
+            Expanded(
+              child: KeyedSubtree(
+                key: _subjectSearchBoxKey,
+                child: _SearchBox(
+                  controller: _subjectSearchCtrl,
+                  hint: t['search'] ?? 'Search...',
+                  fullWidth: true,
+                  onFilter: _toggleSubjectFilter,
+                  filterCount: _subjectActiveFilterCount,
                 ),
               ),
-              const SizedBox(width: 10),
-              ...btns,
-            ]);
-          }),
+            ),
+            if (!isTablet) const Spacer(),
+            const SizedBox(width: 8),
+            _AddButton(label: t['add'] ?? 'Add', onTap: () => _openSubjectForm()),
+            const SizedBox(width: 8),
+            _EditButton(
+              label: t['edit'] ?? 'Edit',
+              onTap: () {
+                if (_selectedSubject != null) {
+                  _openSubjectForm(item: _selectedSubject);
+                } else {
+                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+            _DeleteButton(
+              label: t['delete'] ?? 'Delete',
+              onTap: () {
+                if (_checkedSubjectIds.isNotEmpty) {
+                  _deleteCheckedSubjects(t);
+                } else if (_selectedSubject != null) {
+                  _deleteSubject(_selectedSubject!);
+                } else {
+                  _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+            _ExportButton(
+              label: t['export'] ?? 'Export',
+              exporting: _exportingSubjects,
+              isDark: isDark,
+              onTap: _checkedSubjectIds.isNotEmpty
+                  ? () => _exportCheckedSubjects(t)
+                  : (_filteredSubjects.isEmpty ? null : () => _exportSubjects(t)),
+            ),
+          ]),
         const SizedBox(height: 12),
         Expanded(
           child: _TableCard(

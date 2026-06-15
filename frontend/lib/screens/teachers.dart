@@ -34,6 +34,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
   bool _sortAscending = true;
   int _currentPage = 1;
   int _pageSize = 25;
+  bool _isGridView = false;
 
   // Active filters
   String _genderFilter = 'all';
@@ -398,11 +399,12 @@ class _TeachersScreenState extends State<TeachersScreen> {
   void _openTeacherDetail(Map<String, dynamic> teacher) {
     final id = teacher['id'];
     setState(() {
-      _selectedTeacher = teacher;
       if (_checkedIds.contains(id)) {
         _checkedIds.remove(id);
+        if (_selectedTeacher?['id'] == id) _selectedTeacher = null;
       } else {
         _checkedIds.add(id);
+        _selectedTeacher = teacher;
       }
     });
   }
@@ -591,19 +593,30 @@ class _TeachersScreenState extends State<TeachersScreen> {
       }
     }
 
+    final toggleBtn = _ViewToggleButton(
+      isGrid: _isGridView,
+      onToggle: () => setState(() => _isGridView = !_isGridView),
+    );
+
     final Widget toolbar;
     if (isMobile) {
       toolbar = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        KeyedSubtree(
-          key: _searchBoxKey,
-          child: _SearchBox(
-            controller: _searchCtrl,
-            hint: t['search'] ?? 'Search...',
-            fullWidth: true,
-            onFilter: _toggleFilter,
-            filterCount: _activeFilterCount,
+        Row(children: [
+          Expanded(
+            child: KeyedSubtree(
+              key: _searchBoxKey,
+              child: _SearchBox(
+                controller: _searchCtrl,
+                hint: t['search'] ?? 'Search...',
+                fullWidth: true,
+                onFilter: _toggleFilter,
+                filterCount: _activeFilterCount,
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          toggleBtn,
+        ]),
         const SizedBox(height: 8),
         Wrap(
           alignment: WrapAlignment.end,
@@ -625,46 +638,41 @@ class _TeachersScreenState extends State<TeachersScreen> {
         ),
       ]);
     } else {
-      toolbar = LayoutBuilder(builder: (_, constraints) {
-        final btns = [
-          _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
-          const SizedBox(width: 8),
-          _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
-          const SizedBox(width: 8),
-          _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
-          const SizedBox(width: 8),
-          _ExportButton(
-            label: t['export'] ?? 'Export',
-            exporting: _exporting,
-            onTap: _checkedIds.isNotEmpty
-                ? () => _exportChecked(t)
-                : (_filtered.isEmpty ? null : () => _exportTeachers(t)),
-            isDark: isDark,
+      final btns = [
+        _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
+        const SizedBox(width: 8),
+        _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
+        const SizedBox(width: 8),
+        _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
+        const SizedBox(width: 8),
+        _ExportButton(
+          label: t['export'] ?? 'Export',
+          exporting: _exporting,
+          onTap: _checkedIds.isNotEmpty
+              ? () => _exportChecked(t)
+              : (_filtered.isEmpty ? null : () => _exportTeachers(t)),
+          isDark: isDark,
+        ),
+      ];
+      toolbar = Row(children: [
+        Expanded(
+          child: KeyedSubtree(
+            key: _searchBoxKey,
+            child: _SearchBox(
+              controller: _searchCtrl,
+              hint: t['search'] ?? 'Search...',
+              fullWidth: true,
+              onFilter: _toggleFilter,
+              filterCount: _activeFilterCount,
+            ),
           ),
-        ];
-        final searchBox = KeyedSubtree(
-          key: _searchBoxKey,
-          child: _SearchBox(
-            controller: _searchCtrl,
-            hint: t['search'] ?? 'Search...',
-            fullWidth: constraints.maxWidth <= 650,
-            onFilter: _toggleFilter,
-            filterCount: _activeFilterCount,
-          ),
-        );
-        if (constraints.maxWidth > 650) {
-          return Row(children: [
-            searchBox,
-            const Spacer(),
-            ...btns,
-          ]);
-        }
-        return Row(children: [
-          Expanded(child: searchBox),
-          const SizedBox(width: 10),
-          ...btns,
-        ]);
-      });
+        ),
+        const SizedBox(width: 8),
+        toggleBtn,
+        if (!isTablet) const Spacer(),
+        const SizedBox(width: 8),
+        ...btns,
+      ]);
     }
 
     return Padding(
@@ -675,7 +683,9 @@ class _TeachersScreenState extends State<TeachersScreen> {
           toolbar,
           const SizedBox(height: 12),
           Expanded(
-            child: _TableCard(
+            child: _isGridView
+                ? _buildGridContent(t)
+                : _TableCard(
               loading: _loading,
               empty: _filtered.isEmpty,
               emptyIcon: Icons.person_outline,
@@ -960,6 +970,423 @@ class _TeachersScreenState extends State<TeachersScreen> {
             }),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGridContent(Map<String, String> t) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
+
+    if (_loading) {
+      return Container(
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+        ),
+        child: const SkeletonTableLoader(),
+      );
+    }
+
+    if (_filtered.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+        ),
+        child: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.person_outline, size: 48, color: mutedColor),
+            const SizedBox(height: 12),
+            Text(t['no_data'] ?? 'No teachers found',
+                style: AppTextStyles.body.copyWith(color: mutedColor)),
+          ]),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (_, constraints) {
+        final w = constraints.maxWidth;
+        final crossCount = w >= 1200 ? 5 : w >= 900 ? 4 : w >= 600 ? 3 : 2;
+        return GridView.builder(
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossCount,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            mainAxisExtent: 300,
+          ),
+          itemCount: _paginated.length,
+          itemBuilder: (_, i) {
+            final s = _paginated[i];
+            return _TeacherGridCard(
+              teacher: s,
+              isSelected: (_selectedTeacher != null &&
+                      _selectedTeacher!['id'] == s['id']) ||
+                  _checkedIds.contains(s['id']),
+              onTap: () => _openTeacherDetail(s),
+              onDoubleTap: () => _openDetail(s),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// ── Teacher grid card ─────────────────────────────────────────────────────────
+
+class _TeacherGridCard extends StatefulWidget {
+  final Map<String, dynamic> teacher;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final VoidCallback onDoubleTap;
+  const _TeacherGridCard({
+    required this.teacher,
+    required this.isSelected,
+    required this.onTap,
+    required this.onDoubleTap,
+  });
+
+  @override
+  State<_TeacherGridCard> createState() => _TeacherGridCardState();
+}
+
+class _TeacherGridCardState extends State<_TeacherGridCard> {
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.teacher;
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1A2540) : AppColors.white;
+    final surfaceBg = isDark ? const Color(0xFF0F1728) : const Color(0xFFF4F6FB);
+    final borderColor = isDark ? const Color(0xFF2A3A5C) : const Color(0xFFE4E8F0);
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white54 : const Color(0xFF8A94A8);
+
+    final name = s['name']?.toString() ?? '';
+    final gender = (s['gender'] as String?)?.toLowerCase() ?? '';
+    final isFemale = gender == 'female';
+    final accentColor = isFemale ? const Color(0xFFEC4899) : AppColors.primary;
+    final isActive = s['status'] is bool
+        ? s['status'] as bool
+        : s['status']?.toString().toLowerCase() == 'active';
+    final statusColor = isActive ? const Color(0xFF10B981) : AppColors.error;
+    final statusLabel = isActive ? (t['active'] ?? 'Active') : (t['inactive'] ?? 'Inactive');
+    final genderIcon = isFemale ? Icons.female_rounded : Icons.male_rounded;
+    final phone = s['phoneNumber']?.toString() ?? s['phone']?.toString() ?? '';
+    final email = s['email']?.toString() ?? '';
+    final subjects = (s['subjects'] as List?)
+            ?.map((sub) => sub['name']?.toString() ?? '')
+            .where((n) => n.isNotEmpty)
+            .join(', ') ??
+        '';
+
+    Widget infoRow(String value) => Text(
+          value,
+          style: TextStyle(color: mutedColor, fontSize: 14),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.isSelected
+            ? accentColor.withValues(alpha: isDark ? 0.10 : 0.06)
+            : cardBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: widget.isSelected
+              ? accentColor.withValues(alpha: 0.50)
+              : borderColor,
+          width: widget.isSelected ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: widget.isSelected
+                ? accentColor.withValues(alpha: isDark ? 0.20 : 0.12)
+                : Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
+            blurRadius: widget.isSelected ? 24 : 10,
+            spreadRadius: widget.isSelected ? 0 : -2,
+            offset: Offset(0, widget.isSelected ? 10 : 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            onDoubleTap: widget.onDoubleTap,
+            hoverColor: AppColors.primary.withValues(alpha: 0.10),
+            splashColor: AppColors.primary.withValues(alpha: 0.06),
+            highlightColor: Colors.transparent,
+            mouseCursor: SystemMouseCursors.click,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: accentColor.withValues(alpha: isDark ? 0.30 : 0.20),
+                        width: 2,
+                      ),
+                      color: accentColor.withValues(alpha: isDark ? 0.08 : 0.05),
+                    ),
+                    padding: const EdgeInsets.all(5),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accentColor.withValues(alpha: isDark ? 0.18 : 0.10),
+                      ),
+                      child: ClipOval(child: _buildAvatar(name, accentColor, s)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    name.isEmpty ? '—' : name,
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      height: 1.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    s['code']?.toString() ?? '',
+                    style: TextStyle(color: mutedColor, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  if (phone.isNotEmpty) infoRow(phone),
+                  if (phone.isNotEmpty) const SizedBox(height: 4),
+                  if (email.isNotEmpty) infoRow(email),
+                  const Spacer(),
+                  if (subjects.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: surfaceBg,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Text(
+                        subjects,
+                        style: TextStyle(color: mutedColor, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: surfaceBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(genderIcon,
+                                size: 18,
+                                color: accentColor.withValues(alpha: 0.85)),
+                            const SizedBox(width: 3),
+                            Text(
+                              s['gender']?.toString() ?? '—',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: mutedColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(width: 1, height: 12, color: borderColor),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: statusColor,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: statusColor.withValues(alpha: 0.45),
+                                    blurRadius: 4,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              statusLabel,
+                              style: TextStyle(fontSize: 14, color: statusColor),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar(String name, Color accentColor, Map<String, dynamic> s) {
+    final photoUrl = s['photoUrl'] as String?;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return Image.network(
+        photoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _initialsWidget(name, accentColor),
+      );
+    }
+    return _initialsWidget(name, accentColor);
+  }
+
+  Widget _initialsWidget(String name, Color accentColor) => Center(
+        child: Text(
+          _teacherInitials(name),
+          style: TextStyle(
+            color: accentColor,
+            fontWeight: FontWeight.w700,
+            fontSize: 22,
+          ),
+        ),
+      );
+}
+
+String _teacherInitials(String name) {
+  final parts = name.trim().split(RegExp(r'\s+'));
+  if (parts.isEmpty || name.isEmpty) return '?';
+  if (parts.length == 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// ── View toggle ───────────────────────────────────────────────────────────────
+
+class _ViewToggleButton extends StatelessWidget {
+  final bool isGrid;
+  final VoidCallback onToggle;
+  const _ViewToggleButton({required this.isGrid, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1C2A4A) : const Color(0xFFF1F3F8);
+    const activeColor = AppColors.primary;
+    final inactiveColor = isDark ? Colors.white38 : const Color(0xFFADB5C7);
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        _ToggleSeg(
+          icon: Icons.table_rows_outlined,
+          active: !isGrid,
+          onTap: isGrid ? onToggle : null,
+          activeColor: activeColor,
+          inactiveColor: inactiveColor,
+          isDark: isDark,
+        ),
+        const SizedBox(width: 2),
+        _ToggleSeg(
+          icon: Icons.grid_view_rounded,
+          active: isGrid,
+          onTap: isGrid ? null : onToggle,
+          activeColor: activeColor,
+          inactiveColor: inactiveColor,
+          isDark: isDark,
+        ),
+      ]),
+    );
+  }
+}
+
+class _ToggleSeg extends StatelessWidget {
+  final IconData icon;
+  final bool active;
+  final VoidCallback? onTap;
+  final Color activeColor;
+  final Color inactiveColor;
+  final bool isDark;
+  const _ToggleSeg({
+    required this.icon,
+    required this.active,
+    required this.onTap,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activeBg = isDark ? activeColor.withValues(alpha: 0.25) : Colors.white;
+    final hoverBg = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : Colors.white.withValues(alpha: 0.70);
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: active ? activeBg : Colors.transparent,
+        borderRadius: BorderRadius.circular(7),
+        boxShadow: active
+            ? [BoxShadow(
+                color: activeColor.withValues(alpha: isDark ? 0.30 : 0.15),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              )]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(7),
+        child: InkWell(
+          onTap: onTap,
+          hoverColor: hoverBg,
+          splashColor: activeColor.withValues(alpha: 0.10),
+          highlightColor: Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
+          mouseCursor: onTap != null
+              ? SystemMouseCursors.click
+              : SystemMouseCursors.basic,
+          child: Center(
+            child: Icon(icon, size: 16,
+                color: active ? activeColor : inactiveColor),
+          ),
+        ),
       ),
     );
   }
