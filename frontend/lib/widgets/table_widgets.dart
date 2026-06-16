@@ -1028,44 +1028,57 @@ class _TeacherFormPanelState extends State<TeacherFormPanel> {
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setDState) => AlertDialog(
-          title: Text(t['subject'] ?? 'Subjects', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
-          content: SizedBox(
-            width: 300,
-            child: _availableSubjects.isEmpty
-              ? Text(t['no_data'] ?? 'No subjects available')
-              : ListView(
-                  shrinkWrap: true,
-                  children: _availableSubjects.map((sub) {
-                    final id = sub['id'] as int;
-                    return CheckboxListTile(
-                      dense: true,
-                      title: Text('${sub['code']} — ${sub['name']}', style: AppTextStyles.body),
-                      value: tempSelected.contains(id),
-                      activeColor: AppColors.primary,
-                      onChanged: (v) => setDState(() {
-                        if (v == true) tempSelected.add(id);
-                        else tempSelected.remove(id);
-                      }),
-                    );
-                  }).toList(),
-                ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(t['cancel'] ?? 'Cancel'),
+        builder: (ctx, setDState) {
+          final dlgDark = Theme.of(ctx).brightness == Brightness.dark;
+          final dlgBg = dlgDark ? const Color(0xFF1C2A4A) : Colors.white;
+          final titleColor = dlgDark ? Colors.white : AppColors.textPrimary;
+          final itemColor = dlgDark ? Colors.white70 : AppColors.textPrimary;
+          final checkBorder = dlgDark ? const Color(0xFF4A5568) : AppColors.border;
+          return AlertDialog(
+            backgroundColor: dlgBg,
+            title: Text(t['subject'] ?? 'Subjects',
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, color: titleColor)),
+            content: SizedBox(
+              width: 300,
+              child: _availableSubjects.isEmpty
+                ? Text(t['no_data'] ?? 'No subjects available',
+                    style: AppTextStyles.body.copyWith(color: itemColor))
+                : ListView(
+                    shrinkWrap: true,
+                    children: _availableSubjects.map((sub) {
+                      final id = sub['id'] as int;
+                      return CheckboxListTile(
+                        dense: true,
+                        title: Text('${sub['code']} — ${sub['name']}',
+                            style: AppTextStyles.body.copyWith(color: itemColor)),
+                        value: tempSelected.contains(id),
+                        activeColor: AppColors.primary,
+                        checkColor: Colors.white,
+                        side: BorderSide(color: checkBorder, width: 1.5),
+                        onChanged: (v) => setDState(() {
+                          if (v == true) { tempSelected.add(id); }
+                          else { tempSelected.remove(id); }
+                        }),
+                      );
+                    }).toList(),
+                  ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() => _selectedSubjectIds = List.from(tempSelected));
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
-              child: Text(t['confirm'] ?? 'OK'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(t['cancel'] ?? 'Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() => _selectedSubjectIds = List.from(tempSelected));
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                child: Text(t['confirm'] ?? 'OK'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

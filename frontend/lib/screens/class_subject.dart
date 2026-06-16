@@ -2445,40 +2445,56 @@ class _ClassFormPanelState extends State<_ClassFormPanel> {
     await showDialog<void>(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Select Subjects'),
-          content: SizedBox(
-            width: 320,
-            child: _availableSubjects.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
-                    shrinkWrap: true,
-                    children: _availableSubjects.map((sub) {
-                      final id = sub['id'] as int;
-                      return CheckboxListTile(
-                        value: picked.contains(id),
-                        title: Text('${sub['code']} - ${sub['name']}'),
-                        onChanged: (v) => setDialogState(() {
-                          v == true ? picked.add(id) : picked.remove(id);
-                        }),
-                      );
-                    }).toList(),
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+        builder: (ctx, setDialogState) {
+          final dialogDark = Theme.of(ctx).brightness == Brightness.dark;
+          final dialogBg = dialogDark ? const Color(0xFF1C2A4A) : Colors.white;
+          final titleColor = dialogDark ? Colors.white : AppColors.textPrimary;
+          final itemColor = dialogDark ? Colors.white70 : AppColors.textPrimary;
+          final dividerColor = dialogDark ? const Color(0xFF2A2A4A) : AppColors.border;
+          return AlertDialog(
+            backgroundColor: dialogBg,
+            title: Text('Select Subjects',
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, color: titleColor)),
+            content: SizedBox(
+              width: 320,
+              child: _availableSubjects.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                      shrinkWrap: true,
+                      children: _availableSubjects.map((sub) {
+                        final id = sub['id'] as int;
+                        return CheckboxListTile(
+                          dense: true,
+                          value: picked.contains(id),
+                          title: Text('${sub['code']} — ${sub['name']}',
+                              style: AppTextStyles.body.copyWith(color: itemColor)),
+                          activeColor: AppColors.primary,
+                          checkColor: Colors.white,
+                          side: BorderSide(color: dividerColor, width: 1.5),
+                          onChanged: (v) => setDialogState(() {
+                            if (v == true) { picked.add(id); }
+                            else { picked.remove(id); }
+                          }),
+                        );
+                      }).toList(),
+                    ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() => _selectedSubjectIds = picked);
-                Navigator.pop(ctx);
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() => _selectedSubjectIds = picked);
+                  Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
