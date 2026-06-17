@@ -11,6 +11,7 @@ import 'package:schoolms_portal/screens/students.dart';
 import 'package:schoolms_portal/screens/teachers.dart';
 import 'package:schoolms_portal/screens/class_subject.dart';
 import 'package:schoolms_portal/screens/profile.dart';
+import 'package:schoolms_portal/screens/timetable.dart';
 import 'package:schoolms_portal/screens/reports.dart';
 
 class MainShell extends StatelessWidget {
@@ -107,6 +108,8 @@ class MainShell extends StatelessWidget {
         return const TeachersScreen();
       case NavPage.classSubject:
         return const ClassSubjectScreen();
+      case NavPage.timetable:
+        return const TimetableScreen();
       case NavPage.reports:
         return const ReportsScreen();
       case NavPage.profile:

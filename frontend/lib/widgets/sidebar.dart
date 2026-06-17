@@ -163,6 +163,13 @@ class _CollapsedSidebar extends StatelessWidget {
                   onTap: () => nav.navigate(NavPage.classSubject),
                 ),
                 _CollapsedNavItem(
+                  icon: Icons.calendar_view_week_outlined,
+                  activeIcon: Icons.calendar_view_week,
+                  label: t['timetable'] ?? 'Timetable',
+                  isActive: nav.currentPage == NavPage.timetable,
+                  onTap: () => nav.navigate(NavPage.timetable),
+                ),
+                _CollapsedNavItem(
                   icon: Icons.bar_chart_outlined,
                   activeIcon: Icons.bar_chart,
                   label: t['reports'] ?? 'Reports',
@@ -427,6 +434,13 @@ class _ExpandedSidebar extends StatelessWidget {
                   onTap: () => nav.navigate(NavPage.classSubject),
                 ),
                 _NavItem(
+                  icon: Icons.calendar_view_week_outlined,
+                  activeIcon: Icons.calendar_view_week,
+                  label: t['timetable'] ?? 'Timetable',
+                  isActive: nav.currentPage == NavPage.timetable,
+                  onTap: () => nav.navigate(NavPage.timetable),
+                ),
+                _NavItem(
                   icon: Icons.bar_chart_outlined,
                   activeIcon: Icons.bar_chart,
                   label: t['reports'] ?? 'Reports',
@@ -687,7 +701,7 @@ class _SidebarSkeletonState extends State<SidebarSkeleton>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: List.generate(
-                  5,
+                  6,
                   (_) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Column(
@@ -764,7 +778,7 @@ class _SidebarSkeletonState extends State<SidebarSkeleton>
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
                 children: List.generate(
-                  5,
+                  6,
                   (_) => SizedBox(
                     height: 44,
                     child: Row(

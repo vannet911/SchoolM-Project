@@ -268,6 +268,16 @@ class ApiService {
     return completer.future;
   }
 
+  // ── Timetable ─────────────────────────────────────────────────────
+  Future<List<dynamic>> getTimetableEntries() async =>
+      (await get('/timetable')) as List;
+  Future<dynamic> createTimetableEntry(Map<String, dynamic> data) =>
+      post('/timetable', data);
+  Future<dynamic> updateTimetableEntry(int id, Map<String, dynamic> data) =>
+      put('/timetable/$id', data);
+  Future<void> deleteTimetableEntry(int id) async =>
+      await delete('/timetable/$id');
+
   // ── Dashboard Stats ───────────────────────────────────────────────
   Future<Map<String, int>> getDashboardStats() async {
     final results = await Future.wait([

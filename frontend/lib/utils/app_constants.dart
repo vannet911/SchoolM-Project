@@ -18,6 +18,7 @@ class AppConstants {
   static const double topBarHeight = 60.0;
   static const double cardRadius = 12.0;
   static const double pagePadding = 12.0;
+  static const double pagePaddingDesktop = 12.0;
 }
 
 class AppColors {
