@@ -1,7 +1,7 @@
 // lib/providers/nav_provider.dart
 import 'package:flutter/material.dart';
 
-enum NavPage { dashboard, students, teachers, classSubject, timetable, reports, profile }
+enum NavPage { dashboard, students, teachers, classSubject, timetable, attendance, reports, profile }
 
 class NavProvider extends ChangeNotifier {
   NavPage _currentPage = NavPage.dashboard;
@@ -40,6 +40,7 @@ class NavProvider extends ChangeNotifier {
       case NavPage.teachers: return 'teachers';
       case NavPage.classSubject: return 'class & subject';
       case NavPage.timetable: return 'timetable';
+      case NavPage.attendance: return 'attendance';
       case NavPage.reports: return 'reports';
       case NavPage.profile: return 'profile';
     }

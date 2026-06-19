@@ -170,6 +170,13 @@ class _CollapsedSidebar extends StatelessWidget {
                   onTap: () => nav.navigate(NavPage.timetable),
                 ),
                 _CollapsedNavItem(
+                  icon: Icons.fact_check_outlined,
+                  activeIcon: Icons.fact_check,
+                  label: t['attendance'] ?? 'Attendance',
+                  isActive: nav.currentPage == NavPage.attendance,
+                  onTap: () => nav.navigate(NavPage.attendance),
+                ),
+                _CollapsedNavItem(
                   icon: Icons.bar_chart_outlined,
                   activeIcon: Icons.bar_chart,
                   label: t['reports'] ?? 'Reports',
@@ -437,6 +444,13 @@ class _ExpandedSidebar extends StatelessWidget {
                   label: t['timetable'] ?? 'Timetable',
                   isActive: nav.currentPage == NavPage.timetable,
                   onTap: () => nav.navigate(NavPage.timetable),
+                ),
+                _NavItem(
+                  icon: Icons.fact_check_outlined,
+                  activeIcon: Icons.fact_check,
+                  label: t['attendance'] ?? 'Attendance',
+                  isActive: nav.currentPage == NavPage.attendance,
+                  onTap: () => nav.navigate(NavPage.attendance),
                 ),
                 _NavItem(
                   icon: Icons.bar_chart_outlined,

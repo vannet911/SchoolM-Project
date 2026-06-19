@@ -268,6 +268,12 @@ class ApiService {
     return completer.future;
   }
 
+  // ── Attendance ───────────────────────────────────────────────────
+  Future<List<dynamic>> getAttendance() async => (await get('/attendance')) as List;
+  Future<dynamic> createAttendance(Map<String, dynamic> data) => post('/attendance', data);
+  Future<dynamic> updateAttendance(int id, Map<String, dynamic> data) => put('/attendance/$id', data);
+  Future<void> deleteAttendance(int id) async => await delete('/attendance/$id');
+
   // ── Timetable ─────────────────────────────────────────────────────
   Future<List<dynamic>> getTimetableEntries() async =>
       (await get('/timetable')) as List;

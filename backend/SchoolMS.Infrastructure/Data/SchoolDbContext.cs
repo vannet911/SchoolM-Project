@@ -16,6 +16,7 @@ namespace SchoolMS.Infrastructure.Data
         public DbSet<TeacherSubject> TeacherSubjects { get; set; }
         public DbSet<ClassSubject> ClassSubjects { get; set; }
         public DbSet<Timetable> Timetables { get; set; }
+        public DbSet<Attendance> Attendances { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
