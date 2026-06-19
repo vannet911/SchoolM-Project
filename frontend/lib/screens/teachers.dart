@@ -600,60 +600,6 @@ class _TeachersScreenState extends State<TeachersScreen> {
 
     final Widget toolbar;
     if (isMobile) {
-      toolbar = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          Expanded(
-            child: KeyedSubtree(
-              key: _searchBoxKey,
-              child: _SearchBox(
-                controller: _searchCtrl,
-                hint: t['search'] ?? 'Search...',
-                fullWidth: true,
-                onFilter: _toggleFilter,
-                filterCount: _activeFilterCount,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          toggleBtn,
-        ]),
-        const SizedBox(height: 8),
-        Wrap(
-          alignment: WrapAlignment.end,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
-            _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
-            _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
-            _ExportButton(
-              label: t['export'] ?? 'Export',
-              exporting: _exporting,
-              onTap: _checkedIds.isNotEmpty
-                  ? () => _exportChecked(t)
-                  : (_filtered.isEmpty ? null : () => _exportTeachers(t)),
-              isDark: isDark,
-            ),
-          ],
-        ),
-      ]);
-    } else {
-      final btns = [
-        _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
-        const SizedBox(width: 8),
-        _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
-        const SizedBox(width: 8),
-        _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
-        const SizedBox(width: 8),
-        _ExportButton(
-          label: t['export'] ?? 'Export',
-          exporting: _exporting,
-          onTap: _checkedIds.isNotEmpty
-              ? () => _exportChecked(t)
-              : (_filtered.isEmpty ? null : () => _exportTeachers(t)),
-          isDark: isDark,
-        ),
-      ];
       toolbar = Row(children: [
         Expanded(
           child: KeyedSubtree(
@@ -669,10 +615,65 @@ class _TeachersScreenState extends State<TeachersScreen> {
         ),
         const SizedBox(width: 8),
         toggleBtn,
-        if (!isTablet) const Spacer(),
         const SizedBox(width: 8),
-        ...btns,
+        _AddButton(label: t['add'] ?? 'Add', onTap: onAdd, iconOnly: true),
+        const SizedBox(width: 8),
+        _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit, iconOnly: true),
+        const SizedBox(width: 8),
+        _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete, iconOnly: true),
+        const SizedBox(width: 8),
+        _ExportButton(
+          label: t['export'] ?? 'Export',
+          exporting: _exporting,
+          onTap: _checkedIds.isNotEmpty
+              ? () => _exportChecked(t)
+              : (_filtered.isEmpty ? null : () => _exportTeachers(t)),
+          isDark: isDark,
+          iconOnly: true,
+        ),
       ]);
+    } else {
+      toolbar = LayoutBuilder(builder: (context, constraints) {
+        final compact = constraints.maxWidth < 700;
+        final searchW = (constraints.maxWidth * 0.28).clamp(160.0, 400.0);
+        final btns = [
+          _AddButton(label: t['add'] ?? 'Add', onTap: onAdd, iconOnly: compact),
+          const SizedBox(width: 8),
+          _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit, iconOnly: compact),
+          const SizedBox(width: 8),
+          _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete, iconOnly: compact),
+          const SizedBox(width: 8),
+          _ExportButton(
+            label: t['export'] ?? 'Export',
+            exporting: _exporting,
+            onTap: _checkedIds.isNotEmpty
+                ? () => _exportChecked(t)
+                : (_filtered.isEmpty ? null : () => _exportTeachers(t)),
+            isDark: isDark,
+            iconOnly: compact,
+          ),
+        ];
+        return Row(children: [
+          SizedBox(
+            width: searchW,
+            child: KeyedSubtree(
+              key: _searchBoxKey,
+              child: _SearchBox(
+                controller: _searchCtrl,
+                hint: t['search'] ?? 'Search...',
+                fullWidth: true,
+                onFilter: _toggleFilter,
+                filterCount: _activeFilterCount,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          toggleBtn,
+          const Spacer(),
+          const SizedBox(width: 8),
+          ...btns,
+        ]);
+      });
     }
 
     return Padding(
@@ -1459,72 +1460,69 @@ class _SearchBox extends StatelessWidget {
 class _AddButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  const _AddButton({required this.label, required this.onTap});
+  final bool iconOnly;
+  const _AddButton({required this.label, required this.onTap, this.iconOnly = false});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.add, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: BorderSide(color: borderColor, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      ),
+    final style = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight,
+      elevation: 0,
+      padding: iconOnly ? const EdgeInsets.all(0) : const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      minimumSize: iconOnly ? const Size(48, 48) : null,
     );
+    if (iconOnly) return OutlinedButton(onPressed: onTap, style: style, child: const Icon(Icons.add, size: 18));
+    return OutlinedButton.icon(onPressed: onTap, icon: const Icon(Icons.add, size: 18), label: Text(label), style: style);
   }
 }
 
 class _EditButton extends StatelessWidget {
   final VoidCallback onTap;
   final String label;
-  const _EditButton({required this.onTap, required this.label});
+  final bool iconOnly;
+  const _EditButton({required this.onTap, required this.label, this.iconOnly = false});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.edit_outlined, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: BorderSide(color: borderColor, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      ),
+    final style = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight,
+      elevation: 0,
+      padding: iconOnly ? const EdgeInsets.all(0) : const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      minimumSize: iconOnly ? const Size(48, 48) : null,
     );
+    if (iconOnly) return OutlinedButton(onPressed: onTap, style: style, child: const Icon(Icons.edit_outlined, size: 18));
+    return OutlinedButton.icon(onPressed: onTap, icon: const Icon(Icons.edit_outlined, size: 18), label: Text(label), style: style);
   }
 }
 
 class _DeleteButton extends StatelessWidget {
   final VoidCallback onTap;
   final String label;
-  const _DeleteButton({required this.onTap, required this.label});
+  final bool iconOnly;
+  const _DeleteButton({required this.onTap, required this.label, this.iconOnly = false});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.delete_outline, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: BorderSide(color: borderColor, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      ),
+    final style = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight,
+      elevation: 0,
+      padding: iconOnly ? const EdgeInsets.all(0) : const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      minimumSize: iconOnly ? const Size(48, 48) : null,
     );
+    if (iconOnly) return OutlinedButton(onPressed: onTap, style: style, child: const Icon(Icons.delete_outline, size: 18));
+    return OutlinedButton.icon(onPressed: onTap, icon: const Icon(Icons.delete_outline, size: 18), label: Text(label), style: style);
   }
 }
 
@@ -1533,38 +1531,36 @@ class _ExportButton extends StatelessWidget {
   final bool exporting;
   final VoidCallback? onTap;
   final bool isDark;
+  final bool iconOnly;
 
   const _ExportButton({
     required this.label,
     required this.exporting,
     required this.isDark,
     this.onTap,
+    this.iconOnly = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final style = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight,
+      elevation: 0,
+      padding: iconOnly ? const EdgeInsets.all(0) : const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      overlayColor: AppColors.primaryLight.withValues(alpha: 0.08),
+      minimumSize: iconOnly ? const Size(48, 48) : null,
+    );
+    final icon = exporting
+        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryLight))
+        : const Icon(Icons.download_rounded, size: 18);
+    if (iconOnly) return OutlinedButton(onPressed: exporting ? null : onTap, style: style, child: icon);
     return OutlinedButton(
       onPressed: exporting ? null : onTap,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: BorderSide(color: borderColor, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        overlayColor: AppColors.primaryLight.withValues(alpha: 0.08),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        exporting
-            ? const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primaryLight))
-            : const Icon(Icons.download_rounded, size: 18),
-        const SizedBox(width: 8),
-        Text(label),
-      ]),
+      style: style,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [icon, const SizedBox(width: 8), Text(label)]),
     );
   }
 }

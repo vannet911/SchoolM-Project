@@ -596,41 +596,47 @@ class _StudentsScreenState extends State<StudentsScreen> {
         ),
       ]);
     } else {
-      final btns = [
-        _AddButton(label: t['add'] ?? 'Add', onTap: onAdd),
-        const SizedBox(width: 8),
-        _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit),
-        const SizedBox(width: 8),
-        _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete),
-        const SizedBox(width: 8),
-        _ExportButton(
-          label: t['export'] ?? 'Export',
-          exporting: _exporting,
-          onTap: _checkedIds.isNotEmpty
-              ? () => _exportChecked(t)
-              : (_filtered.isEmpty ? null : () => _exportStudents(t)),
-          isDark: isDark,
-        ),
-      ];
-      toolbar = Row(children: [
-        Expanded(
-          child: KeyedSubtree(
-            key: _searchBoxKey,
-            child: _SearchBox(
-              controller: _searchCtrl,
-              hint: t['search'] ?? 'Searching...',
-              fullWidth: true,
-              onFilter: _toggleFilter,
-              filterCount: _activeFilterCount,
+      toolbar = LayoutBuilder(builder: (context, constraints) {
+        final compact = constraints.maxWidth < 700;
+        final searchW = (constraints.maxWidth * 0.28).clamp(160.0, 400.0);
+        final btns = [
+          _AddButton(label: t['add'] ?? 'Add', onTap: onAdd, iconOnly: compact),
+          const SizedBox(width: 8),
+          _EditButton(label: t['edit'] ?? 'Edit', onTap: onEdit, iconOnly: compact),
+          const SizedBox(width: 8),
+          _DeleteButton(label: t['delete'] ?? 'Delete', onTap: onDelete, iconOnly: compact),
+          const SizedBox(width: 8),
+          _ExportButton(
+            label: t['export'] ?? 'Export',
+            exporting: _exporting,
+            onTap: _checkedIds.isNotEmpty
+                ? () => _exportChecked(t)
+                : (_filtered.isEmpty ? null : () => _exportStudents(t)),
+            isDark: isDark,
+            iconOnly: compact,
+          ),
+        ];
+        return Row(children: [
+          SizedBox(
+            width: searchW,
+            child: KeyedSubtree(
+              key: _searchBoxKey,
+              child: _SearchBox(
+                controller: _searchCtrl,
+                hint: t['search'] ?? 'Searching...',
+                fullWidth: true,
+                onFilter: _toggleFilter,
+                filterCount: _activeFilterCount,
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        toggleBtn,
-        if (!isTablet) const Spacer(),
-        const SizedBox(width: 8),
-        ...btns,
-      ]);
+          const SizedBox(width: 8),
+          toggleBtn,
+          const Spacer(),
+          const SizedBox(width: 8),
+          ...btns,
+        ]);
+      });
     }
 
     // ── Table header & rows by breakpoint ────────────────────────

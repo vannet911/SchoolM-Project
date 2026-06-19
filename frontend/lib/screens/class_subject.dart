@@ -879,78 +879,24 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (isMobile)
-          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            KeyedSubtree(
-              key: _classSearchBoxKey,
-              child: _SearchBox(
-                  controller: _classSearchCtrl,
-                  hint: t['search'] ?? 'Search...',
-                  fullWidth: true,
-                  onFilter: _toggleClassFilter,
-                  filterCount: _classActiveFilterCount),
-            ),
-            const SizedBox(height: 8),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm()),
-              const SizedBox(width: 8),
-              _EditButton(
-                label: t['edit'] ?? 'Edit',
-                onTap: () {
-                  if (_selectedClass != null) {
-                    _openClassForm(item: _selectedClass);
-                  } else {
-                    _showSnack(
-                        t['select_row_first'] ?? 'Please select a row first',
-                        isWarning: true);
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              _DeleteButton(
-                label: t['delete'] ?? 'Delete',
-                onTap: () {
-                  if (_checkedClassIds.isNotEmpty) {
-                    _deleteCheckedClasses(t);
-                  } else if (_selectedClass != null) {
-                    _deleteClass(_selectedClass!);
-                  } else {
-                    _showSnack(
-                        t['select_row_first'] ?? 'Please select a row first',
-                        isWarning: true);
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              _ExportButton(
-                label: t['export'] ?? 'Export',
-                exporting: _exportingClasses,
-                isDark: isDark,
-                onTap: _checkedClassIds.isNotEmpty
-                    ? () => _exportCheckedClasses(t)
-                    : (_filteredClasses.isEmpty ? null : () => _exportClasses(t)),
-              ),
-            ]),
-          ])
-        else
           Row(children: [
             Expanded(
               child: KeyedSubtree(
                 key: _classSearchBoxKey,
                 child: _SearchBox(
-                  controller: _classSearchCtrl,
-                  hint: t['search'] ?? 'Search...',
-                  fullWidth: true,
-                  onFilter: _toggleClassFilter,
-                  filterCount: _classActiveFilterCount,
-                ),
+                    controller: _classSearchCtrl,
+                    hint: t['search'] ?? 'Search...',
+                    fullWidth: true,
+                    onFilter: _toggleClassFilter,
+                    filterCount: _classActiveFilterCount),
               ),
             ),
-            if (!isTablet) const Spacer(),
             const SizedBox(width: 8),
-            _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm()),
+            _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm(), iconOnly: true),
             const SizedBox(width: 8),
             _EditButton(
               label: t['edit'] ?? 'Edit',
+              iconOnly: true,
               onTap: () {
                 if (_selectedClass != null) {
                   _openClassForm(item: _selectedClass);
@@ -962,6 +908,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             const SizedBox(width: 8),
             _DeleteButton(
               label: t['delete'] ?? 'Delete',
+              iconOnly: true,
               onTap: () {
                 if (_checkedClassIds.isNotEmpty) {
                   _deleteCheckedClasses(t);
@@ -977,11 +924,71 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
               label: t['export'] ?? 'Export',
               exporting: _exportingClasses,
               isDark: isDark,
+              iconOnly: true,
               onTap: _checkedClassIds.isNotEmpty
                   ? () => _exportCheckedClasses(t)
                   : (_filteredClasses.isEmpty ? null : () => _exportClasses(t)),
             ),
-          ]),
+          ])
+        else
+          LayoutBuilder(builder: (context, constraints) {
+            final compact = constraints.maxWidth < 700;
+            final searchW = (constraints.maxWidth * 0.28).clamp(160.0, 400.0);
+            return Row(children: [
+              SizedBox(
+                width: searchW,
+                child: KeyedSubtree(
+                  key: _classSearchBoxKey,
+                  child: _SearchBox(
+                    controller: _classSearchCtrl,
+                    hint: t['search'] ?? 'Search...',
+                    fullWidth: true,
+                    onFilter: _toggleClassFilter,
+                    filterCount: _classActiveFilterCount,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              const SizedBox(width: 8),
+              _AddButton(label: t['add'] ?? 'Add', onTap: () => _openClassForm(), iconOnly: compact),
+              const SizedBox(width: 8),
+              _EditButton(
+                label: t['edit'] ?? 'Edit',
+                iconOnly: compact,
+                onTap: () {
+                  if (_selectedClass != null) {
+                    _openClassForm(item: _selectedClass);
+                  } else {
+                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              _DeleteButton(
+                label: t['delete'] ?? 'Delete',
+                iconOnly: compact,
+                onTap: () {
+                  if (_checkedClassIds.isNotEmpty) {
+                    _deleteCheckedClasses(t);
+                  } else if (_selectedClass != null) {
+                    _deleteClass(_selectedClass!);
+                  } else {
+                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              _ExportButton(
+                label: t['export'] ?? 'Export',
+                exporting: _exportingClasses,
+                isDark: isDark,
+                iconOnly: compact,
+                onTap: _checkedClassIds.isNotEmpty
+                    ? () => _exportCheckedClasses(t)
+                    : (_filteredClasses.isEmpty ? null : () => _exportClasses(t)),
+              ),
+            ]);
+          }),
         const SizedBox(height: 12),
         Expanded(
           child: _TableCard(
@@ -1282,79 +1289,24 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
       children: [
         // ── Toolbar ─────────────────────────────────────────────
         if (isMobile)
-          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            KeyedSubtree(
-              key: _subjectSearchBoxKey,
-              child: _SearchBox(
-                  controller: _subjectSearchCtrl,
-                  hint: t['search'] ?? 'Search...',
-                  fullWidth: true,
-                  onFilter: _toggleSubjectFilter,
-                  filterCount: _subjectActiveFilterCount),
-            ),
-            const SizedBox(height: 8),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              _AddButton(
-                  label: t['add'] ?? 'Add', onTap: () => _openSubjectForm()),
-              const SizedBox(width: 8),
-              _EditButton(
-                label: t['edit'] ?? 'Edit',
-                onTap: () {
-                  if (_selectedSubject != null) {
-                    _openSubjectForm(item: _selectedSubject);
-                  } else {
-                    _showSnack(
-                        t['select_row_first'] ?? 'Please select a row first',
-                        isWarning: true);
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              _DeleteButton(
-                label: t['delete'] ?? 'Delete',
-                onTap: () {
-                  if (_checkedSubjectIds.isNotEmpty) {
-                    _deleteCheckedSubjects(t);
-                  } else if (_selectedSubject != null) {
-                    _deleteSubject(_selectedSubject!);
-                  } else {
-                    _showSnack(
-                        t['select_row_first'] ?? 'Please select a row first',
-                        isWarning: true);
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              _ExportButton(
-                label: t['export'] ?? 'Export',
-                exporting: _exportingSubjects,
-                isDark: isDark,
-                onTap: _checkedSubjectIds.isNotEmpty
-                    ? () => _exportCheckedSubjects(t)
-                    : (_filteredSubjects.isEmpty ? null : () => _exportSubjects(t)),
-              ),
-            ]),
-          ])
-        else
           Row(children: [
             Expanded(
               child: KeyedSubtree(
                 key: _subjectSearchBoxKey,
                 child: _SearchBox(
-                  controller: _subjectSearchCtrl,
-                  hint: t['search'] ?? 'Search...',
-                  fullWidth: true,
-                  onFilter: _toggleSubjectFilter,
-                  filterCount: _subjectActiveFilterCount,
-                ),
+                    controller: _subjectSearchCtrl,
+                    hint: t['search'] ?? 'Search...',
+                    fullWidth: true,
+                    onFilter: _toggleSubjectFilter,
+                    filterCount: _subjectActiveFilterCount),
               ),
             ),
-            if (!isTablet) const Spacer(),
             const SizedBox(width: 8),
-            _AddButton(label: t['add'] ?? 'Add', onTap: () => _openSubjectForm()),
+            _AddButton(label: t['add'] ?? 'Add', onTap: () => _openSubjectForm(), iconOnly: true),
             const SizedBox(width: 8),
             _EditButton(
               label: t['edit'] ?? 'Edit',
+              iconOnly: true,
               onTap: () {
                 if (_selectedSubject != null) {
                   _openSubjectForm(item: _selectedSubject);
@@ -1366,6 +1318,7 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
             const SizedBox(width: 8),
             _DeleteButton(
               label: t['delete'] ?? 'Delete',
+              iconOnly: true,
               onTap: () {
                 if (_checkedSubjectIds.isNotEmpty) {
                   _deleteCheckedSubjects(t);
@@ -1381,11 +1334,71 @@ class _ClassSubjectScreenState extends State<ClassSubjectScreen>
               label: t['export'] ?? 'Export',
               exporting: _exportingSubjects,
               isDark: isDark,
+              iconOnly: true,
               onTap: _checkedSubjectIds.isNotEmpty
                   ? () => _exportCheckedSubjects(t)
                   : (_filteredSubjects.isEmpty ? null : () => _exportSubjects(t)),
             ),
-          ]),
+          ])
+        else
+          LayoutBuilder(builder: (context, constraints) {
+            final compact = constraints.maxWidth < 700;
+            final searchW = (constraints.maxWidth * 0.28).clamp(160.0, 400.0);
+            return Row(children: [
+              SizedBox(
+                width: searchW,
+                child: KeyedSubtree(
+                  key: _subjectSearchBoxKey,
+                  child: _SearchBox(
+                    controller: _subjectSearchCtrl,
+                    hint: t['search'] ?? 'Search...',
+                    fullWidth: true,
+                    onFilter: _toggleSubjectFilter,
+                    filterCount: _subjectActiveFilterCount,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              const SizedBox(width: 8),
+              _AddButton(label: t['add'] ?? 'Add', onTap: () => _openSubjectForm(), iconOnly: compact),
+              const SizedBox(width: 8),
+              _EditButton(
+                label: t['edit'] ?? 'Edit',
+                iconOnly: compact,
+                onTap: () {
+                  if (_selectedSubject != null) {
+                    _openSubjectForm(item: _selectedSubject);
+                  } else {
+                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              _DeleteButton(
+                label: t['delete'] ?? 'Delete',
+                iconOnly: compact,
+                onTap: () {
+                  if (_checkedSubjectIds.isNotEmpty) {
+                    _deleteCheckedSubjects(t);
+                  } else if (_selectedSubject != null) {
+                    _deleteSubject(_selectedSubject!);
+                  } else {
+                    _showSnack(t['select_row_first'] ?? 'Please select a row first', isWarning: true);
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              _ExportButton(
+                label: t['export'] ?? 'Export',
+                exporting: _exportingSubjects,
+                isDark: isDark,
+                iconOnly: compact,
+                onTap: _checkedSubjectIds.isNotEmpty
+                    ? () => _exportCheckedSubjects(t)
+                    : (_filteredSubjects.isEmpty ? null : () => _exportSubjects(t)),
+              ),
+            ]);
+          }),
         const SizedBox(height: 12),
         Expanded(
           child: _TableCard(
@@ -1789,38 +1802,36 @@ class _ExportButton extends StatelessWidget {
   final bool exporting;
   final VoidCallback? onTap;
   final bool isDark;
+  final bool iconOnly;
 
   const _ExportButton({
     required this.label,
     required this.exporting,
     required this.isDark,
     this.onTap,
+    this.iconOnly = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+    final style = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight,
+      elevation: 0,
+      padding: iconOnly ? const EdgeInsets.all(0) : const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      overlayColor: AppColors.primaryLight.withValues(alpha: 0.08),
+      minimumSize: iconOnly ? const Size(48, 48) : null,
+    );
+    final icon = exporting
+        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryLight))
+        : const Icon(Icons.download_rounded, size: 18);
+    if (iconOnly) return OutlinedButton(onPressed: exporting ? null : onTap, style: style, child: icon);
     return OutlinedButton(
       onPressed: exporting ? null : onTap,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: BorderSide(color: borderColor, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        overlayColor: AppColors.primaryLight.withValues(alpha: 0.08),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        exporting
-            ? const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primaryLight))
-            : const Icon(Icons.download_rounded, size: 18),
-        const SizedBox(width: 8),
-        Text(label),
-      ]),
+      style: style,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [icon, const SizedBox(width: 8), Text(label)]),
     );
   }
 }
@@ -1890,72 +1901,69 @@ class _SearchBox extends StatelessWidget {
 class _AddButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  const _AddButton({required this.label, required this.onTap});
+  final bool iconOnly;
+  const _AddButton({required this.label, required this.onTap, this.iconOnly = false});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.add, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: BorderSide(color: borderColor, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      ),
+    final style = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight,
+      elevation: 0,
+      padding: iconOnly ? const EdgeInsets.all(0) : const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      minimumSize: iconOnly ? const Size(48, 48) : null,
     );
+    if (iconOnly) return OutlinedButton(onPressed: onTap, style: style, child: const Icon(Icons.add, size: 18));
+    return OutlinedButton.icon(onPressed: onTap, icon: const Icon(Icons.add, size: 18), label: Text(label), style: style);
   }
 }
 
 class _EditButton extends StatelessWidget {
   final VoidCallback onTap;
   final String label;
-  const _EditButton({required this.onTap, required this.label});
+  final bool iconOnly;
+  const _EditButton({required this.onTap, required this.label, this.iconOnly = false});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.edit_outlined, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: BorderSide(color: borderColor, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      ),
+    final style = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight,
+      elevation: 0,
+      padding: iconOnly ? const EdgeInsets.all(0) : const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      minimumSize: iconOnly ? const Size(48, 48) : null,
     );
+    if (iconOnly) return OutlinedButton(onPressed: onTap, style: style, child: const Icon(Icons.edit_outlined, size: 18));
+    return OutlinedButton.icon(onPressed: onTap, icon: const Icon(Icons.edit_outlined, size: 18), label: Text(label), style: style);
   }
 }
 
 class _DeleteButton extends StatelessWidget {
   final VoidCallback onTap;
   final String label;
-  const _DeleteButton({required this.onTap, required this.label});
+  final bool iconOnly;
+  const _DeleteButton({required this.onTap, required this.label, this.iconOnly = false});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.delete_outline, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        side: BorderSide(color: borderColor, width: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      ),
+    final style = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight,
+      elevation: 0,
+      padding: iconOnly ? const EdgeInsets.all(0) : const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      minimumSize: iconOnly ? const Size(48, 48) : null,
     );
+    if (iconOnly) return OutlinedButton(onPressed: onTap, style: style, child: const Icon(Icons.delete_outline, size: 18));
+    return OutlinedButton.icon(onPressed: onTap, icon: const Icon(Icons.delete_outline, size: 18), label: Text(label), style: style);
   }
 }
 

@@ -32,6 +32,8 @@ const _kDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturda
 const _kDayAbbr = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const _kWeekendDays = {'Saturday', 'Sunday'};
 
+String _tDay(String day, Map<String, String> t) => t[day.toLowerCase()] ?? day;
+
 const _kSubjectColors = [
   Color(0xFF4CAF50),
   Color(0xFF2196F3),
@@ -68,10 +70,22 @@ class _TimetableScreenState extends State<TimetableScreen> {
   String _filterDay = 'all';
   Map<String, dynamic>? _selectedEntry;
   bool _isClassView = false;
+  bool _showForm = false;
+  Map<String, dynamic>? _formEntry;
 
   final _searchCtrl = TextEditingController();
   final GlobalKey _searchBoxKey = GlobalKey();
   OverlayEntry? _filterOverlay;
+
+  // Weekly grid scroll controllers
+  final _weekHScroll = ScrollController();
+  final _weekHHeaderScroll = ScrollController();
+
+  // Class view scroll controllers: content drives, header/fixed column follow via listeners
+  final _classHScroll = ScrollController();
+  final _classHHeaderScroll = ScrollController();
+  final _classVScroll = ScrollController();
+  final _classVFixedScroll = ScrollController();
 
   int get _activeFilterCount => [
         _filterClass != 'all',
@@ -84,12 +98,33 @@ class _TimetableScreenState extends State<TimetableScreen> {
     super.initState();
     _load();
     _searchCtrl.addListener(() => setState(() {}));
+    _weekHScroll.addListener(() {
+      if (_weekHHeaderScroll.hasClients) {
+        _weekHHeaderScroll.jumpTo(_weekHScroll.offset);
+      }
+    });
+    _classHScroll.addListener(() {
+      if (_classHHeaderScroll.hasClients) {
+        _classHHeaderScroll.jumpTo(_classHScroll.offset);
+      }
+    });
+    _classVScroll.addListener(() {
+      if (_classVFixedScroll.hasClients) {
+        _classVFixedScroll.jumpTo(_classVScroll.offset);
+      }
+    });
   }
 
   @override
   void dispose() {
     _filterOverlay?.remove();
     _searchCtrl.dispose();
+    _weekHScroll.dispose();
+    _weekHHeaderScroll.dispose();
+    _classHScroll.dispose();
+    _classHHeaderScroll.dispose();
+    _classVScroll.dispose();
+    _classVFixedScroll.dispose();
     super.dispose();
   }
 
@@ -99,29 +134,32 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
     try {
       final api = _api;
-
-      // Phase 1: load reference data (fast — these endpoints exist)
-      final ref = await Future.wait<List<dynamic>>([
+      final results = await Future.wait<List<dynamic>>([
         api.getClasses().catchError((_) => <dynamic>[]),
         api.getTeachers().catchError((_) => <dynamic>[]),
         api.getSubjects().catchError((_) => <dynamic>[]),
+        api.getTimetableEntries().catchError((_) => <dynamic>[]),
       ]);
       if (!mounted) return;
       setState(() {
-        _classes = ref[0];
-        _teachers = ref[1];
-        _subjects = ref[2];
-        _isLoading = false; // show grid immediately
+        _classes = results[0];
+        _teachers = results[1];
+        _subjects = results[2];
+        _entries = results[3];
+        _isLoading = false;
       });
-
-      // Phase 2: load timetable entries separately (may fail gracefully)
-      final entries = await api
-          .getTimetableEntries()
-          .catchError((_) => <dynamic>[]);
-      if (mounted) setState(() => _entries = entries);
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _reloadEntries() async {
+    if (!mounted) return;
+    try {
+      final entries = await _api.getTimetableEntries().catchError((_) => <dynamic>[]);
+      if (!mounted) return;
+      setState(() => _entries = entries);
+    } catch (_) {}
   }
 
   List<dynamic> get _filteredEntries {
@@ -261,40 +299,58 @@ class _TimetableScreenState extends State<TimetableScreen> {
     Overlay.of(context).insert(_filterOverlay!);
   }
 
-  void _openForm({Map<String, dynamic>? entry}) async {
-    final locale = context.read<LocaleProvider>().locale;
-    final t = AppTranslations.translations[locale]!;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (_) => _TimetableFormDialog(
-        entry: entry,
-        classes: _classes,
-        teachers: _teachers,
-        subjects: _subjects,
-        t: t,
-        isDark: isDark,
+  void _showSnack(String msg, {bool isError = false, bool isWarning = false}) {
+    if (!mounted) return;
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _ToastNotification(
+        message: msg,
+        isError: isError,
+        isWarning: isWarning,
+        onDismiss: () {
+          if (entry.mounted) entry.remove();
+        },
       ),
     );
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 3), () {
+      if (entry.mounted) entry.remove();
+    });
+  }
 
-    if (result != null && mounted) {
-      final api = _api;
-      try {
-        if (entry != null) {
-          await api.updateTimetableEntry(entry['id'] as int, result);
-        } else {
-          await api.createTimetableEntry(result);
-        }
-        setState(() => _selectedEntry = null);
-        await _load();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${t['save_failed'] ?? 'Save failed'}: $e')),
-          );
-        }
+  void _openForm({Map<String, dynamic>? entry}) {
+    setState(() {
+      _showForm = true;
+      _formEntry = entry;
+    });
+  }
+
+  void _closeForm() {
+    setState(() {
+      _showForm = false;
+      _formEntry = null;
+    });
+  }
+
+  Future<void> _saveForm(Map<String, dynamic> data) async {
+    final locale = context.read<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isEdit = _formEntry != null;
+    try {
+      if (isEdit) {
+        await _api.updateTimetableEntry(_formEntry!['id'] as int, data);
+      } else {
+        await _api.createTimetableEntry(data);
       }
+      _closeForm();
+      setState(() => _selectedEntry = null);
+      await _reloadEntries();
+      _showSnack(isEdit
+          ? (t['timetable_updated'] ?? 'Entry updated!')
+          : (t['timetable_created'] ?? 'Entry created!'));
+    } catch (e) {
+      _showSnack('${t['save_failed'] ?? 'Save failed'}: $e', isError: true);
     }
   }
 
@@ -331,20 +387,13 @@ class _TimetableScreenState extends State<TimetableScreen> {
     );
 
     if (confirm == true && mounted) {
-      final api = _api;
       try {
-        await api.deleteTimetableEntry(_selectedEntry!['id'] as int);
+        await _api.deleteTimetableEntry(_selectedEntry!['id'] as int);
         setState(() => _selectedEntry = null);
-        await _load();
+        await _reloadEntries();
+        _showSnack(t['timetable_deleted'] ?? 'Entry deleted.');
       } catch (_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(AppTranslations.translations[
-                            context.read<LocaleProvider>().locale]!['delete_failed'] ??
-                        'Delete failed')),
-          );
-        }
+        _showSnack(t['delete_failed'] ?? 'Delete failed', isError: true);
       }
     }
   }
@@ -363,6 +412,17 @@ class _TimetableScreenState extends State<TimetableScreen> {
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white54 : AppColors.textSecondary;
 
+    if (_showForm) {
+      return _TimetableFormPanel(
+        entry: _formEntry,
+        classes: _classes,
+        teachers: _teachers,
+        subjects: _subjects,
+        onCancel: _closeForm,
+        onSave: _saveForm,
+      );
+    }
+
     return Container(
       color: surfaceBg,
       child: Column(
@@ -371,7 +431,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
           _buildToolbar(t, isDark, isMobile, borderColor, bgColor, textColor, mutedColor),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? _TimetableSkeleton(isClassView: !isMobile && _isClassView)
                 : isMobile
                     ? _buildMobileList(t, isDark, bgColor, borderColor, textColor, mutedColor)
                     : _isClassView
@@ -389,8 +449,6 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   Widget _buildToolbar(Map<String, String> t, bool isDark, bool isMobile,
       Color borderColor, Color bgColor, Color textColor, Color mutedColor) {
-    final w = MediaQuery.of(context).size.width;
-    final isTablet = w >= 600 && w < 1024;
     final searchBg = isDark ? const Color(0xFF16213E) : AppColors.white;
     final hasFilters = _activeFilterCount > 0;
 
@@ -450,48 +508,62 @@ class _TimetableScreenState extends State<TimetableScreen> {
       );
     }
 
-    final List<Widget> actionBtns = [
-      const SizedBox(width: 8),
-      _TblBtn(
-        icon: Icons.add,
-        label: t['add'] ?? 'Add',
-        iconOnly: isTablet,
-        onTap: () => _openForm(),
-      ),
-      const SizedBox(width: 6),
-      _TblBtn(
-        icon: Icons.edit_outlined,
-        label: t['edit'] ?? 'Edit',
-        iconOnly: isTablet,
-        enabled: _selectedEntry != null,
-        onTap: _selectedEntry != null ? () => _openForm(entry: _selectedEntry) : null,
-      ),
-      const SizedBox(width: 6),
-      _TblBtn(
-        icon: Icons.delete_outline,
-        label: t['delete'] ?? 'Delete',
-        iconOnly: isTablet,
-        enabled: _selectedEntry != null,
-        onTap: _selectedEntry != null ? _deleteSelected : null,
-      ),
-    ];
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppConstants.pagePaddingDesktop, 12, AppConstants.pagePaddingDesktop, 8),
-      child: Row(
-        children: [
-          if (isTablet)
-            Expanded(child: searchBox)
-          else
-            SizedBox(width: 320, child: searchBox),
-          const SizedBox(width: 8),
-          _ViewToggleButton(
-            isClassView: _isClassView,
-            onToggle: () => setState(() => _isClassView = !_isClassView),
-          ),
-          if (!isTablet) const Spacer(),
-          ...actionBtns,
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 700;
+          final searchW = (constraints.maxWidth * 0.28).clamp(160.0, 400.0);
+          final actionBtns = [
+            const SizedBox(width: 8),
+            _TblBtn(
+              icon: Icons.add,
+              label: t['add'] ?? 'Add',
+              iconOnly: compact,
+              onTap: () => _openForm(),
+            ),
+            const SizedBox(width: 6),
+            _TblBtn(
+              icon: Icons.edit_outlined,
+              label: t['edit'] ?? 'Edit',
+              iconOnly: compact,
+              onTap: () {
+                if (_selectedEntry == null) {
+                  _showSnack(t['select_row_first'] ?? 'Please select an entry first',
+                      isWarning: true);
+                  return;
+                }
+                _openForm(entry: _selectedEntry);
+              },
+            ),
+            const SizedBox(width: 6),
+            _TblBtn(
+              icon: Icons.delete_outline,
+              label: t['delete'] ?? 'Delete',
+              iconOnly: compact,
+              onTap: () {
+                if (_selectedEntry == null) {
+                  _showSnack(t['select_row_first'] ?? 'Please select an entry first',
+                      isWarning: true);
+                  return;
+                }
+                _deleteSelected();
+              },
+            ),
+          ];
+          return Row(
+            children: [
+              SizedBox(width: searchW, child: searchBox),
+              const SizedBox(width: 8),
+              _ViewToggleButton(
+                isClassView: _isClassView,
+                onToggle: () => setState(() => _isClassView = !_isClassView),
+              ),
+              const Spacer(),
+              ...actionBtns,
+            ],
+          );
+        },
       ),
     );
   }
@@ -505,10 +577,6 @@ class _TimetableScreenState extends State<TimetableScreen> {
     }).toList();
   }
 
-  String _dayAbbr(String day) {
-    final idx = _kDays.indexOf(day);
-    return idx >= 0 ? _kDayAbbr[idx] : (day.length >= 3 ? day.substring(0, 3) : day);
-  }
 
   // ── Weekly grid (desktop / tablet) ───────────────────────────────────────────
 
@@ -516,12 +584,16 @@ class _TimetableScreenState extends State<TimetableScreen> {
       Color borderColor, Color surfaceBg, Color textColor, Color mutedColor) {
     const timeColW = 150.0;
     const minDayColW = 118.0;
-    const rowH = 74.0;
+    const rowH = 78.0;
     const breakH = 48.0;
-    const headerH = 48.0;
+    const headerH = 52.0;
     final headerBg = isDark ? const Color(0xFF1C2A4A) : AppColors.sidebarBg;
     final breakBg = isDark ? const Color(0xFF141E30) : const Color(0xFFF5F7FA);
+    final weekendCellBg = isDark ? const Color(0xFF131D35) : const Color(0xFFF2F4FA);
     final todayName = _getTodayName();
+    final now = DateTime.now();
+    // Monday of the current week
+    final weekMonday = now.subtract(Duration(days: now.weekday - 1));
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppConstants.pagePaddingDesktop, 4, AppConstants.pagePaddingDesktop, AppConstants.pagePaddingDesktop),
@@ -535,6 +607,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
           final gridW = timeColW + (dayColW + 1) * _kDays.length;
 
           return Container(
+            height: constraints.maxHeight,
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: BorderRadius.circular(8),
@@ -548,77 +621,101 @@ class _TimetableScreenState extends State<TimetableScreen> {
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: gridW,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: Column(
-                      children: [
-                        // Day header row
-                        Container(
-                          height: headerH,
-                          color: headerBg,
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: timeColW,
-                                child: Center(
-                                  child: Text(
-                                    t['period'] ?? 'Period',
-                                    style: AppTextStyles.body.copyWith(
-                                        color: mutedColor,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600),
-                                  ),
+              borderRadius: BorderRadius.circular(8),
+              child: Column(
+                children: [
+                  // ── Sticky day-header row ─────────────────────────────
+                  SizedBox(
+                    height: headerH,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      controller: _weekHHeaderScroll,
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: SizedBox(
+                        width: gridW,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: timeColW,
+                              height: headerH,
+                              color: headerBg,
+                              child: Center(
+                                child: Text(
+                                  t['time_info'] ?? 'Time Info',
+                                  style: AppTextStyles.body.copyWith(
+                                      color: mutedColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600),
                                 ),
                               ),
-                              for (int i = 0; i < _kDays.length; i++) ...[
-                                Container(
-                                    width: 1,
-                                    height: headerH,
-                                    color: borderColor),
-                                _buildDayHeader(
-                                  abbr: _kDayAbbr[i],
-                                  dayName: _kDays[i],
-                                  width: dayColW,
+                            ),
+                            for (int i = 0; i < _kDays.length; i++) ...[
+                              Container(
+                                  width: 1,
                                   height: headerH,
-                                  isToday: _kDays[i] == todayName,
-                                  isWeekend:
-                                      _kWeekendDays.contains(_kDays[i]),
+                                  color: borderColor),
+                              _buildDayHeader(
+                                abbr: _kDayAbbr[i],
+                                dayName: _tDay(_kDays[i], t),
+                                date: weekMonday.add(Duration(days: i)),
+                                width: dayColW,
+                                height: headerH,
+                                isToday: _kDays[i] == todayName,
+                                isWeekend: _kWeekendDays.contains(_kDays[i]),
+                                isDark: isDark,
+                                textColor: textColor,
+                                mutedColor: mutedColor,
+                                colBg: _kWeekendDays.contains(_kDays[i])
+                                    ? weekendCellBg
+                                    : headerBg,
+                                t: t,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(height: 1, color: borderColor),
+
+                  // ── Scrollable period rows ────────────────────────────
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      controller: _weekHScroll,
+                      child: SizedBox(
+                        width: gridW,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: Column(
+                            children: [
+                              for (int ri = 0;
+                                  ri < _kPeriods.length;
+                                  ri++) ...[
+                                _buildGridRow(
+                                  period: _kPeriods[ri],
+                                  timeColW: timeColW,
+                                  dayColW: dayColW,
+                                  rowH: rowH,
+                                  breakH: breakH,
                                   isDark: isDark,
+                                  bgColor: bgColor,
+                                  breakBg: breakBg,
+                                  borderColor: borderColor,
                                   textColor: textColor,
                                   mutedColor: mutedColor,
+                                  weekendCellBg: weekendCellBg,
                                 ),
+                                if (ri < _kPeriods.length - 1)
+                                  Container(height: 1, color: borderColor),
                               ],
                             ],
                           ),
                         ),
-                        Container(height: 1, color: borderColor),
-                        // Period rows
-                        for (int ri = 0; ri < _kPeriods.length; ri++) ...[
-                          _buildGridRow(
-                            period: _kPeriods[ri],
-                            timeColW: timeColW,
-                            dayColW: dayColW,
-                            rowH: rowH,
-                            breakH: breakH,
-                            isDark: isDark,
-                            bgColor: bgColor,
-                            breakBg: breakBg,
-                            borderColor: borderColor,
-                            textColor: textColor,
-                            mutedColor: mutedColor,
-                          ),
-                          if (ri < _kPeriods.length - 1)
-                            Container(height: 1, color: borderColor),
-                        ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           );
@@ -630,6 +727,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
   Widget _buildDayHeader({
     required String abbr,
     required String dayName,
+    required DateTime date,
     required double width,
     required double height,
     required bool isToday,
@@ -637,43 +735,65 @@ class _TimetableScreenState extends State<TimetableScreen> {
     required bool isDark,
     required Color textColor,
     required Color mutedColor,
+    required Color colBg,
+    required Map<String, String> t,
   }) {
-    final weekendBg =
-        isDark ? const Color(0xFF131D35) : const Color(0xFFF2F4FA);
+    const monthKeys = ['jan','feb','mar','apr','may','jun',
+                       'jul','aug','sep','oct','nov','dec'];
+    const monthsFallback = ['Jan','Feb','Mar','Apr','May','Jun',
+                            'Jul','Aug','Sep','Oct','Nov','Dec'];
+    final monthLabel = t[monthKeys[date.month - 1]] ?? monthsFallback[date.month - 1];
+    final dateLabel = '$monthLabel ${date.day}';
+
     return Container(
       width: width,
       height: height,
-      color: isWeekend ? weekendBg : null,
-      child: Center(
-        child: isToday
-            ? Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  dayName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              )
-            : Text(
+      color: colBg,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (isToday)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
                 dayName,
-                style: AppTextStyles.body.copyWith(
-                  color: isWeekend ? mutedColor : textColor,
-                  fontSize: 14,
-                  fontWeight: isWeekend ? FontWeight.w500 : FontWeight.w600,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+            )
+          else
+            Text(
+              dayName,
+              style: AppTextStyles.body.copyWith(
+                color: isWeekend ? mutedColor : textColor,
+                fontSize: 13,
+                fontWeight: isWeekend ? FontWeight.w500 : FontWeight.w600,
+                height: 1.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          const SizedBox(height: 3),
+          Text(
+            dateLabel,
+            style: AppTextStyles.body.copyWith(
+              color: isToday ? AppColors.primary : mutedColor,
+              fontSize: 12,
+              fontWeight: isToday ? FontWeight.w600 : FontWeight.w400,
+              height: 1.2,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -690,11 +810,9 @@ class _TimetableScreenState extends State<TimetableScreen> {
     required Color borderColor,
     required Color textColor,
     required Color mutedColor,
+    required Color weekendCellBg,
   }) {
     final isBreak = period.period < 0;
-
-    final weekendCellBg =
-        isDark ? const Color(0xFF131D35) : const Color(0xFFF2F4FA);
 
     if (isBreak) {
       return Container(
@@ -849,7 +967,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     subjectName,
                     style: AppTextStyles.body.copyWith(
                         color: textColor,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -876,7 +994,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
               const SizedBox(height: 2),
               Text(className,
                   style:
-                      AppTextStyles.caption.copyWith(color: mutedColor, fontSize: 10),
+                      AppTextStyles.body.copyWith(color: mutedColor, fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center),
@@ -884,7 +1002,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
             if (teacherName.isNotEmpty)
               Text(teacherName,
                   style:
-                      AppTextStyles.caption.copyWith(color: mutedColor, fontSize: 10),
+                      AppTextStyles.body.copyWith(color: mutedColor, fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center),
@@ -898,15 +1016,14 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   Widget _buildClassView(Map<String, String> t, bool isDark, Color bgColor,
       Color borderColor, Color surfaceBg, Color textColor, Color mutedColor) {
-    const classColW = 150.0;
-    const minPeriodColW = 100.0;
+    const minColW = 130.0;
+    const fixedColW = 170.0;
     const rowH = 70.0;
-    const headerH = 48.0;
+    const headerH = 52.0;
     final headerBg = isDark ? const Color(0xFF1C2A4A) : AppColors.sidebarBg;
     final activePeriods = _kPeriods.where((p) => p.period > 0).toList();
-    final classNames = _classes
-        .map((c) => c['name']?.toString() ?? '')
-        .where((s) => s.isNotEmpty)
+    final classItems = _classes
+        .where((c) => c['name']?.toString().isNotEmpty == true)
         .toList();
 
     return Padding(
@@ -914,13 +1031,15 @@ class _TimetableScreenState extends State<TimetableScreen> {
           AppConstants.pagePaddingDesktop, AppConstants.pagePaddingDesktop),
       child: LayoutBuilder(
         builder: (_, constraints) {
-          final rawPeriodColW =
-              (constraints.maxWidth - classColW - activePeriods.length) /
+          final rawColW =
+              (constraints.maxWidth - fixedColW - 1 - activePeriods.length) /
                   activePeriods.length;
-          final periodColW = rawPeriodColW.clamp(minPeriodColW, double.infinity);
-          final gridW = classColW + (periodColW + 1) * activePeriods.length;
+          final colW = rawColW.clamp(minColW, double.infinity);
+          // Each period: colW wide + 1px right divider
+          final periodColsWidth = activePeriods.length * (colW + 1);
 
           return Container(
+            height: constraints.maxHeight,
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: BorderRadius.circular(8),
@@ -934,131 +1053,213 @@ class _TimetableScreenState extends State<TimetableScreen> {
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: gridW,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: Column(
-                      children: [
-                        // Header row
-                        Container(
-                          height: headerH,
-                          color: headerBg,
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: classColW,
-                                child: Center(
-                                  child: Text(
-                                    t['class_name'] ?? 'Class',
-                                    style: AppTextStyles.body.copyWith(
-                                      color: mutedColor,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              for (final p in activePeriods) ...[
-                                Container(
-                                    width: 1, height: headerH, color: borderColor),
-                                SizedBox(
-                                  width: periodColW,
-                                  height: headerH,
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          p.label,
-                                          style: AppTextStyles.body.copyWith(
-                                            color: textColor,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        Text(
-                                          p.time,
-                                          style: AppTextStyles.caption.copyWith(
-                                            color: mutedColor,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        Container(height: 1, color: borderColor),
-                        // Class rows
-                        if (classNames.isEmpty)
+              borderRadius: BorderRadius.circular(8),
+              child: Column(
+                children: [
+                  // ── Sticky header row ─────────────────────────────────────
+                  SizedBox(
+                    height: headerH,
+                    child: ColoredBox(
+                      color: headerBg,
+                      child: Row(
+                        children: [
+                          // Fixed "Class Info" cell
                           SizedBox(
-                            height: 120,
+                            width: fixedColW,
                             child: Center(
                               child: Text(
-                                t['no_classes'] ?? 'No classes',
-                                style: AppTextStyles.body.copyWith(color: mutedColor),
+                                t['class_info'] ?? 'Class Info',
+                                style: AppTextStyles.body.copyWith(
+                                  color: mutedColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          )
-                        else
-                          for (int ri = 0; ri < classNames.length; ri++) ...[
-                            SizedBox(
-                              height: rowH,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Container(
-                                    width: classColW,
-                                    color: headerBg,
-                                    child: Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8),
-                                        child: Text(
-                                          classNames[ri],
-                                          style: AppTextStyles.body.copyWith(
-                                            color: textColor,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 13,
+                          ),
+                          Container(
+                              width: 1, height: headerH, color: borderColor),
+                          // Period headers — driven by _classHHeaderScroll
+                          // (synced to _classHScroll via listener)
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              controller: _classHHeaderScroll,
+                              physics: const NeverScrollableScrollPhysics(),
+                              child: SizedBox(
+                                width: periodColsWidth,
+                                child: Row(
+                                  children: [
+                                    for (final p in activePeriods) ...[
+                                      SizedBox(
+                                        width: colW,
+                                        height: headerH,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 4, vertical: 6),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                p.label,
+                                                style: AppTextStyles.body
+                                                    .copyWith(
+                                                  color: textColor,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                              Text(
+                                                p.time,
+                                                style: AppTextStyles.body
+                                                    .copyWith(
+                                                  color: mutedColor,
+                                                  fontSize: 12,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
                                           ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                      Container(
+                                          width: 1,
+                                          height: headerH,
+                                          color: borderColor),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Container(height: 1, color: borderColor),
+
+                  // ── Body ─────────────────────────────────────────────────
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Fixed class info column — NeverScrollable, driven by _classVFixedScroll
+                        // (synced to _classVScroll via listener)
+                        SizedBox(
+                          width: fixedColW,
+                          child: SingleChildScrollView(
+                            controller: _classVFixedScroll,
+                            physics: const NeverScrollableScrollPhysics(),
+                            child: Column(
+                              children: [
+                                if (classItems.isEmpty)
+                                  const SizedBox(height: 120)
+                                else
+                                  for (int ri = 0;
+                                      ri < classItems.length;
+                                      ri++) ...[
+                                    Container(
+                                      height: rowH,
+                                      width: fixedColW,
+                                      clipBehavior: Clip.hardEdge,
+                                      decoration:
+                                          BoxDecoration(color: headerBg),
+                                      child: Center(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          child: _buildClassLabel(
+                                              classItems[ri],
+                                              textColor,
+                                              mutedColor,
+                                              isDark),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  for (final p in activePeriods) ...[
-                                    Container(width: 1, color: borderColor),
-                                    SizedBox(
-                                      width: periodColW,
-                                      child: _buildClassCell(
-                                        classNames[ri],
-                                        p.period,
-                                        isDark,
-                                        bgColor,
-                                        textColor,
-                                        mutedColor,
-                                      ),
-                                    ),
+                                    if (ri < classItems.length - 1)
+                                      Container(height: 1, color: borderColor),
                                   ],
-                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        Container(width: 1, color: borderColor),
+
+                        // Scrollable period content
+                        Expanded(
+                          child: Scrollbar(
+                            controller: _classHScroll,
+                            thumbVisibility: true,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              controller: _classHScroll,
+                              child: SizedBox(
+                                width: periodColsWidth,
+                                child: SingleChildScrollView(
+                                  controller: _classVScroll,
+                                  child: Column(
+                                    children: [
+                                      if (classItems.isEmpty)
+                                        SizedBox(
+                                          height: 120,
+                                          child: Center(
+                                            child: Text(
+                                              t['no_classes'] ?? 'No classes',
+                                              style: AppTextStyles.body
+                                                  .copyWith(color: mutedColor),
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        for (int ri = 0;
+                                            ri < classItems.length;
+                                            ri++) ...[
+                                          SizedBox(
+                                            height: rowH,
+                                            child: Row(
+                                              children: [
+                                                for (final p
+                                                    in activePeriods) ...[
+                                                  SizedBox(
+                                                    width: colW,
+                                                    child: _buildClassCell(
+                                                      classItems[ri]['name']
+                                                              ?.toString() ??
+                                                          '',
+                                                      p.period,
+                                                      isDark,
+                                                      bgColor,
+                                                      textColor,
+                                                      mutedColor,
+                                                      t,
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                      width: 1,
+                                                      color: borderColor),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                          if (ri < classItems.length - 1)
+                                            Container(
+                                                height: 1, color: borderColor),
+                                        ],
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                            if (ri < classNames.length - 1)
-                              Container(height: 1, color: borderColor),
-                          ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           );
@@ -1067,8 +1268,70 @@ class _TimetableScreenState extends State<TimetableScreen> {
     );
   }
 
+  Widget _buildClassLabel(dynamic cls, Color textColor, Color mutedColor, bool isDark) {
+    final code = cls['code']?.toString() ?? '';
+    final name = cls['name']?.toString() ?? '';
+    final desc = cls['description']?.toString() ?? '';
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
+                name,
+                style: AppTextStyles.body.copyWith(
+                  color: textColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  height: 1.2,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (code.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  code,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        if (desc.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            desc,
+            style: AppTextStyles.body.copyWith(
+              color: mutedColor,
+              fontSize: 12,
+              height: 1.2,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildClassCell(String className, int period, bool isDark, Color bgColor,
-      Color textColor, Color mutedColor) {
+      Color textColor, Color mutedColor, Map<String, String> t) {
     final entries = _classEntriesAt(className, period);
     if (entries.isEmpty) {
       return GestureDetector(
@@ -1076,70 +1339,101 @@ class _TimetableScreenState extends State<TimetableScreen> {
         child: Container(color: Colors.transparent),
       );
     }
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+
+    final entry = entries.first as Map<String, dynamic>;
+    final isSelected = _selectedEntry?['id'] == entry['id'];
+    final color = _colorForSubject(entry['subjectId']);
+    final subject = entry['subjectName']?.toString() ??
+        entry['subjectCode']?.toString() ?? '';
+    final teacher = entry['teacherName']?.toString() ?? '';
+    final dayAbbr = _tDay(entry['day']?.toString() ?? '', t);
+
+    return GestureDetector(
+      onTap: () => setState(() =>
+          _selectedEntry = isSelected ? null : Map<String, dynamic>.from(entry)),
+      onDoubleTap: () {
+        setState(() => _selectedEntry = Map<String, dynamic>.from(entry));
+        _openForm(entry: Map<String, dynamic>.from(entry));
+      },
+      child: Container(
+        margin: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isDark ? 0.18 : 0.1),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected ? color : color.withValues(alpha: 0.4),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
-          children: entries.map((entry) {
-            final isSelected = _selectedEntry?['id'] == entry['id'];
-            final color = _colorForSubject(entry['subjectId']);
-            final subject = entry['subjectName']?.toString() ??
-                entry['subjectCode']?.toString() ?? '';
-            final dayAbbr = _dayAbbr(entry['day']?.toString() ?? '');
-            return GestureDetector(
-              onTap: () => setState(() =>
-                  _selectedEntry = isSelected ? null : Map<String, dynamic>.from(entry as Map)),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isSelected ? color : color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: isSelected ? color : color.withValues(alpha: 0.30),
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                    width: 6,
+                    height: 6,
+                    decoration:
+                        BoxDecoration(color: color, shape: BoxShape.circle)),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    subject,
+                    style: AppTextStyles.body.copyWith(
+                        color: textColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        subject,
-                        style: AppTextStyles.caption.copyWith(
-                          color: isSelected ? Colors.white : color,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                if (entries.length > 1) ...[
+                  const SizedBox(width: 3),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(3),
                     ),
-                    const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 3, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Colors.white.withValues(alpha: 0.25)
-                            : color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Text(
-                        dayAbbr,
-                        style: AppTextStyles.caption.copyWith(
-                          color: isSelected ? Colors.white : color,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                    child: Text('!${entries.length}',
+                        style: AppTextStyles.body
+                            .copyWith(color: AppColors.error, fontSize: 10)),
+                  ),
+                ],
+                const SizedBox(width: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    dayAbbr,
+                    style: AppTextStyles.caption.copyWith(
+                      color: color,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            );
-          }).toList(),
+              ],
+            ),
+            if (teacher.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(teacher,
+                  style: AppTextStyles.body
+                      .copyWith(color: mutedColor, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+            ],
+          ],
         ),
       ),
     );
@@ -1193,7 +1487,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
           if (grouped.containsKey(day)) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
-              child: Text(day,
+              child: Text(_tDay(day, t),
                   style: AppTextStyles.heading3.copyWith(
                       color: textColor,
                       fontWeight: FontWeight.w700,
@@ -1353,14 +1647,12 @@ class _TblBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool iconOnly;
-  final bool enabled;
   final VoidCallback? onTap;
 
   const _TblBtn({
     required this.icon,
     required this.label,
     this.iconOnly = false,
-    this.enabled = true,
     this.onTap,
   });
 
@@ -1382,13 +1674,13 @@ class _TblBtn extends StatelessWidget {
 
     if (iconOnly) {
       return OutlinedButton(
-        onPressed: enabled ? onTap : null,
+        onPressed: onTap,
         style: style,
         child: Icon(icon, size: 18),
       );
     }
     return OutlinedButton.icon(
-      onPressed: enabled ? onTap : null,
+      onPressed: onTap,
       icon: Icon(icon, size: 18),
       label: Text(label),
       style: style,
@@ -1421,30 +1713,30 @@ class _IconBtn extends StatelessWidget {
   }
 }
 
-// ── Add / Edit form dialog ─────────────────────────────────────────────────────
+// ── Add / Edit form panel (full-page, matches student form style) ──────────────
 
-class _TimetableFormDialog extends StatefulWidget {
+class _TimetableFormPanel extends StatefulWidget {
   final Map<String, dynamic>? entry;
   final List<dynamic> classes;
   final List<dynamic> teachers;
   final List<dynamic> subjects;
-  final Map<String, String> t;
-  final bool isDark;
+  final VoidCallback onCancel;
+  final Future<void> Function(Map<String, dynamic>) onSave;
 
-  const _TimetableFormDialog({
+  const _TimetableFormPanel({
     this.entry,
     required this.classes,
     required this.teachers,
     required this.subjects,
-    required this.t,
-    required this.isDark,
+    required this.onCancel,
+    required this.onSave,
   });
 
   @override
-  State<_TimetableFormDialog> createState() => _TimetableFormDialogState();
+  State<_TimetableFormPanel> createState() => _TimetableFormPanelState();
 }
 
-class _TimetableFormDialogState extends State<_TimetableFormDialog> {
+class _TimetableFormPanelState extends State<_TimetableFormPanel> {
   String? _day;
   int? _period;
   int? _classId;
@@ -1452,6 +1744,12 @@ class _TimetableFormDialogState extends State<_TimetableFormDialog> {
   int? _teacherId;
   final _roomCtrl = TextEditingController();
   final _yearCtrl = TextEditingController();
+  bool _saving = false;
+  bool _backHovering = false;
+  bool _dayError = false;
+  bool _periodError = false;
+  bool _classError = false;
+  bool _subjectError = false;
 
   @override
   void initState() {
@@ -1479,253 +1777,491 @@ class _TimetableFormDialogState extends State<_TimetableFormDialog> {
   int? _toInt(dynamic v) =>
       v == null ? null : (v is int ? v : int.tryParse(v.toString()));
 
-  bool get _isValid => _day != null && _period != null && _classId != null && _subjectId != null;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = widget.t;
-    final isDark = widget.isDark;
-    final dlgBg = isDark ? const Color(0xFF1C2A4A) : Colors.white;
-    final titleColor = isDark ? Colors.white : AppColors.textPrimary;
-    final labelColor = isDark ? Colors.white70 : AppColors.textSecondary;
-    final fieldBg = isDark ? const Color(0xFF162035) : AppColors.background;
-    final borderColor = isDark ? const Color(0xFF2A3A5A) : AppColors.border;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
-    final isEditing = widget.entry != null;
-
-    Widget dropRow(
-        String label, Widget dd1, String label2, Widget dd2) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: _fieldWrap(label, dd1, labelColor)),
-          const SizedBox(width: 12),
-          Expanded(child: _fieldWrap(label2, dd2, labelColor)),
-        ],
-      );
+  Future<void> _save() async {
+    final dayEmpty = _day == null;
+    final periodEmpty = _period == null;
+    final classEmpty = _classId == null;
+    final subjectEmpty = _subjectId == null;
+    if (dayEmpty || periodEmpty || classEmpty || subjectEmpty) {
+      setState(() {
+        _dayError = dayEmpty;
+        _periodError = periodEmpty;
+        _classError = classEmpty;
+        _subjectError = subjectEmpty;
+      });
+      return;
     }
-
-    Widget dd<T>({
-      required T? value,
-      required String hint,
-      required List<DropdownMenuItem<T>> items,
-      required ValueChanged<T?> onChanged,
-    }) {
-      return Container(
-        height: 42,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: fieldBg,
-          border: Border.all(color: borderColor),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<T>(
-            value: value,
-            hint: Text(hint,
-                style: AppTextStyles.body.copyWith(color: labelColor, fontSize: 13)),
-            dropdownColor: dlgBg,
-            style: AppTextStyles.body.copyWith(color: textColor, fontSize: 13),
-            icon: Icon(Icons.keyboard_arrow_down, size: 16, color: labelColor),
-            isExpanded: true,
-            items: items,
-            onChanged: onChanged,
-          ),
-        ),
-      );
+    setState(() {
+      _saving = true;
+      _dayError = false;
+      _periodError = false;
+      _classError = false;
+      _subjectError = false;
+    });
+    try {
+      await widget.onSave({
+        'day': _day,
+        'period': _period,
+        'classId': _classId,
+        'subjectId': _subjectId,
+        'teacherId': _teacherId,
+        'room': _roomCtrl.text.trim(),
+        'academicYear': _yearCtrl.text.trim(),
+      });
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
+  }
 
-    Widget textField(TextEditingController ctrl, String hint) {
-      return TextField(
-        controller: ctrl,
-        style: AppTextStyles.body.copyWith(color: textColor, fontSize: 13),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle:
-              AppTextStyles.body.copyWith(color: labelColor, fontSize: 13),
-          filled: true,
-          fillColor: fieldBg,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: borderColor)),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: borderColor)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-        ),
-      );
-    }
-
-    final periodItems = _kPeriods
-        .where((p) => p.period > 0)
-        .map((p) => DropdownMenuItem<int>(
-              value: p.period,
-              child: Text('${p.label}  ${p.time}',
-                  style: AppTextStyles.body.copyWith(color: textColor, fontSize: 13)),
-            ))
-        .toList();
-
-    return AlertDialog(
-      backgroundColor: dlgBg,
-      contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      title: Text(
-        isEditing
-            ? (t['edit_timetable'] ?? 'Edit Entry')
-            : (t['add_timetable'] ?? 'Add Entry'),
-        style: AppTextStyles.body
-            .copyWith(fontWeight: FontWeight.w700, color: titleColor),
-      ),
-      content: SizedBox(
-        width: 420,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 4),
-              dropRow(
-                t['day'] ?? 'Day',
-                dd<String>(
-                  value: _day,
-                  hint: t['select_day'] ?? 'Select Day',
-                  items: _kDays
-                      .map((d) => DropdownMenuItem<String>(
-                            value: d,
-                            child: Text(d,
-                                style: AppTextStyles.body
-                                    .copyWith(color: textColor, fontSize: 13)),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => _day = v),
-                ),
-                t['period'] ?? 'Period',
-                dd<int>(
-                  value: _period,
-                  hint: t['select_period'] ?? 'Select Period',
-                  items: periodItems,
-                  onChanged: (v) => setState(() => _period = v),
-                ),
-              ),
-              _fieldWrap(
-                t['select_class'] ?? 'Class',
-                dd<int>(
-                  value: _classId,
-                  hint: t['select_class'] ?? 'Select Class',
-                  items: widget.classes
-                      .map((c) => DropdownMenuItem<int>(
-                            value: c['id'] as int?,
-                            child: Text(
-                                c['name']?.toString() ?? '',
-                                style: AppTextStyles.body
-                                    .copyWith(color: textColor, fontSize: 13)),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => _classId = v),
-                ),
-                labelColor,
-              ),
-              _fieldWrap(
-                t['subject'] ?? 'Subject',
-                dd<int>(
-                  value: _subjectId,
-                  hint: t['subject'] ?? 'Select Subject',
-                  items: widget.subjects
-                      .map((s) => DropdownMenuItem<int>(
-                            value: s['id'] as int?,
-                            child: Text(
-                                '${s['code'] ?? ''} — ${s['name'] ?? ''}',
-                                style: AppTextStyles.body
-                                    .copyWith(color: textColor, fontSize: 13)),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => _subjectId = v),
-                ),
-                labelColor,
-              ),
-              _fieldWrap(
-                t['teachers'] ?? 'Teacher',
-                dd<int?>(
-                  value: _teacherId,
-                  hint: t['select_teacher'] ?? 'Select Teacher',
-                  items: [
-                    DropdownMenuItem<int?>(
-                      value: null,
-                      child: Text(t['none'] ?? 'None',
-                          style: AppTextStyles.body
-                              .copyWith(color: labelColor, fontSize: 13)),
-                    ),
-                    ...widget.teachers.map((tc) {
-                      final name =
-                          '${tc['firstName'] ?? tc['first_name'] ?? ''} ${tc['lastName'] ?? tc['last_name'] ?? ''}'
-                              .trim();
-                      return DropdownMenuItem<int?>(
-                        value: tc['id'] as int?,
-                        child: Text(
-                            name.isEmpty ? (tc['name']?.toString() ?? '') : name,
-                            style: AppTextStyles.body
-                                .copyWith(color: textColor, fontSize: 13)),
-                      );
-                    }),
-                  ],
-                  onChanged: (v) => setState(() => _teacherId = v),
-                ),
-                labelColor,
-              ),
-              dropRow(
-                t['room'] ?? 'Room',
-                textField(_roomCtrl, t['room_hint'] ?? 'e.g. Room 101'),
-                t['academic_year'] ?? 'Academic Year',
-                textField(_yearCtrl, '2024–2025'),
-              ),
-              const SizedBox(height: 4),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(t['cancel'] ?? 'Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _isValid
-              ? () => Navigator.pop(context, {
-                    'day': _day,
-                    'period': _period,
-                    'classId': _classId,
-                    'subjectId': _subjectId,
-                    'teacherId': _teacherId,
-                    'room': _roomCtrl.text.trim(),
-                    'academicYear': _yearCtrl.text.trim(),
-                  })
-              : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor:
-                AppColors.primary.withValues(alpha: 0.4),
-          ),
-          child: Text(t['save'] ?? 'Save'),
-        ),
-      ],
+  InputDecoration _inputDec(String hint, {bool isDark = false}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: AppTextStyles.body.copyWith(
+          color: isDark ? Colors.white70 : AppColors.textMuted),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
     );
   }
 
-  Widget _fieldWrap(String label, Widget child, Color labelColor) {
+  Widget _labeled(String label, Widget child) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: AppTextStyles.caption
-                .copyWith(color: labelColor, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
+            style: AppTextStyles.body
+                .copyWith(color: AppColors.textSecondary)),
+        const SizedBox(height: 6),
         child,
-        const SizedBox(height: 12),
       ],
+    );
+  }
+
+  Widget _requiredLabeled(String label, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(TextSpan(children: [
+          TextSpan(
+              text: label,
+              style: AppTextStyles.body
+                  .copyWith(color: AppColors.textSecondary)),
+          TextSpan(
+              text: ' *',
+              style: AppTextStyles.body.copyWith(color: AppColors.error)),
+        ])),
+        const SizedBox(height: 6),
+        child,
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceBg = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final isEdit = widget.entry != null;
+
+    // ── Dropdown helper (matches _StyledDropdown visual) ──────────────
+    Widget drop<T>({
+      required T? value,
+      required String hint,
+      required List<T> items,
+      required List<String> labels,
+      required ValueChanged<T?> onChanged,
+      bool hasError = false,
+    }) {
+      return _TimetableDropdown<T>(
+        value: value,
+        hint: hint,
+        items: items,
+        labels: labels,
+        isDark: isDark,
+        hasError: hasError,
+        onChanged: onChanged,
+      );
+    }
+
+    final periodItems = _kPeriods.where((p) => p.period > 0).toList();
+
+    return Container(
+      color: surfaceBg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.all(AppConstants.pagePadding),
+            child: Row(children: [
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                onEnter: (_) => setState(() => _backHovering = true),
+                onExit: (_) => setState(() => _backHovering = false),
+                child: GestureDetector(
+                  onTap: widget.onCancel,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: _backHovering
+                          ? AppColors.primary.withValues(alpha: 0.08)
+                          : Colors.transparent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.arrow_back_rounded,
+                          size: 22, color: AppColors.textSecondary),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                isEdit
+                    ? (t['edit_timetable'] ?? 'Edit Entry')
+                    : (t['add_timetable'] ?? 'Add Entry'),
+                style: AppTextStyles.body.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16),
+              ),
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.check, size: 18),
+                label: Text(t['save'] ?? 'Save'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryLight,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 18),
+                  side: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF2A2A4A)
+                          : AppColors.border,
+                      width: 1),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
+                ),
+              ),
+            ]),
+          ),
+
+          // ── Form body ────────────────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Row: Day + Period
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _requiredLabeled(
+                                '${t['day'] ?? 'Day'}:',
+                                drop<String>(
+                                  value: _day,
+                                  hint: t['select_day'] ?? 'Select Day',
+                                  items: _kDays,
+                                  labels: _kDays.map((d) => _tDay(d, t)).toList(),
+                                  hasError: _dayError,
+                                  onChanged: (v) => setState(() {
+                                    _day = v;
+                                    _dayError = false;
+                                  }),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _requiredLabeled(
+                                '${t['period'] ?? 'Period'}:',
+                                drop<int>(
+                                  value: _period,
+                                  hint: t['select_period'] ??
+                                      'Select Period',
+                                  items: periodItems
+                                      .map((p) => p.period)
+                                      .toList(),
+                                  labels: periodItems
+                                      .map((p) => '${p.label}  ${p.time}')
+                                      .toList(),
+                                  hasError: _periodError,
+                                  onChanged: (v) => setState(() {
+                                    _period = v;
+                                    _periodError = false;
+                                  }),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Class (full width)
+                        _requiredLabeled(
+                          '${t['select_class'] ?? 'Class'}:',
+                          drop<int>(
+                            value: _classId,
+                            hint: t['select_class'] ?? 'Select Class',
+                            items: widget.classes
+                                .map((c) => c['id'] as int)
+                                .toList(),
+                            labels: widget.classes
+                                .map((c) => c['name']?.toString() ?? '')
+                                .toList(),
+                            hasError: _classError,
+                            onChanged: (v) => setState(() {
+                              _classId = v;
+                              _classError = false;
+                            }),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Row: Subject + Teacher
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _requiredLabeled(
+                                '${t['subject'] ?? 'Subject'}:',
+                                drop<int>(
+                                  value: _subjectId,
+                                  hint: t['subject'] ?? 'Select Subject',
+                                  items: widget.subjects
+                                      .map((s) => s['id'] as int)
+                                      .toList(),
+                                  labels: widget.subjects
+                                      .map((s) =>
+                                          '${s['code'] ?? ''} — ${s['name'] ?? ''}')
+                                      .toList(),
+                                  hasError: _subjectError,
+                                  onChanged: (v) => setState(() {
+                                    _subjectId = v;
+                                    _subjectError = false;
+                                  }),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _labeled(
+                                '${t['teachers'] ?? 'Teacher'}:',
+                                drop<int>(
+                                  value: _teacherId,
+                                  hint: t['select_teacher'] ??
+                                      'Select Teacher',
+                                  items: [
+                                    -1,
+                                    ...widget.teachers
+                                        .map((tc) => tc['id'] as int)
+                                  ],
+                                  labels: [
+                                    t['none'] ?? 'None',
+                                    ...widget.teachers.map((tc) {
+                                      final name =
+                                          '${tc['firstName'] ?? tc['first_name'] ?? ''} ${tc['lastName'] ?? tc['last_name'] ?? ''}'
+                                              .trim();
+                                      return name.isEmpty
+                                          ? (tc['name']?.toString() ?? '')
+                                          : name;
+                                    }),
+                                  ],
+                                  onChanged: (v) => setState(() =>
+                                      _teacherId = (v == -1) ? null : v),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Row: Room + Academic Year
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _labeled(
+                                '${t['room'] ?? 'Room'}:',
+                                SizedBox(
+                                  height: 44,
+                                  child: TextField(
+                                    controller: _roomCtrl,
+                                    style: AppTextStyles.body
+                                        .copyWith(color: textColor),
+                                    decoration: _inputDec(
+                                        t['room_hint'] ?? 'e.g. Room 101',
+                                        isDark: isDark),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _labeled(
+                                '${t['academic_year'] ?? 'Academic Year'}:',
+                                SizedBox(
+                                  height: 44,
+                                  child: TextField(
+                                    controller: _yearCtrl,
+                                    style: AppTextStyles.body
+                                        .copyWith(color: textColor),
+                                    decoration: _inputDec('2024–2025',
+                                        isDark: isDark),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Dropdown widget matching _StyledDropdown visual ────────────────────────────
+
+class _TimetableDropdown<T> extends StatelessWidget {
+  final T? value;
+  final String hint;
+  final List<T> items;
+  final List<String> labels;
+  final bool isDark;
+  final bool hasError;
+  final ValueChanged<T?> onChanged;
+
+  const _TimetableDropdown({
+    required this.value,
+    required this.hint,
+    required this.items,
+    required this.labels,
+    required this.isDark,
+    required this.onChanged,
+    this.hasError = false,
+  });
+
+  void _open(BuildContext context) {
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A3A5A) : AppColors.border;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    const activeColor = AppColors.primary;
+
+    final renderBox = context.findRenderObject() as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final rect = RelativeRect.fromRect(
+      Rect.fromPoints(
+        renderBox.localToGlobal(Offset(0, renderBox.size.height),
+            ancestor: overlay),
+        renderBox.localToGlobal(renderBox.size.bottomRight(Offset.zero),
+            ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+    final buttonWidth = renderBox.size.width;
+
+    showMenu<int>(
+      context: context,
+      position: rect,
+      elevation: 4,
+      color: bgColor,
+      constraints:
+          BoxConstraints(minWidth: buttonWidth, maxWidth: buttonWidth),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: borderColor),
+      ),
+      items: items.asMap().entries.map((e) {
+        final isSelected = e.value == value;
+        return PopupMenuItem<int>(
+          value: e.key,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          child: Row(children: [
+            Expanded(
+              child: Text(labels[e.key],
+                  style: AppTextStyles.body.copyWith(
+                    color: isSelected ? activeColor : textColor,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                  )),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_rounded, size: 15, color: activeColor),
+          ]),
+        );
+      }).toList(),
+    ).then((idx) {
+      if (idx != null) onChanged(items[idx]);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = hasError
+        ? AppColors.error
+        : isDark
+            ? const Color(0xFF2A3A5A)
+            : AppColors.border;
+    final bgColor = isDark ? const Color(0xFF16213E) : AppColors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white38 : AppColors.textMuted;
+    final iconColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
+    final idx = value != null ? items.indexOf(value as T) : -1;
+    final display = idx >= 0 ? labels[idx] : null;
+
+    return InkWell(
+      onTap: () => _open(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor, width: hasError ? 1.5 : 1),
+        ),
+        child: Row(children: [
+          Expanded(
+            child: Text(
+              display ?? hint,
+              style: AppTextStyles.body.copyWith(
+                  color: display != null ? textColor : mutedColor),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Icon(Icons.keyboard_arrow_down_rounded,
+              size: 18, color: iconColor),
+        ]),
+      ),
     );
   }
 }
@@ -1946,7 +2482,7 @@ class _TimetableFilterPanelState extends State<_TimetableFilterPanel> {
 
     final dayChips = [
       _chip(t['all_days'] ?? 'All', 'all', dayVal, (v) => _day = v),
-      ..._kDays.map((d) => _chip(d, d, dayVal, (v) => _day = v)),
+      ..._kDays.map((d) => _chip(_tDay(d, t), d, dayVal, (v) => _day = v)),
     ];
 
     return Container(
@@ -2128,6 +2664,648 @@ class _ToggleSeg extends StatelessWidget {
               icon,
               size: 16,
               color: active ? activeColor : inactiveColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Timetable skeleton loader ─────────────────────────────────────────────────
+
+class _TimetableSkeleton extends StatefulWidget {
+  const _TimetableSkeleton({this.isClassView = false});
+  final bool isClassView;
+  @override
+  State<_TimetableSkeleton> createState() => _TimetableSkeletonState();
+}
+
+class _TimetableSkeletonState extends State<_TimetableSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w < 600;
+
+    final base = isDark ? const Color(0xFF1C2A4A) : const Color(0xFFE8EBF2);
+    final shimmer = isDark ? const Color(0xFF2A3D60) : const Color(0xFFF5F6FA);
+    final bgColor = isDark ? const Color(0xFF1C2A4A) : AppColors.white;
+    final borderColor = isDark ? const Color(0xFF2A3A5A) : AppColors.border;
+    final headerBg = isDark ? const Color(0xFF162035) : AppColors.sidebarBg;
+    final weekendBg =
+        isDark ? const Color(0xFF131D35) : const Color(0xFFF2F4FA);
+
+    Widget block({double? w, double h = 14, double r = 6}) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+              color: base, borderRadius: BorderRadius.circular(r)),
+        );
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        final progress = _ctrl.value;
+        Shader shader(Rect bounds) => LinearGradient(
+              begin: Alignment(-3.0 + progress * 6.0, 0),
+              end: Alignment(-1.0 + progress * 6.0, 0),
+              colors: [base, shimmer, base],
+              stops: const [0.0, 0.5, 1.0],
+            ).createShader(bounds);
+
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: shader,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppConstants.pagePaddingDesktop,
+                4,
+                AppConstants.pagePaddingDesktop,
+                AppConstants.pagePaddingDesktop),
+            child: isMobile
+                ? _buildMobileSkeleton(block, bgColor, borderColor)
+                : widget.isClassView
+                    ? _buildClassSkeleton(block, base, bgColor, borderColor, headerBg)
+                    : _buildGridSkeleton(block, base, bgColor, borderColor,
+                        headerBg, weekendBg),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGridSkeleton(
+    Widget Function({double? w, double h, double r}) block,
+    Color base,
+    Color bgColor,
+    Color borderColor,
+    Color headerBg,
+    Color weekendBg,
+  ) {
+    const timeColW = 150.0;
+    const headerH = 52.0;
+    const rowH = 78.0;
+    const breakH = 48.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(
+        builder: (_, constraints) {
+          final dayColW =
+              ((constraints.maxWidth - timeColW - _kDays.length) / _kDays.length)
+                  .clamp(100.0, double.infinity);
+
+          return Column(
+            children: [
+              // Header row
+              SizedBox(
+                height: headerH,
+                child: Row(
+                  children: [
+                    Container(
+                      width: timeColW,
+                      height: headerH,
+                      color: headerBg,
+                      child: Center(child: block(w: 64, h: 12)),
+                    ),
+                    for (int i = 0; i < _kDays.length; i++) ...[
+                      Container(
+                          width: 1, height: headerH, color: borderColor),
+                      Container(
+                        width: dayColW,
+                        height: headerH,
+                        color: _kWeekendDays.contains(_kDays[i])
+                            ? weekendBg
+                            : headerBg,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            block(w: 52, h: 12),
+                            const SizedBox(height: 5),
+                            block(w: 38, h: 10),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Container(height: 1, color: borderColor),
+              // Period rows
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: Column(
+                    children: [
+                      for (int ri = 0; ri < _kPeriods.length; ri++) ...[
+                        if (ri > 0) Container(height: 1, color: borderColor),
+                        SizedBox(
+                          height: _kPeriods[ri].period < 0 ? breakH : rowH,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Time column
+                              Container(
+                                width: timeColW,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
+                                child: Column(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.center,
+                                  children: _kPeriods[ri].period < 0
+                                      ? [block(w: 56, h: 12)]
+                                      : [
+                                          block(w: 30, h: 14),
+                                          const SizedBox(height: 5),
+                                          block(w: 90, h: 11),
+                                        ],
+                                ),
+                              ),
+                              // Day cells
+                              for (int di = 0; di < _kDays.length; di++) ...[
+                                Container(width: 1, color: borderColor),
+                                Container(
+                                  width: dayColW,
+                                  color: _kWeekendDays.contains(_kDays[di])
+                                      ? weekendBg.withValues(alpha: 0.5)
+                                      : null,
+                                  child: _kPeriods[ri].period > 0
+                                      ? Container(
+                                          margin: const EdgeInsets.all(3),
+                                          decoration: BoxDecoration(
+                                            color: base.withValues(alpha: 0.45),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            border:
+                                                Border.all(color: base),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 6),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Container(
+                                                      width: 6,
+                                                      height: 6,
+                                                      decoration: BoxDecoration(
+                                                          color: base,
+                                                          shape:
+                                                              BoxShape.circle)),
+                                                  const SizedBox(width: 4),
+                                                  Expanded(
+                                                      child: block(h: 12)),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              block(
+                                                  w: dayColW * 0.55, h: 10),
+                                              const SizedBox(height: 3),
+                                              block(
+                                                  w: dayColW * 0.42, h: 10),
+                                            ],
+                                          ),
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildClassSkeleton(
+    Widget Function({double? w, double h, double r}) block,
+    Color base,
+    Color bgColor,
+    Color borderColor,
+    Color headerBg,
+  ) {
+    const fixedColW = 170.0;
+    const headerH = 52.0;
+    const rowH = 70.0;
+    const numClasses = 5;
+    final activePeriods = _kPeriods.where((p) => p.period > 0).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(
+        builder: (_, constraints) {
+          final colW = ((constraints.maxWidth - fixedColW - 1 - activePeriods.length) /
+                  activePeriods.length)
+              .clamp(100.0, double.infinity);
+
+          return Column(
+            children: [
+              // ── Header row ──────────────────────────────────────────
+              SizedBox(
+                height: headerH,
+                child: Row(
+                  children: [
+                    // "Class Info" label column
+                    Container(
+                      width: fixedColW,
+                      height: headerH,
+                      color: headerBg,
+                      child: Center(child: block(w: 72, h: 12)),
+                    ),
+                    Container(width: 1, height: headerH, color: borderColor),
+                    // Period header columns
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: SizedBox(
+                          width: activePeriods.length * (colW + 1),
+                          child: Row(
+                            children: [
+                              for (final _ in activePeriods) ...[
+                                Container(
+                                  width: colW,
+                                  height: headerH,
+                                  color: headerBg,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      block(w: 32, h: 13),
+                                      const SizedBox(height: 5),
+                                      block(w: 72, h: 10),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                    width: 1,
+                                    height: headerH,
+                                    color: borderColor),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(height: 1, color: borderColor),
+              // ── Body ────────────────────────────────────────────────
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Fixed class name column
+                    SizedBox(
+                      width: fixedColW,
+                      child: SingleChildScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: Column(
+                          children: [
+                            for (int ri = 0; ri < numClasses; ri++) ...[
+                              Container(
+                                height: rowH,
+                                width: fixedColW,
+                                color: headerBg,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    block(w: 100, h: 13),
+                                    const SizedBox(height: 6),
+                                    block(w: 68, h: 11),
+                                  ],
+                                ),
+                              ),
+                              if (ri < numClasses - 1)
+                                Container(height: 1, color: borderColor),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    Container(width: 1, color: borderColor),
+                    // Period cells
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: SizedBox(
+                          width: activePeriods.length * (colW + 1),
+                          child: SingleChildScrollView(
+                            physics: const NeverScrollableScrollPhysics(),
+                            child: Column(
+                              children: [
+                                for (int ri = 0; ri < numClasses; ri++) ...[
+                                  SizedBox(
+                                    height: rowH,
+                                    child: Row(
+                                      children: [
+                                        for (int ci = 0;
+                                            ci < activePeriods.length;
+                                            ci++) ...[
+                                          SizedBox(
+                                            width: colW,
+                                            height: rowH,
+                                            child: Container(
+                                              margin: const EdgeInsets.all(3),
+                                              decoration: BoxDecoration(
+                                                color: base.withValues(
+                                                    alpha: 0.45),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(color: base),
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 6),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.center,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Container(
+                                                          width: 6,
+                                                          height: 6,
+                                                          decoration: BoxDecoration(
+                                                              color: base,
+                                                              shape: BoxShape
+                                                                  .circle)),
+                                                      const SizedBox(width: 4),
+                                                      Expanded(
+                                                          child: block(h: 12)),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  block(
+                                                      w: colW * 0.55, h: 10),
+                                                  const SizedBox(height: 3),
+                                                  block(
+                                                      w: colW * 0.42, h: 10),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                              width: 1,
+                                              height: rowH,
+                                              color: borderColor),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  if (ri < numClasses - 1)
+                                    Container(height: 1, color: borderColor),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMobileSkeleton(
+    Widget Function({double? w, double h, double r}) block,
+    Color bgColor,
+    Color borderColor,
+  ) {
+    return ListView.separated(
+      padding: const EdgeInsets.only(top: 8, bottom: 16),
+      itemCount: 6,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 4,
+              height: 54,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  block(w: 160, h: 14),
+                  const SizedBox(height: 8),
+                  block(w: 120, h: 12),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    block(w: 58, h: 20, r: 10),
+                    const SizedBox(width: 8),
+                    block(w: 50, h: 20, r: 10),
+                  ]),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            block(w: 40, h: 40, r: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Toast notification (matches students screen) ──────────────────────────────
+
+class _ToastNotification extends StatefulWidget {
+  final String message;
+  final bool isError;
+  final bool isWarning;
+  final VoidCallback onDismiss;
+
+  const _ToastNotification({
+    required this.message,
+    required this.isError,
+    required this.onDismiss,
+    this.isWarning = false,
+  });
+
+  @override
+  State<_ToastNotification> createState() => _ToastNotificationState();
+}
+
+class _ToastNotificationState extends State<_ToastNotification>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _progress = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _progress.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale]!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = widget.isError
+        ? AppColors.error
+        : widget.isWarning
+            ? const Color(0xFFF59E0B)
+            : AppColors.primary;
+    final icon = widget.isError
+        ? Icons.close
+        : widget.isWarning
+            ? Icons.warning_amber_rounded
+            : Icons.check;
+    final title = widget.isError
+        ? (t['error'] ?? 'Error')
+        : widget.isWarning
+            ? (t['warning'] ?? 'Warning')
+            : (t['success'] ?? 'Success');
+    final bgColor = isDark ? const Color(0xFF1C2A4A) : AppColors.white;
+    final titleColor = isDark ? Colors.white : AppColors.textPrimary;
+    final msgColor = isDark ? Colors.white60 : AppColors.textSecondary;
+    final closeColor = isDark ? Colors.white54 : AppColors.textSecondary;
+
+    return Positioned(
+      top: 24,
+      right: 24,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 360,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.10),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle, color: color),
+                      child: Icon(icon, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: AppTextStyles.heading3
+                                  .copyWith(color: titleColor)),
+                          const SizedBox(height: 2),
+                          Text(widget.message,
+                              style: AppTextStyles.body
+                                  .copyWith(color: msgColor)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: widget.onDismiss,
+                      child: Icon(Icons.close, size: 20, color: closeColor),
+                    ),
+                  ]),
+                ),
+                AnimatedBuilder(
+                  animation: _progress,
+                  builder: (_, __) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: 1.0 - _progress.value,
+                      child: Container(height: 4, color: color),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
