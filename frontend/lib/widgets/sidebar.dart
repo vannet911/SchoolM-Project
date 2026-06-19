@@ -222,11 +222,9 @@ class _CollapsedNavItemState extends State<_CollapsedNavItem> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final hoverColor = isDark
-        ? Colors.white.withValues(alpha: 0.00)
-        : Colors.black.withValues(alpha: 0.00);
-    final activeBg = isDark
-        ? AppColors.primaryLight.withValues(alpha: 0.0)
-        : AppColors.primaryLight.withValues(alpha: 0.0);
+        ? Colors.white.withValues(alpha: 0.0)
+        : Colors.black.withValues(alpha: 0.0);
+    final activeBg = isDark ? const Color(0xFF1A1A2E) : AppColors.background;
 
     return Material(
       color: Colors.transparent,
@@ -235,7 +233,7 @@ class _CollapsedNavItemState extends State<_CollapsedNavItem> {
         onHover: (v) => WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => isHovering = v); }),
         borderRadius: BorderRadius.circular(8),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 0),
           width: double.infinity,
           margin: const EdgeInsets.symmetric(vertical: 2),
           padding: const EdgeInsets.symmetric(vertical: 8),

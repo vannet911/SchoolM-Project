@@ -1716,10 +1716,6 @@ class _FilterPanelState extends State<_FilterPanel> {
               ? AppColors.primary.withValues(alpha: 0.12)
               : (isDark ? const Color(0xFF1C2A4A) : const Color(0xFFF3F4F6)),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? AppColors.primary : Colors.transparent,
-            width: 1.5,
-          ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Text(
@@ -1773,11 +1769,11 @@ class _FilterPanelState extends State<_FilterPanel> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
             child: Row(children: [
-              const Icon(Icons.tune_rounded, size: 16, color: AppColors.primary),
+              const Icon(Icons.tune_rounded, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(t['filter'] ?? 'Filter',
-                    style: AppTextStyles.label.copyWith(
+                    style: AppTextStyles.body.copyWith(
                         color: textColor, fontWeight: FontWeight.w600)),
               ),
               TextButton(
@@ -1785,8 +1781,8 @@ class _FilterPanelState extends State<_FilterPanel> {
                 style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: Size.zero),
-                child: Text(t['delete'] ?? 'Reset',
-                    style: AppTextStyles.bodySmall
+                child: Text(t['reset'] ?? 'Reset',
+                    style: AppTextStyles.body
                         .copyWith(color: AppColors.textSecondary)),
               ),
             ]),

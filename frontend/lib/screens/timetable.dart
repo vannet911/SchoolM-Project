@@ -2430,10 +2430,6 @@ class _TimetableFilterPanelState extends State<_TimetableFilterPanel> {
               ? AppColors.primary.withValues(alpha: 0.12)
               : (isDark ? const Color(0xFF1C2A4A) : const Color(0xFFF3F4F6)),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? AppColors.primary : Colors.transparent,
-            width: 1.5,
-          ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Text(
