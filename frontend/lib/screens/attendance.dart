@@ -35,6 +35,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   OverlayEntry? _filterOverlay;
 
   Map<String, dynamic>? _selectedSummary;
+  Map<String, dynamic>? _detailSummary;
   bool _showForm = false;
   Map<String, dynamic>? _editSummary;
 
@@ -197,6 +198,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   String _sortVal(Map<String, dynamic> s, String col) {
     switch (col) {
+      case 'code':    return (s['code']        as String? ?? '').toLowerCase();
       case 'date':    return s['date']        as String? ?? '';
       case 'teacher': return (s['teacherName'] as String? ?? '').toLowerCase();
       case 'class':   return (s['className']   as String? ?? '').toLowerCase();
@@ -396,15 +398,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final workbook = Excel.createExcel();
       workbook.rename('Sheet1', 'Attendance');
       final sheet = workbook['Attendance'];
-      sheet.appendRow(['#','Date','Teacher Name','Class','Subject','Total','Present','Absent','Late','Rate (%)']
+      sheet.appendRow(['#','Code','Teacher Name','Date','Class','Subject','Total','Present','Absent','Late','Rate (%)']
           .map((h) => TextCellValue(h)).toList());
       for (var i = 0; i < rows.length; i++) {
         final s = rows[i];
         final rate = s['rate'] as double;
         sheet.appendRow([
           IntCellValue(i + 1),
-          TextCellValue(_formatDate(s['date'] as String? ?? '')),
+          TextCellValue(s['code']        as String? ?? ''),
           TextCellValue(s['teacherName'] as String? ?? ''),
+          TextCellValue(_formatDate(s['date'] as String? ?? '')),
           TextCellValue(s['className']   as String? ?? ''),
           TextCellValue(s['subjectName'] as String? ?? ''),
           IntCellValue(s['total']   as int),
@@ -523,6 +526,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildContent(Map<String, String> t, bool isDark, bool isMobile, bool isTablet) {
+    if (_detailSummary != null) {
+      return AttendanceDetailPanel(
+        summary: _detailSummary!,
+        onBack: () => setState(() => _detailSummary = null),
+        onEdit: () {
+          final s = _detailSummary;
+          setState(() => _detailSummary = null);
+          _openForm(summary: s);
+        },
+        onDelete: () async {
+          final records = (_detailSummary!['records'] as List).cast<Map<String, dynamic>>();
+          try {
+            for (final r in records) { await _api.deleteAttendance(r['id'] as int); }
+            setState(() => _detailSummary = null);
+            _showSnack(t['attendance_deleted'] ?? 'Deleted.');
+            await _reloadRecords();
+          } catch (e) { _showSnack(e.toString(), isError: true); }
+        },
+      );
+    }
     final textColor = isDark ? Colors.white70 : AppColors.textPrimary;
     final mutedColor = isDark ? Colors.white70 : AppColors.textMuted;
     final fieldBg = isDark ? const Color(0xFF0D0D1C) : const Color(0xFFF2F3F7);
@@ -657,17 +680,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       tableHeader = Row(children: [
         headerCheckbox,
         const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
-        TableHeader(label: t['date'] ?? 'Date', flex: 3, onSort: () => _sort('date'), isSorted: _sortColumn == 'date', sortAscending: _sortAscending),
+        TableHeader(label: t['code'] ?? 'Code', flex: 2, onSort: () => _sort('code'), isSorted: _sortColumn == 'code', sortAscending: _sortAscending),
         TableHeader(label: t['teacher_name'] ?? 'Teacher Name', flex: 3, onSort: () => _sort('teacher'), isSorted: _sortColumn == 'teacher', sortAscending: _sortAscending),
-        TableHeader(label: t['class_name'] ?? 'Class', flex: 4, onSort: () => _sort('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
+        TableHeader(label: t['date'] ?? 'Date', flex: 2, onSort: () => _sort('date'), isSorted: _sortColumn == 'date', sortAscending: _sortAscending),
+        TableHeader(label: t['class_name'] ?? 'Class', flex: 3, onSort: () => _sort('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
         TableHeader(label: t['rate'] ?? 'Rate', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('rate'), isSorted: _sortColumn == 'rate', sortAscending: _sortAscending),
       ]);
     } else if (isTablet) {
       tableHeader = Row(children: [
         headerCheckbox,
         const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
-        TableHeader(label: t['date'] ?? 'Date', flex: 3, onSort: () => _sort('date'), isSorted: _sortColumn == 'date', sortAscending: _sortAscending),
+        TableHeader(label: t['code'] ?? 'Code', flex: 2, onSort: () => _sort('code'), isSorted: _sortColumn == 'code', sortAscending: _sortAscending),
         TableHeader(label: t['teacher_name'] ?? 'Teacher Name', flex: 3, onSort: () => _sort('teacher'), isSorted: _sortColumn == 'teacher', sortAscending: _sortAscending),
+        TableHeader(label: t['date'] ?? 'Date', flex: 2, onSort: () => _sort('date'), isSorted: _sortColumn == 'date', sortAscending: _sortAscending),
         TableHeader(label: t['class_name'] ?? 'Class', flex: 3, onSort: () => _sort('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
         TableHeader(label: t['subject'] ?? 'Subject', flex: 3, onSort: () => _sort('subject'), isSorted: _sortColumn == 'subject', sortAscending: _sortAscending),
         TableHeader(label: t['present'] ?? 'Present', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('present'), isSorted: _sortColumn == 'present', sortAscending: _sortAscending),
@@ -678,8 +703,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       tableHeader = Row(children: [
         headerCheckbox,
         const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
-        TableHeader(label: t['date'] ?? 'Date', flex: 3, onSort: () => _sort('date'), isSorted: _sortColumn == 'date', sortAscending: _sortAscending),
+        TableHeader(label: t['code'] ?? 'Code', flex: 2, onSort: () => _sort('code'), isSorted: _sortColumn == 'code', sortAscending: _sortAscending),
         TableHeader(label: t['teacher_name'] ?? 'Teacher Name', flex: 3, onSort: () => _sort('teacher'), isSorted: _sortColumn == 'teacher', sortAscending: _sortAscending),
+        TableHeader(label: t['date'] ?? 'Date', flex: 2, onSort: () => _sort('date'), isSorted: _sortColumn == 'date', sortAscending: _sortAscending),
         TableHeader(label: t['class_name'] ?? 'Class', flex: 3, onSort: () => _sort('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
         TableHeader(label: t['subject'] ?? 'Subject', flex: 3, onSort: () => _sort('subject'), isSorted: _sortColumn == 'subject', sortAscending: _sortAscending),
         TableHeader(label: t['total_students'] ?? 'Total', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('total'), isSorted: _sortColumn == 'total', sortAscending: _sortAscending),
@@ -703,17 +729,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         return [
           rowCheckbox(s),
           Expanded(flex: 1, child: Text('$globalIdx', style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center)),
-          Expanded(flex: 3, child: Text(_formatDate(s['date'] as String? ?? ''), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 2, child: Text(s['code'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: teacherWidget),
-          Expanded(flex: 4, child: Text(s['className'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 2, child: Text(_formatDate(s['date'] as String? ?? ''), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 3, child: Text(s['className'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text(rateText, style: AppTextStyles.body.copyWith(color: textColor, fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
         ];
       } else if (isTablet) {
         return [
           rowCheckbox(s),
           Expanded(flex: 1, child: Text('$globalIdx', style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center)),
-          Expanded(flex: 3, child: Text(_formatDate(s['date'] as String? ?? ''), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 2, child: Text(s['code'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: teacherWidget),
+          Expanded(flex: 2, child: Text(_formatDate(s['date'] as String? ?? ''), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(s['className'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(s['subjectName'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text('${s['present']}', style: AppTextStyles.body.copyWith(color: const Color(0xFF16A34A), fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
@@ -724,8 +752,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         return [
           rowCheckbox(s),
           Expanded(flex: 1, child: Text('$globalIdx', style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center)),
-          Expanded(flex: 3, child: Text(_formatDate(s['date'] as String? ?? ''), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 2, child: Text(s['code'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: teacherWidget),
+          Expanded(flex: 2, child: Text(_formatDate(s['date'] as String? ?? ''), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(s['className'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(s['subjectName'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text('${s['total']}', style: AppTextStyles.body.copyWith(color: mutedColor, fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
@@ -760,6 +789,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   index: i,
                   isSelected: _checkedKeys.contains(s['key'] as String),
                   onTap: () => _onRowTap(s),
+                  onDoubleTap: () => setState(() => _detailSummary = s),
                   children: buildCells(s, globalIdx),
                 );
               },
@@ -1552,9 +1582,10 @@ class _TableCard extends StatelessWidget {
 class _TableRow extends StatelessWidget {
   final List<Widget> children;
   final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
   final bool isSelected;
   final int index;
-  const _TableRow({required this.children, required this.index, this.onTap, this.isSelected = false});
+  const _TableRow({required this.children, required this.index, this.onTap, this.onDoubleTap, this.isSelected = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1570,6 +1601,7 @@ class _TableRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(4),
       child: InkWell(
         onTap: onTap,
+        onDoubleTap: onDoubleTap,
         borderRadius: BorderRadius.circular(4),
         hoverColor: AppColors.primary.withValues(alpha: 0.10),
         splashColor: AppColors.primary.withValues(alpha: 0.06),

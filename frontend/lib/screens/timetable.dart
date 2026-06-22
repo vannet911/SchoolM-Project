@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:schoolms_portal/providers/locale_provider.dart';
 import 'package:schoolms_portal/services/api_service.dart';
 import 'package:schoolms_portal/utils/app_constants.dart';
+import 'package:schoolms_portal/widgets/table_widgets.dart';
 
 // ── Data definitions ───────────────────────────────────────────────────────────
 
@@ -69,6 +70,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
   String _filterTeacher = 'all';
   String _filterDay = 'all';
   Map<String, dynamic>? _selectedEntry;
+  Map<String, dynamic>? _detailEntry;
   bool _isClassView = false;
   bool _showForm = false;
   Map<String, dynamic>? _formEntry;
@@ -333,6 +335,11 @@ class _TimetableScreenState extends State<TimetableScreen> {
     });
   }
 
+  void _openDetail(Map<String, dynamic> entry) =>
+      setState(() { _detailEntry = Map<String, dynamic>.from(entry); _selectedEntry = entry; });
+
+  void _closeDetail() => setState(() => _detailEntry = null);
+
   Future<void> _saveForm(Map<String, dynamic> data) async {
     final locale = context.read<LocaleProvider>().locale;
     final t = AppTranslations.translations[locale]!;
@@ -420,6 +427,15 @@ class _TimetableScreenState extends State<TimetableScreen> {
         subjects: _subjects,
         onCancel: _closeForm,
         onSave: _saveForm,
+      );
+    }
+
+    if (_detailEntry != null) {
+      return TimetableDetailPanel(
+        entry: _detailEntry!,
+        onBack: _closeDetail,
+        onEdit: () { final e = _detailEntry; _closeDetail(); _openForm(entry: e); },
+        onDelete: () async { await _deleteSelected(); _closeDetail(); },
       );
     }
 
@@ -934,10 +950,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
     return GestureDetector(
       onTap: () => setState(() => _selectedEntry = isSelected ? null : entry),
-      onDoubleTap: () {
-        setState(() => _selectedEntry = entry);
-        _openForm(entry: entry);
-      },
+      onDoubleTap: () => _openDetail(entry),
       child: Container(
         margin: const EdgeInsets.all(3),
         decoration: BoxDecoration(
@@ -1351,10 +1364,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
     return GestureDetector(
       onTap: () => setState(() =>
           _selectedEntry = isSelected ? null : Map<String, dynamic>.from(entry)),
-      onDoubleTap: () {
-        setState(() => _selectedEntry = Map<String, dynamic>.from(entry));
-        _openForm(entry: Map<String, dynamic>.from(entry));
-      },
+      onDoubleTap: () => _openDetail(entry),
       child: Container(
         margin: const EdgeInsets.all(3),
         decoration: BoxDecoration(
@@ -1541,10 +1551,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => setState(() => _selectedEntry = isSelected ? null : entry),
-        onLongPress: () {
-          setState(() => _selectedEntry = entry);
-          _openForm(entry: entry);
-        },
+        onLongPress: () => _openDetail(entry),
         borderRadius: BorderRadius.circular(10),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1745,7 +1752,6 @@ class _TimetableFormPanelState extends State<_TimetableFormPanel> {
   final _roomCtrl = TextEditingController();
   final _yearCtrl = TextEditingController();
   bool _saving = false;
-  bool _backHovering = false;
   bool _dayError = false;
   bool _periodError = false;
   bool _classError = false;
@@ -1894,27 +1900,16 @@ class _TimetableFormPanelState extends State<_TimetableFormPanel> {
           // ── Header ────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(AppConstants.pagePadding),
-            child: Row(children: [
-              MouseRegion(
-                cursor: SystemMouseCursors.click,
-                onEnter: (_) => setState(() => _backHovering = true),
-                onExit: (_) => setState(() => _backHovering = false),
-                child: GestureDetector(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              SizedBox(
+                width: 38,
+                height: 38,
+                child: InkWell(
                   onTap: widget.onCancel,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: _backHovering
-                          ? AppColors.primary.withValues(alpha: 0.08)
-                          : Colors.transparent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.arrow_back_rounded,
-                          size: 22, color: AppColors.textSecondary),
-                    ),
+                  borderRadius: BorderRadius.circular(18),
+                  child: const Center(
+                    child: Icon(Icons.arrow_back_rounded,
+                        size: 22, color: AppColors.textSecondary),
                   ),
                 ),
               ),
@@ -2122,8 +2117,8 @@ class _TimetableFormPanelState extends State<_TimetableFormPanel> {
                                     controller: _yearCtrl,
                                     style: AppTextStyles.body
                                         .copyWith(color: textColor),
-                                    decoration: _inputDec('2024–2025',
-                                        isDark: isDark),
+                                    decoration:
+                                        _inputDec('2024–2025', isDark: isDark),
                                   ),
                                 ),
                               ),

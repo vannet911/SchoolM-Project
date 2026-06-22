@@ -86,7 +86,7 @@ class StudentDetailPanel extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.all(AppConstants.pagePadding),
-          child: Row(children: [
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
             SizedBox(
               width: 38,
               height: 38,
@@ -783,7 +783,7 @@ class TeacherDetailPanel extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.all(AppConstants.pagePadding),
-          child: Row(children: [
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
             SizedBox(width: 38, height: 38,
               child: InkWell(onTap: onBack, borderRadius: BorderRadius.circular(18),
                 child: const Center(child: Icon(Icons.arrow_back_rounded, size: 22, color: AppColors.textSecondary)))),
@@ -1661,5 +1661,409 @@ class _StyledDropdown<T> extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+// ── Attendance Detail Panel ───────────────────────────────────────────────────
+
+class AttendanceDetailPanel extends StatelessWidget {
+  final Map<String, dynamic> summary;
+  final VoidCallback onBack;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  const AttendanceDetailPanel({
+    super.key,
+    required this.summary,
+    required this.onBack,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  static const _kPeriodLabels = {
+    1: '07 AM  07:00 – 08:00', 2: '08 AM  08:00 – 09:00',
+    3: '09 AM  09:00 – 10:00', 4: '10 AM  10:00 – 11:00',
+    5: '11 AM  11:00 – 12:00', 6: '01 PM  01:00 – 02:00 PM',
+    7: '02 PM  02:00 – 03:00 PM', 8: '03 PM  03:00 – 04:00 PM',
+    9: '04 PM  04:00 – 05:00 PM', 10: '05 PM  05:00 – 06:00 PM',
+  };
+
+  static String _fmtDate(dynamic v) {
+    if (v == null) return '';
+    final s = v.toString();
+    return s.length >= 10 ? s.substring(0, 10).replaceAll('-', '/') : s;
+  }
+
+  InputDecoration _inputDeco({bool isDark = false, bool multiline = false}) => InputDecoration(
+    hintText: '—',
+    hintStyle: AppTextStyles.body.copyWith(color: isDark ? Colors.white70 : AppColors.textMuted),
+    filled: true,
+    fillColor: StudentDetailPanel._readFill(isDark),
+    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: multiline ? 14 : 0),
+  );
+
+  Widget _labeled(String label, Widget child) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+      const SizedBox(height: 6),
+      child,
+    ],
+  );
+
+  Widget _readField(String label, String? value, {bool isDark = false, Widget? suffix}) =>
+      _labeled(label, SizedBox(height: 44, child: TextField(
+        readOnly: true,
+        controller: TextEditingController(text: value ?? ''),
+        style: AppTextStyles.body.copyWith(color: isDark ? Colors.white : AppColors.textPrimary),
+        decoration: _inputDeco(isDark: isDark).copyWith(suffixIcon: suffix),
+      )));
+
+  Widget _sectionTitle(String label) => Text(label,
+      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textSecondary));
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale] ?? AppTranslations.translations['en']!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white54 : AppColors.textSecondary;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+
+    final s = summary;
+    final period = (s['period'] as num?)?.toInt();
+    final periodStr = period != null ? '${t['period'] ?? 'Period'} $period  ${_kPeriodLabels[period] ?? ''}' : null;
+    final records = (s['records'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final total   = s['total']   as int?    ?? records.length;
+    final present = s['present'] as int?    ?? 0;
+    final absent  = s['absent']  as int?    ?? 0;
+    final late    = s['late']    as int?    ?? 0;
+    final rate    = s['rate']    as double? ?? 0.0;
+
+    Widget statCard(String label, String value, Color color) => Expanded(child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.15 : 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(value, style: AppTextStyles.body.copyWith(color: color, fontWeight: FontWeight.w800, fontSize: 20)),
+        const SizedBox(height: 2),
+        Text(label, style: AppTextStyles.body.copyWith(color: mutedColor, fontSize: 12)),
+      ]),
+    ));
+
+    Color statusColor(String status) => switch (status.toLowerCase()) {
+      'present' => const Color(0xFF16A34A),
+      'absent'  => AppColors.error,
+      'late'    => const Color(0xFFD97706),
+      'excused' => const Color(0xFF2196F3),
+      _         => mutedColor,
+    };
+
+    String statusLabel(String status) => switch (status.toLowerCase()) {
+      'present' => t['present'] ?? 'Present',
+      'absent'  => t['absent']  ?? 'Absent',
+      'late'    => t['late']    ?? 'Late',
+      'excused' => t['excused'] ?? 'Excused',
+      _         => status,
+    };
+
+    final btnStyle = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight, elevation: 0,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.all(AppConstants.pagePadding),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          SizedBox(width: 38, height: 38,
+            child: InkWell(onTap: onBack, borderRadius: BorderRadius.circular(18),
+              child: const Center(child: Icon(Icons.arrow_back_rounded, size: 22, color: AppColors.textSecondary)))),
+          const SizedBox(width: 12),
+          Text(_fmtDate(s['date']),
+            style: AppTextStyles.body.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 16)),
+          const Spacer(),
+          OutlinedButton.icon(onPressed: onEdit, icon: const Icon(Icons.edit_outlined, size: 18),
+            label: Text(t['edit'] ?? 'Edit'), style: btnStyle),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: onDelete == null ? null : () async {
+              final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+                title: Text(t['confirm_delete'] ?? 'Confirm Delete'),
+                content: Text('${_fmtDate(s['date'])} — ${s['className'] ?? ''} / ${s['subjectName'] ?? ''}'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t['cancel'] ?? 'Cancel')),
+                  ElevatedButton(onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+                    child: Text(t['delete'] ?? 'Delete')),
+                ],
+              ));
+              if (ok == true) onDelete!();
+            },
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: Text(t['delete'] ?? 'Delete'),
+            style: btnStyle,
+          ),
+        ]),
+      ),
+      Expanded(child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _sectionTitle(t['session_info'] ?? 'Session Info'),
+              const SizedBox(height: 12),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _readField('${t['code'] ?? 'Code'}:', s['code']?.toString(), isDark: isDark)),
+                const SizedBox(width: 16),
+                Expanded(child: _readField('${t['teacher_name'] ?? 'Teacher Name'}:', s['teacherName']?.toString(), isDark: isDark)),
+              ]),
+              const SizedBox(height: 16),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _readField('${t['date'] ?? 'Date'}:', _fmtDate(s['date']), isDark: isDark,
+                  suffix: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary))),
+                const SizedBox(width: 16),
+                Expanded(child: _readField('${t['period'] ?? 'Period'}:', periodStr, isDark: isDark)),
+              ]),
+              const SizedBox(height: 16),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _readField('${t['class_name'] ?? 'Class'}:', s['className']?.toString(), isDark: isDark)),
+                const SizedBox(width: 16),
+                Expanded(child: _readField('${t['subject'] ?? 'Subject'}:', s['subjectName']?.toString(), isDark: isDark)),
+              ]),
+              const SizedBox(height: 16),
+              _labeled('${t['remark'] ?? 'Remark'}:',
+                TextField(
+                  readOnly: true,
+                  controller: TextEditingController(text: s['remark']?.toString() ?? ''),
+                  maxLines: 3,
+                  style: AppTextStyles.body.copyWith(color: isDark ? Colors.white : AppColors.textPrimary),
+                  decoration: _inputDeco(isDark: isDark, multiline: true),
+                ),
+              ),
+              const SizedBox(height: 28),
+              Divider(color: borderColor, height: 1),
+              const SizedBox(height: 28),
+              _sectionTitle(t['attendance'] ?? 'Attendance'),
+              const SizedBox(height: 12),
+              Row(children: [
+                statCard(t['total_students'] ?? 'Total', '$total',                       AppColors.primary),
+                const SizedBox(width: 8),
+                statCard(t['present'] ?? 'Present',       '$present',                    const Color(0xFF16A34A)),
+                const SizedBox(width: 8),
+                statCard(t['absent']  ?? 'Absent',        '$absent',                     AppColors.error),
+                const SizedBox(width: 8),
+                statCard(t['late']    ?? 'Late',          '$late',                       const Color(0xFFD97706)),
+                const SizedBox(width: 8),
+                statCard(t['rate']    ?? 'Rate',          '${rate.toStringAsFixed(1)}%', const Color(0xFF2196F3)),
+              ]),
+              if (records.isNotEmpty) ...[
+                const SizedBox(height: 28),
+                Divider(color: borderColor, height: 1),
+                const SizedBox(height: 28),
+                _sectionTitle(t['students'] ?? 'Students'),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Column(children: records.asMap().entries.map((entry) {
+                    final idx    = entry.key;
+                    final r      = entry.value;
+                    final name   = r['studentName']?.toString() ?? '—';
+                    final code   = r['studentCode']?.toString() ?? '';
+                    final status = r['status']?.toString() ?? 'Present';
+                    final sColor = statusColor(status);
+                    final sLabel = statusLabel(status);
+                    final isLast = idx == records.length - 1;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: idx.isOdd
+                            ? (isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF5F7FA))
+                            : Colors.transparent,
+                        border: isLast ? null : Border(bottom: BorderSide(color: borderColor)),
+                        borderRadius: BorderRadius.vertical(
+                          top: idx == 0 ? const Radius.circular(10) : Radius.zero,
+                          bottom: isLast ? const Radius.circular(10) : Radius.zero,
+                        ),
+                      ),
+                      child: Row(children: [
+                        SizedBox(width: 28,
+                          child: Text('${idx + 1}', style: AppTextStyles.body.copyWith(color: mutedColor), textAlign: TextAlign.center)),
+                        const SizedBox(width: 12),
+                        if (code.isNotEmpty) ...[
+                          Text(code, style: AppTextStyles.body.copyWith(
+                            color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+                          const SizedBox(width: 10),
+                        ],
+                        Expanded(child: Text(name, style: AppTextStyles.body.copyWith(color: textColor))),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: sColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(sLabel,
+                            style: AppTextStyles.body.copyWith(color: sColor, fontWeight: FontWeight.w600, fontSize: 12)),
+                        ),
+                      ]),
+                    );
+                  }).toList()),
+                ),
+              ],
+            ]),
+          ),
+        )),
+      )),
+    ]);
+  }
+}
+
+// ── Timetable Detail Panel ─────────────────────────────────────────────────────
+
+class TimetableDetailPanel extends StatelessWidget {
+  final Map<String, dynamic> entry;
+  final VoidCallback onBack;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  const TimetableDetailPanel({
+    super.key,
+    required this.entry,
+    required this.onBack,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  static const _kPeriodLabels = {
+    1: '07 AM  07:00 – 08:00', 2: '08 AM  08:00 – 09:00',
+    3: '09 AM  09:00 – 10:00', 4: '10 AM  10:00 – 11:00',
+    5: '11 AM  11:00 – 12:00', 6: '01 PM  01:00 – 02:00 PM',
+    7: '02 PM  02:00 – 03:00 PM', 8: '03 PM  03:00 – 04:00 PM',
+    9: '04 PM  04:00 – 05:00 PM', 10: '05 PM  05:00 – 06:00 PM',
+    -1: 'Lunch  12:00 – 01:00 PM',
+  };
+
+  InputDecoration _inputDeco({bool isDark = false}) => InputDecoration(
+    hintText: '—',
+    hintStyle: AppTextStyles.body.copyWith(color: isDark ? Colors.white70 : AppColors.textMuted),
+    filled: true,
+    fillColor: StudentDetailPanel._readFill(isDark),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+  );
+
+  Widget _labeled(String label, Widget child) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+      const SizedBox(height: 6),
+      child,
+    ],
+  );
+
+  Widget _readField(String label, String? value, {bool isDark = false}) =>
+      _labeled(label, SizedBox(height: 44, child: TextField(
+        readOnly: true,
+        controller: TextEditingController(text: value ?? ''),
+        style: AppTextStyles.body.copyWith(color: isDark ? Colors.white : AppColors.textPrimary),
+        decoration: _inputDeco(isDark: isDark),
+      )));
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
+    final t = AppTranslations.translations[locale] ?? AppTranslations.translations['en']!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+
+    final e = entry;
+    final period      = (e['period'] as num?)?.toInt() ?? 0;
+    final dayRaw      = e['day']?.toString() ?? '';
+    final dayLabel    = t[dayRaw.toLowerCase()] ?? dayRaw;
+    final periodLabel = _kPeriodLabels[period] ?? '${t['period'] ?? 'Period'} $period';
+
+    final btnStyle = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primaryLight, elevation: 0,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      side: BorderSide(color: borderColor, width: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.all(AppConstants.pagePadding),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          SizedBox(width: 38, height: 38,
+            child: InkWell(onTap: onBack, borderRadius: BorderRadius.circular(18),
+              child: const Center(child: Icon(Icons.arrow_back_rounded, size: 22, color: AppColors.textSecondary)))),
+          const SizedBox(width: 12),
+          Expanded(child: Text('$dayLabel — $periodLabel',
+            style: AppTextStyles.body.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 16),
+            overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 12),
+          OutlinedButton.icon(onPressed: onEdit, icon: const Icon(Icons.edit_outlined, size: 18),
+            label: Text(t['edit'] ?? 'Edit'), style: btnStyle),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: onDelete == null ? null : () async {
+              final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+                title: Text(t['confirm_delete'] ?? 'Confirm Delete'),
+                content: Text(t['confirm_delete_timetable'] ?? 'Delete this timetable entry?'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t['cancel'] ?? 'Cancel')),
+                  ElevatedButton(onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+                    child: Text(t['delete'] ?? 'Delete')),
+                ],
+              ));
+              if (ok == true) onDelete!();
+            },
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: Text(t['delete'] ?? 'Delete'),
+            style: btnStyle,
+          ),
+        ]),
+      ),
+      Expanded(child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _readField('${t['day'] ?? 'Day'}:', dayLabel, isDark: isDark)),
+                const SizedBox(width: 16),
+                Expanded(child: _readField('${t['period'] ?? 'Period'}:', periodLabel, isDark: isDark)),
+              ]),
+              const SizedBox(height: 16),
+              _readField('${t['class_name'] ?? 'Class'}:', e['className']?.toString(), isDark: isDark),
+              const SizedBox(height: 16),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _readField('${t['subject'] ?? 'Subject'}:', e['subjectName']?.toString(), isDark: isDark)),
+                const SizedBox(width: 16),
+                Expanded(child: _readField('${t['teacher_name'] ?? 'Teacher Name'}:', e['teacherName']?.toString(), isDark: isDark)),
+              ]),
+              const SizedBox(height: 16),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _readField('${t['room'] ?? 'Room'}:', e['room']?.toString(), isDark: isDark)),
+                const SizedBox(width: 16),
+                Expanded(child: _readField('${t['academic_year'] ?? 'Academic Year'}:', e['academicYear']?.toString(), isDark: isDark)),
+              ]),
+            ]),
+          ),
+        )),
+      )),
+    ]);
   }
 }
