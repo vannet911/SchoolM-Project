@@ -20,8 +20,8 @@ jobs:
     - name: Build and push Docker images
       run: |
         docker compose build
-        docker tag schoolms-api ${{ secrets.DOCKER_USERNAME }}/schoolms-api:latest
-        docker tag schoolms-frontend ${{ secrets.DOCKER_USERNAME }}/schoolms-frontend:latest
+        docker tag schoolm-project-api ${{ secrets.DOCKER_USERNAME }}/schoolms-api:latest
+        docker tag schoolm-project-frontend ${{ secrets.DOCKER_USERNAME }}/schoolms-frontend:latest
         docker push ${{ secrets.DOCKER_USERNAME }}/schoolms-api:latest
         docker push ${{ secrets.DOCKER_USERNAME }}/schoolms-frontend:latest
 
