@@ -148,6 +148,10 @@ class AppTranslations {
       'select_subject': 'Select Subject',
       'all_subjects': 'All Subjects',
       'no_students_in_class': 'No students in this class',
+      'enter_code': 'e.g. AD001',
+      'enter_remark': 'Enter your remark...',
+      'student_info': 'Student Info',
+      'select_class_first': 'Please select a class to view students',
 
       // Dashboard
       'welcome': 'Welcome',
@@ -395,6 +399,10 @@ class AppTranslations {
       'select_subject': 'ជ្រើសរើសមុខវិជ្ជា',
       'all_subjects': 'គ្រប់មុខវិជ្ជា',
       'no_students_in_class': 'គ្មានសិស្សក្នុងថ្នាក់នេះ',
+      'enter_code': 'ឧ. AD001',
+      'enter_remark': 'បញ្ចូលមតិរបស់អ្នក...',
+      'student_info': 'ព័ត៌មានសិស្ស',
+      'select_class_first': 'សូមជ្រើសរើសថ្នាក់ដើម្បីមើលសិស្ស',
       // Dashboard
       'welcome': 'សូមស្វាគមន៍',
       'good_morning': 'អរុណសួស្តី',

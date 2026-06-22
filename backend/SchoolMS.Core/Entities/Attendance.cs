@@ -7,6 +7,9 @@ namespace SchoolMS.Core.Entities
         public int StudentId { get; set; }
         public int? ClassId { get; set; }
         public int? SubjectId { get; set; }
+        public int? TeacherId { get; set; }
+        public int? Period { get; set; }
+        public string? Code { get; set; }
         public string Status { get; set; } = "Present"; // Present | Absent | Late | Excused
         public string? Notes { get; set; }
 
@@ -14,5 +17,6 @@ namespace SchoolMS.Core.Entities
         public Student? Student { get; set; }
         public Class? Class { get; set; }
         public Subject? Subject { get; set; }
+        public Teacher? Teacher { get; set; }
     }
 }

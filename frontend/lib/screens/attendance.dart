@@ -22,6 +22,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   List<Map<String, dynamic>> _students = [];
   List<Map<String, dynamic>> _classes = [];
   List<Map<String, dynamic>> _subjects = [];
+  List<Map<String, dynamic>> _teachers = [];
 
   List<Map<String, dynamic>> _summaries = [];
   List<Map<String, dynamic>> _filtered = [];
@@ -44,10 +45,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   String _classFilter = 'all';
   String _subjectFilter = 'all';
+  String _teacherFilter = 'all';
   final Set<String> _checkedKeys = {};
 
   int get _activeFilterCount =>
-      [_classFilter != 'all', _subjectFilter != 'all'].where((v) => v).length;
+      [_classFilter != 'all', _subjectFilter != 'all', _teacherFilter != 'all'].where((v) => v).length;
   int get _totalPages => (_filtered.length / _pageSize).ceil().clamp(1, 999);
   List<Map<String, dynamic>> get _paginated {
     final start = (_currentPage - 1) * _pageSize;
@@ -77,13 +79,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _api.getStudents().catchError((_) => <dynamic>[]),
         _api.getClasses().catchError((_) => <dynamic>[]),
         _api.getSubjects().catchError((_) => <dynamic>[]),
+        _api.getTeachers().catchError((_) => <dynamic>[]),
       ]);
       if (!mounted) return;
       setState(() {
-        _records = List<Map<String, dynamic>>.from(results[0]);
+        _records  = List<Map<String, dynamic>>.from(results[0]);
         _students = List<Map<String, dynamic>>.from(results[1]);
-        _classes = List<Map<String, dynamic>>.from(results[2]);
+        _classes  = List<Map<String, dynamic>>.from(results[2]);
         _subjects = List<Map<String, dynamic>>.from(results[3]);
+        _teachers = List<Map<String, dynamic>>.from(results[4]);
         _loading = false;
       });
       _buildSummaries();
@@ -116,13 +120,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final subj = _rSubjectName(r);
       final key = '$date|$cls|$subj';
 
+      final teacher = _rTeacherName(r);
       grouped.putIfAbsent(key, () => {
         'key': key,
         'date': date,
         'className': cls,
         'subjectName': subj,
+        'teacherName': teacher,
+        'teacherId': r['teacherId'],
         'present': 0, 'absent': 0, 'late': 0, 'excused': 0,
+        'code': '',
         'remark': '',
+        'period': null,
         'records': <Map<String, dynamic>>[],
       });
 
@@ -134,11 +143,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         case 'late':     g['late']     = (g['late']     as int) + 1;
         case 'excused':  g['excused']  = (g['excused']  as int) + 1;
       }
-      // Collect the first non-empty note from any record in this session
+      // Collect first non-empty code, note, and teacher from any record in this session
+      final code = r['code'] as String? ?? '';
+      if (code.isNotEmpty && (g['code'] as String).isEmpty) g['code'] = code;
       final note = r['notes'] as String? ?? '';
-      if (note.isNotEmpty && (g['remark'] as String).isEmpty) {
-        g['remark'] = note;
+      if (note.isNotEmpty && (g['remark'] as String).isEmpty) g['remark'] = note;
+      if (teacher.isNotEmpty && (g['teacherName'] as String).isEmpty) {
+        g['teacherName'] = teacher;
+        g['teacherId'] = r['teacherId'];
       }
+      final period = r['period'];
+      if (period != null && g['period'] == null) g['period'] = period;
     }
 
     setState(() {
@@ -155,13 +170,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   void _filter({bool resetPage = true}) {
     final q = _searchCtrl.text.toLowerCase();
     var list = _summaries.where((s) {
-      final cls  = (s['className']   as String? ?? '').toLowerCase();
-      final subj = (s['subjectName'] as String? ?? '').toLowerCase();
-      final date = (s['date']        as String? ?? '').toLowerCase();
-      final searchOk = q.isEmpty || cls.contains(q) || subj.contains(q) || date.contains(q);
-      final classOk  = _classFilter   == 'all' || s['className']   == _classFilter;
-      final subjOk   = _subjectFilter == 'all' || s['subjectName'] == _subjectFilter;
-      return searchOk && classOk && subjOk;
+      final cls     = (s['className']   as String? ?? '').toLowerCase();
+      final subj    = (s['subjectName'] as String? ?? '').toLowerCase();
+      final date    = (s['date']        as String? ?? '').toLowerCase();
+      final teacher = (s['teacherName'] as String? ?? '').toLowerCase();
+      final searchOk   = q.isEmpty || cls.contains(q) || subj.contains(q) || date.contains(q) || teacher.contains(q);
+      final classOk    = _classFilter   == 'all' || s['className']   == _classFilter;
+      final subjOk     = _subjectFilter == 'all' || s['subjectName'] == _subjectFilter;
+      final teacherOk  = _teacherFilter == 'all' || s['teacherName'] == _teacherFilter;
+      return searchOk && classOk && subjOk && teacherOk;
     }).toList();
 
     if (_sortColumn != null) {
@@ -181,6 +198,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String _sortVal(Map<String, dynamic> s, String col) {
     switch (col) {
       case 'date':    return s['date']        as String? ?? '';
+      case 'teacher': return (s['teacherName'] as String? ?? '').toLowerCase();
       case 'class':   return (s['className']   as String? ?? '').toLowerCase();
       case 'subject': return (s['subjectName'] as String? ?? '').toLowerCase();
       case 'total':   return (s['total']   as int).toString().padLeft(6, '0');
@@ -235,6 +253,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
     return '';
   }
+  String _rTeacherName(Map<String, dynamic> r) {
+    final direct = r['teacherName'] as String?;
+    if (direct != null && direct.isNotEmpty) return direct;
+    final tid = r['teacherId'] as int?;
+    if (tid != null) {
+      final t = _teachers.where((t) => t['id'] == tid).firstOrNull;
+      final name = t?['name']?.toString() ?? '';
+      if (name.isNotEmpty) return name;
+    }
+    return '';
+  }
+
   String _studentName(Map<String, dynamic> s) {
     if (s['firstName'] != null) return '${s['firstName']} ${s['lastName'] ?? ''}'.trim();
     return s['name']?.toString() ?? '';
@@ -273,6 +303,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     required String date,
     required int? classId, required String? className,
     required int? subjectId, required String? subjectName,
+    required int? teacherId,
+    required int? period,
     required List<Map<String, dynamic>> attendances,
     required bool isEdit, required List<Map<String, dynamic>> existingRecords,
   }) async {
@@ -287,6 +319,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             'date': date, 'studentId': sid,
             if (classId != null) 'classId': classId,
             if (subjectId != null) 'subjectId': subjectId,
+            if (teacherId != null) 'teacherId': teacherId,
+            if (period != null) 'period': period,
+            if ((a['code'] as String? ?? '').isNotEmpty) 'code': a['code'],
             'status': a['status'], 'notes': a['notes'] ?? '',
           };
           if (existing != null) {
@@ -302,6 +337,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             'date': date, 'studentId': a['studentId'],
             if (classId != null) 'classId': classId,
             if (subjectId != null) 'subjectId': subjectId,
+            if (teacherId != null) 'teacherId': teacherId,
+            if (period != null) 'period': period,
+            if ((a['code'] as String? ?? '').isNotEmpty) 'code': a['code'],
             'status': a['status'], 'notes': a['notes'] ?? '',
           });
         }
@@ -352,17 +390,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (_exporting || _filtered.isEmpty) return;
     setState(() => _exporting = true);
     try {
+      final rows = _checkedKeys.isNotEmpty
+          ? _filtered.where((s) => _checkedKeys.contains(s['key'])).toList()
+          : _filtered;
       final workbook = Excel.createExcel();
       workbook.rename('Sheet1', 'Attendance');
       final sheet = workbook['Attendance'];
-      sheet.appendRow(['#','Date','Class','Subject','Total','Present','Absent','Late','Rate (%)','Remark']
+      sheet.appendRow(['#','Date','Teacher Name','Class','Subject','Total','Present','Absent','Late','Rate (%)']
           .map((h) => TextCellValue(h)).toList());
-      for (var i = 0; i < _filtered.length; i++) {
-        final s = _filtered[i];
+      for (var i = 0; i < rows.length; i++) {
+        final s = rows[i];
         final rate = s['rate'] as double;
         sheet.appendRow([
           IntCellValue(i + 1),
           TextCellValue(_formatDate(s['date'] as String? ?? '')),
+          TextCellValue(s['teacherName'] as String? ?? ''),
           TextCellValue(s['className']   as String? ?? ''),
           TextCellValue(s['subjectName'] as String? ?? ''),
           IntCellValue(s['total']   as int),
@@ -370,7 +412,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           IntCellValue(s['absent']  as int),
           IntCellValue(s['late']    as int),
           TextCellValue('${rate.toStringAsFixed(1)}%'),
-          TextCellValue(s['remark'] as String? ?? ''),
         ]);
       }
       final bytes = workbook.encode()!;
@@ -406,6 +447,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final classNames = _classes.map((c) => c['name']?.toString() ?? '').where((n) => n.isNotEmpty).toList()..sort();
     final subjectNames = _subjects.map((s) => s['name']?.toString() ?? '').where((n) => n.isNotEmpty).toList()..sort();
+    final teacherNames = _summaries.map((s) => s['teacherName'] as String? ?? '').where((n) => n.isNotEmpty).toSet().toList()..sort();
 
     _filterOverlay = OverlayEntry(
       builder: (_) => Stack(children: [
@@ -425,11 +467,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               borderRadius: BorderRadius.circular(12),
               child: _FilterPanel(
                 t: t, isDark: isDark,
-                classFilter: _classFilter, subjectFilter: _subjectFilter,
-                availableClasses: classNames, availableSubjects: subjectNames,
-                onApply: (cls, subj) {
+                classFilter: _classFilter, subjectFilter: _subjectFilter, teacherFilter: _teacherFilter,
+                availableClasses: classNames, availableSubjects: subjectNames, availableTeachers: teacherNames,
+                onApply: (cls, subj, teacher) {
                   _filterOverlay?.remove(); _filterOverlay = null;
-                  setState(() { _classFilter = cls; _subjectFilter = subj; });
+                  setState(() { _classFilter = cls; _subjectFilter = subj; _teacherFilter = teacher; });
                   _filter();
                 },
               ),
@@ -471,7 +513,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           t: t, isDark: isDark,
           editSummary: _editSummary,
           recordCount: _summaries.length,
-          classes: _classes, subjects: _subjects,
+          classes: _classes, subjects: _subjects, teachers: _teachers,
           studentsInClass: _studentsInClass,
           studentName: _studentName,
           onSave: _saveSession,
@@ -528,7 +570,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ]);
     } else {
       toolbar = LayoutBuilder(builder: (context, constraints) {
-        final compact = constraints.maxWidth < 1000;
+        final compact = constraints.maxWidth < 700;
         final searchW = (constraints.maxWidth * 0.28).clamp(160.0, 400.0);
         return Row(children: [
           SizedBox(width: searchW, child: KeyedSubtree(key: _searchBoxKey, child: _SearchBox(
@@ -616,27 +658,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         headerCheckbox,
         const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
         TableHeader(label: t['date'] ?? 'Date', flex: 3, onSort: () => _sort('date'), isSorted: _sortColumn == 'date', sortAscending: _sortAscending),
+        TableHeader(label: t['teacher_name'] ?? 'Teacher Name', flex: 3, onSort: () => _sort('teacher'), isSorted: _sortColumn == 'teacher', sortAscending: _sortAscending),
         TableHeader(label: t['class_name'] ?? 'Class', flex: 4, onSort: () => _sort('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
         TableHeader(label: t['rate'] ?? 'Rate', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('rate'), isSorted: _sortColumn == 'rate', sortAscending: _sortAscending),
-        TableHeader(label: t['remark'] ?? 'Remark', flex: 3),
       ]);
     } else if (isTablet) {
       tableHeader = Row(children: [
         headerCheckbox,
         const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
         TableHeader(label: t['date'] ?? 'Date', flex: 3, onSort: () => _sort('date'), isSorted: _sortColumn == 'date', sortAscending: _sortAscending),
+        TableHeader(label: t['teacher_name'] ?? 'Teacher Name', flex: 3, onSort: () => _sort('teacher'), isSorted: _sortColumn == 'teacher', sortAscending: _sortAscending),
         TableHeader(label: t['class_name'] ?? 'Class', flex: 3, onSort: () => _sort('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
         TableHeader(label: t['subject'] ?? 'Subject', flex: 3, onSort: () => _sort('subject'), isSorted: _sortColumn == 'subject', sortAscending: _sortAscending),
         TableHeader(label: t['present'] ?? 'Present', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('present'), isSorted: _sortColumn == 'present', sortAscending: _sortAscending),
         TableHeader(label: t['absent'] ?? 'Absent', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('absent'), isSorted: _sortColumn == 'absent', sortAscending: _sortAscending),
         TableHeader(label: t['rate'] ?? 'Rate', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('rate'), isSorted: _sortColumn == 'rate', sortAscending: _sortAscending),
-        TableHeader(label: t['remark'] ?? 'Remark', flex: 3),
       ]);
     } else {
       tableHeader = Row(children: [
         headerCheckbox,
         const TableHeader(label: '#', flex: 1, textAlign: TextAlign.center),
         TableHeader(label: t['date'] ?? 'Date', flex: 3, onSort: () => _sort('date'), isSorted: _sortColumn == 'date', sortAscending: _sortAscending),
+        TableHeader(label: t['teacher_name'] ?? 'Teacher Name', flex: 3, onSort: () => _sort('teacher'), isSorted: _sortColumn == 'teacher', sortAscending: _sortAscending),
         TableHeader(label: t['class_name'] ?? 'Class', flex: 3, onSort: () => _sort('class'), isSorted: _sortColumn == 'class', sortAscending: _sortAscending),
         TableHeader(label: t['subject'] ?? 'Subject', flex: 3, onSort: () => _sort('subject'), isSorted: _sortColumn == 'subject', sortAscending: _sortAscending),
         TableHeader(label: t['total_students'] ?? 'Total', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('total'), isSorted: _sortColumn == 'total', sortAscending: _sortAscending),
@@ -644,7 +687,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         TableHeader(label: t['absent'] ?? 'Absent', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('absent'), isSorted: _sortColumn == 'absent', sortAscending: _sortAscending),
         TableHeader(label: t['late'] ?? 'Late', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('late'), isSorted: _sortColumn == 'late', sortAscending: _sortAscending),
         TableHeader(label: t['rate'] ?? 'Rate', flex: 2, textAlign: TextAlign.center, onSort: () => _sort('rate'), isSorted: _sortColumn == 'rate', sortAscending: _sortAscending),
-        TableHeader(label: t['remark'] ?? 'Remark', flex: 3),
       ]);
     }
 
@@ -652,9 +694,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     List<Widget> buildCells(Map<String, dynamic> s, int globalIdx) {
       final rate = s['rate'] as double;
       final rateText = '${rate.toStringAsFixed(1)}%';
-      final remarkText = s['remark'] as String? ?? '';
-      final remarkWidget = remarkText.isNotEmpty
-          ? Text(remarkText, style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)
+      final teacherName = s['teacherName'] as String? ?? '';
+      final teacherWidget = teacherName.isNotEmpty
+          ? Text(teacherName, style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)
           : Text('—', style: AppTextStyles.body.copyWith(color: mutedColor));
 
       if (isMobile) {
@@ -662,27 +704,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           rowCheckbox(s),
           Expanded(flex: 1, child: Text('$globalIdx', style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center)),
           Expanded(flex: 3, child: Text(_formatDate(s['date'] as String? ?? ''), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 3, child: teacherWidget),
           Expanded(flex: 4, child: Text(s['className'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text(rateText, style: AppTextStyles.body.copyWith(color: textColor, fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
-          Expanded(flex: 3, child: remarkWidget),
         ];
       } else if (isTablet) {
         return [
           rowCheckbox(s),
           Expanded(flex: 1, child: Text('$globalIdx', style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center)),
           Expanded(flex: 3, child: Text(_formatDate(s['date'] as String? ?? ''), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 3, child: teacherWidget),
           Expanded(flex: 3, child: Text(s['className'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(s['subjectName'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text('${s['present']}', style: AppTextStyles.body.copyWith(color: const Color(0xFF16A34A), fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
           Expanded(flex: 2, child: Text('${s['absent']}', style: AppTextStyles.body.copyWith(color: AppColors.error, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
           Expanded(flex: 2, child: Text(rateText, style: AppTextStyles.body.copyWith(color: textColor, fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
-          Expanded(flex: 3, child: remarkWidget),
         ];
       } else {
         return [
           rowCheckbox(s),
           Expanded(flex: 1, child: Text('$globalIdx', style: AppTextStyles.body.copyWith(color: textColor), textAlign: TextAlign.center)),
           Expanded(flex: 3, child: Text(_formatDate(s['date'] as String? ?? ''), style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 3, child: teacherWidget),
           Expanded(flex: 3, child: Text(s['className'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(s['subjectName'] as String? ?? '—', style: AppTextStyles.body.copyWith(color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: Text('${s['total']}', style: AppTextStyles.body.copyWith(color: mutedColor, fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
@@ -690,7 +733,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Expanded(flex: 2, child: Text('${s['absent']}', style: AppTextStyles.body.copyWith(color: AppColors.error, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
           Expanded(flex: 2, child: Text('${s['late']}', style: AppTextStyles.body.copyWith(color: const Color(0xFFD97706), fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
           Expanded(flex: 2, child: Text(rateText, style: AppTextStyles.body.copyWith(color: textColor, fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
-          Expanded(flex: 3, child: remarkWidget),
         ];
       }
     }
@@ -748,11 +790,14 @@ class _TakeAttendanceForm extends StatefulWidget {
   final int recordCount;
   final List<Map<String, dynamic>> classes;
   final List<Map<String, dynamic>> subjects;
+  final List<Map<String, dynamic>> teachers;
   final List<Map<String, dynamic>> Function(int? classId, String? className) studentsInClass;
   final String Function(Map<String, dynamic>) studentName;
   final Future<void> Function({
     required String date, required int? classId, required String? className,
     required int? subjectId, required String? subjectName,
+    required int? teacherId,
+    required int? period,
     required List<Map<String, dynamic>> attendances,
     required bool isEdit, required List<Map<String, dynamic>> existingRecords,
   }) onSave;
@@ -761,7 +806,8 @@ class _TakeAttendanceForm extends StatefulWidget {
   const _TakeAttendanceForm({
     required this.t, required this.isDark, required this.editSummary,
     required this.recordCount,
-    required this.classes, required this.subjects, required this.studentsInClass,
+    required this.classes, required this.subjects, required this.teachers,
+    required this.studentsInClass,
     required this.studentName, required this.onSave, required this.onCancel,
   });
 
@@ -776,6 +822,8 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
   final TextEditingController _remarkCtrl = TextEditingController();
   int? _classId;
   int? _subjectId;
+  int? _teacherId;
+  int? _period;
   List<Map<String, dynamic>> _classStudents = [];
   final Map<int, String> _statuses = {};
   bool _saving = false;
@@ -789,13 +837,13 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
   void initState() {
     super.initState();
     final edit = widget.editSummary;
-    _codeCtrl = TextEditingController();
     if (edit != null) {
       _date = DateTime.tryParse(edit['date'] as String? ?? '') ?? DateTime.now();
       final cls = widget.classes.where((c) => c['name'] == edit['className']).firstOrNull;
       _classId = cls?['id'] as int?;
       final subj = widget.subjects.where((s) => s['name'] == edit['subjectName']).firstOrNull;
       _subjectId = subj?['id'] as int?;
+      _teacherId = (edit['teacherId'] as num?)?.toInt();
       for (final r in (edit['records'] as List).cast<Map<String, dynamic>>()) {
         final sid = r['studentId'] as int?;
         if (sid != null) _statuses[sid] = r['status'] as String? ?? 'Present';
@@ -807,10 +855,14 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
           if (id != null) _statuses.putIfAbsent(id, () => 'Present');
         }
       }
+      _codeCtrl = TextEditingController(text: edit['code'] as String? ?? '');
+      _remarkCtrl.text = edit['remark'] as String? ?? '';
+      _period = (edit['period'] as num?)?.toInt();
     } else {
       _date = DateTime.now();
+      _codeCtrl = TextEditingController();
     }
-    _dateCtrl = TextEditingController(text: _fmtDate(_date));
+    _dateCtrl = TextEditingController(text: _fmtDateOnly(_date));
   }
 
   @override
@@ -821,8 +873,8 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
     super.dispose();
   }
 
-  String _fmtDate(DateTime d) =>
-      '${d.year}/${d.month.toString().padLeft(2,'0')}/${d.day.toString().padLeft(2,'0')} ${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
+  String _fmtDateOnly(DateTime d) =>
+      '${d.year}/${d.month.toString().padLeft(2,'0')}/${d.day.toString().padLeft(2,'0')}';
 
   void _onClassChanged(int? id) {
     final cls = id != null ? widget.classes.where((c) => c['id'] == id).firstOrNull : null;
@@ -843,19 +895,9 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
       firstDate: DateTime(2020), lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked == null || !mounted) return;
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: _date.hour, minute: _date.minute),
-    );
-    if (!mounted) return;
-    final newDate = DateTime(
-      picked.year, picked.month, picked.day,
-      pickedTime?.hour ?? _date.hour,
-      pickedTime?.minute ?? _date.minute,
-    );
     setState(() {
-      _date = newDate;
-      _dateCtrl.text = _fmtDate(newDate);
+      _date = DateTime(picked.year, picked.month, picked.day, _date.hour, _date.minute);
+      _dateCtrl.text = _fmtDateOnly(_date);
     });
   }
 
@@ -863,7 +905,7 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
     if (_classId == null || _classStudents.isEmpty) return;
     final attendances = _classStudents.map((s) {
       final id = s['id'] as int;
-      return {'studentId': id, 'status': _statuses[id] ?? 'Present', 'notes': _remarkCtrl.text.trim()};
+      return {'studentId': id, 'status': _statuses[id] ?? 'Present', 'code': _codeCtrl.text.trim(), 'notes': _remarkCtrl.text.trim()};
     }).toList();
     final cls = _selectedClass; final subj = _selectedSubject;
     setState(() => _saving = true);
@@ -872,6 +914,8 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
         date: '${_date.year}-${_date.month.toString().padLeft(2,'0')}-${_date.day.toString().padLeft(2,'0')}T${_date.hour.toString().padLeft(2,'0')}:${_date.minute.toString().padLeft(2,'0')}:00',
         classId: _classId, className: cls?['name'] as String?,
         subjectId: _subjectId, subjectName: subj?['name'] as String?,
+        teacherId: _teacherId,
+        period: _period,
         attendances: attendances,
         isEdit: widget.editSummary != null,
         existingRecords: widget.editSummary != null
@@ -1073,17 +1117,33 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-                // Row 1: Code + Date
+                // Row 1: Code + Teacher
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Expanded(child: requiredLabeled(
                     '${t['code'] ?? 'Code'}:',
                     SizedBox(height: 44, child: TextField(
                       controller: _codeCtrl,
                       style: AppTextStyles.body.copyWith(color: textColor),
-                      decoration: inputDeco(hint: t['enter_code'] ?? 'e.g. AD001'),
+                      decoration: inputDeco(hint: t['enter_code'] ?? 'e.g. AT001'),
                     )),
                   )),
                   const SizedBox(width: 16),
+                  Expanded(child: labeled(
+                    '${t['teacher'] ?? 'Teacher'}:',
+                    styledDropdown<int?>(
+                      value: _teacherId,
+                      dropItems: widget.teachers.map((t) => (t['id'] as num?)?.toInt()).toList(),
+                      labels: widget.teachers.map((t) => t['name']?.toString() ?? '').toList(),
+                      hint: t['select_teacher'] ?? 'Select Teacher',
+                      onChanged: (v) => setState(() => _teacherId = v),
+                    ),
+                  )),
+                ]),
+
+                const SizedBox(height: 16),
+
+                // Row 2: Date + Time
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Expanded(child: requiredLabeled(
                     '${t['date'] ?? 'Date'}:',
                     SizedBox(height: 44, child: TextField(
@@ -1092,16 +1152,38 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
                       onTap: _pickDate,
                       style: AppTextStyles.body.copyWith(color: textColor),
                       decoration: inputDeco(
-                        hint: 'YYYY/MM/DD HH:mm',
+                        hint: 'YYYY/MM/DD',
                         suffix: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
                       ),
                     )),
+                  )),
+                  const SizedBox(width: 16),
+                  Expanded(child: labeled(
+                    '${t['period'] ?? 'Period'}:',
+                    styledDropdown<int?>(
+                      value: _period,
+                      dropItems: const [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                      labels: const [
+                        '07 AM  07:00 – 08:00',
+                        '08 AM  08:00 – 09:00',
+                        '09 AM  09:00 – 10:00',
+                        '10 AM  10:00 – 11:00',
+                        '11 AM  11:00 – 12:00',
+                        '01 PM  01:00 – 02:00 PM',
+                        '02 PM  02:00 – 03:00 PM',
+                        '03 PM  03:00 – 04:00 PM',
+                        '04 PM  04:00 – 05:00 PM',
+                        '05 PM  05:00 – 06:00 PM',
+                      ],
+                      hint: t['select_period'] ?? 'Select Period',
+                      onChanged: (v) => setState(() => _period = v),
+                    ),
                   )),
                 ]),
 
                 const SizedBox(height: 16),
 
-                // Row 2: Class + Subject
+                // Row 3: Class + Subject
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Expanded(child: requiredLabeled(
                     '${t['class_name'] ?? 'Class'}:',
@@ -1128,7 +1210,7 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
 
                 const SizedBox(height: 16),
 
-                // Row 3: Total Students + Remark
+                // Row 4: Total Students + Remark
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Expanded(child: labeled(
                     '${t['total_students'] ?? 'Total Students'}:',
@@ -1174,13 +1256,13 @@ class _TakeAttendanceFormState extends State<_TakeAttendanceForm> {
                   ),
                   if (_classId == null)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
+                      padding: const EdgeInsets.fromLTRB(14, 40, 14, 20),
                       child: Text(t['select_class_first'] ?? 'Please select a class to view students',
                           style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
                     )
                   else if (_classStudents.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
+                      padding: const EdgeInsets.fromLTRB(14, 40, 14, 20),
                       child: Text(t['no_students_in_class'] ?? 'No students in this class',
                           style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
                     )
@@ -1318,14 +1400,16 @@ class _FilterPanel extends StatefulWidget {
   final bool isDark;
   final String classFilter;
   final String subjectFilter;
+  final String teacherFilter;
   final List<String> availableClasses;
   final List<String> availableSubjects;
-  final void Function(String cls, String subj) onApply;
+  final List<String> availableTeachers;
+  final void Function(String cls, String subj, String teacher) onApply;
 
   const _FilterPanel({
     required this.t, required this.isDark,
-    required this.classFilter, required this.subjectFilter,
-    required this.availableClasses, required this.availableSubjects,
+    required this.classFilter, required this.subjectFilter, required this.teacherFilter,
+    required this.availableClasses, required this.availableSubjects, required this.availableTeachers,
     required this.onApply,
   });
   @override
@@ -1335,8 +1419,9 @@ class _FilterPanel extends StatefulWidget {
 class _FilterPanelState extends State<_FilterPanel> {
   late String _cls;
   late String _subj;
+  late String _teacher;
   @override
-  void initState() { super.initState(); _cls = widget.classFilter; _subj = widget.subjectFilter; }
+  void initState() { super.initState(); _cls = widget.classFilter; _subj = widget.subjectFilter; _teacher = widget.teacherFilter; }
 
   Widget _section(String title, List<Widget> chips) {
     final mutedColor = widget.isDark ? Colors.white60 : AppColors.textSecondary;
@@ -1383,7 +1468,7 @@ class _FilterPanelState extends State<_FilterPanel> {
             const SizedBox(width: 8),
             Expanded(child: Text(t['filter'] ?? 'Filter', style: AppTextStyles.body.copyWith(color: textColor, fontWeight: FontWeight.w600))),
             TextButton(
-              onPressed: () => setState(() { _cls = 'all'; _subj = 'all'; }),
+              onPressed: () => setState(() { _cls = 'all'; _subj = 'all'; _teacher = 'all'; }),
               style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: Size.zero),
               child: Text(t['reset'] ?? 'Reset', style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
             ),
@@ -1404,11 +1489,18 @@ class _FilterPanelState extends State<_FilterPanel> {
                 ...widget.availableSubjects.map((s) => _chip(s, s, _subj, (v) => _subj = v)),
               ]),
             ],
+            if (widget.availableTeachers.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _section(t['teacher_name'] ?? 'Teacher Name', [
+                _chip(t['all_teachers'] ?? 'All', 'all', _teacher, (v) => _teacher = v),
+                ...widget.availableTeachers.map((n) => _chip(n, n, _teacher, (v) => _teacher = v)),
+              ]),
+            ],
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity, height: 40,
               child: ElevatedButton(
-                onPressed: () => widget.onApply(_cls, _subj),
+                onPressed: () => widget.onApply(_cls, _subj, _teacher),
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
                 child: Text(t['confirm'] ?? 'Apply', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               ),

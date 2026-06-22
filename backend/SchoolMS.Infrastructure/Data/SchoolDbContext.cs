@@ -51,6 +51,12 @@ namespace SchoolMS.Infrastructure.Data
                 .WithMany(c => c.Students)
                 .HasForeignKey(s => s.ClassId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Attendance>()
+                .HasOne(a => a.Teacher)
+                .WithMany()
+                .HasForeignKey(a => a.TeacherId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

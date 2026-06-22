@@ -11,6 +11,10 @@ namespace SchoolMS.API.DTOs
         public string? ClassName { get; set; }
         public int? SubjectId { get; set; }
         public string? SubjectName { get; set; }
+        public int? TeacherId { get; set; }
+        public string? TeacherName { get; set; }
+        public int? Period { get; set; }
+        public string? Code { get; set; }
         public string Status { get; set; } = "Present";
         public string? Notes { get; set; }
     }
@@ -21,6 +25,9 @@ namespace SchoolMS.API.DTOs
         public int StudentId { get; set; }
         public int? ClassId { get; set; }
         public int? SubjectId { get; set; }
+        public int? TeacherId { get; set; }
+        public int? Period { get; set; }
+        public string? Code { get; set; }
         public string Status { get; set; } = "Present";
         public string? Notes { get; set; }
     }
@@ -31,6 +38,9 @@ namespace SchoolMS.API.DTOs
         public int StudentId { get; set; }
         public int? ClassId { get; set; }
         public int? SubjectId { get; set; }
+        public int? TeacherId { get; set; }
+        public int? Period { get; set; }
+        public string? Code { get; set; }
         public string Status { get; set; } = "Present";
         public string? Notes { get; set; }
     }

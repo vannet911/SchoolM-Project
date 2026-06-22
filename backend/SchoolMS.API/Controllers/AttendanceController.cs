@@ -42,6 +42,9 @@ namespace SchoolMS.API.Controllers
                 StudentId = dto.StudentId,
                 ClassId = dto.ClassId,
                 SubjectId = dto.SubjectId,
+                TeacherId = dto.TeacherId,
+                Period = dto.Period,
+                Code = dto.Code,
                 Status = dto.Status,
                 Notes = dto.Notes
             };
@@ -61,6 +64,9 @@ namespace SchoolMS.API.Controllers
                 StudentId = dto.StudentId,
                 ClassId = dto.ClassId,
                 SubjectId = dto.SubjectId,
+                TeacherId = dto.TeacherId,
+                Period = dto.Period,
+                Code = dto.Code,
                 Status = dto.Status,
                 Notes = dto.Notes
             };
@@ -93,6 +99,10 @@ namespace SchoolMS.API.Controllers
             ClassName = a.Class?.Name,
             SubjectId = a.SubjectId,
             SubjectName = a.Subject?.Name,
+            TeacherId = a.TeacherId,
+            TeacherName = a.Teacher?.Name,
+            Period = a.Period,
+            Code = a.Code,
             Status = a.Status,
             Notes = a.Notes
         };

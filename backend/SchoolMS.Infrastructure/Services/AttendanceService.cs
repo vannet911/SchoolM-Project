@@ -12,6 +12,7 @@ namespace SchoolMS.Infrastructure.Services
                 .Include(a => a.Student)
                 .Include(a => a.Class)
                 .Include(a => a.Subject)
+                .Include(a => a.Teacher)
                 .OrderByDescending(a => a.Date)
                 .ToListAsync();
 
@@ -20,6 +21,7 @@ namespace SchoolMS.Infrastructure.Services
                 .Include(a => a.Student)
                 .Include(a => a.Class)
                 .Include(a => a.Subject)
+                .Include(a => a.Teacher)
                 .FirstOrDefaultAsync(a => a.Id == id);
 
         public async Task<Attendance> CreateAsync(Attendance attendance)
@@ -38,6 +40,9 @@ namespace SchoolMS.Infrastructure.Services
             existing.StudentId = attendance.StudentId;
             existing.ClassId = attendance.ClassId;
             existing.SubjectId = attendance.SubjectId;
+            existing.TeacherId = attendance.TeacherId;
+            existing.Period = attendance.Period;
+            existing.Code = attendance.Code;
             existing.Status = attendance.Status;
             existing.Notes = attendance.Notes;
 
