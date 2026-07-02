@@ -21,6 +21,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, int> _studentsByClass = {};
   int _subjectCount = 0;
   List<Map<String, dynamic>> _subjects = [];
+  Map<String, double> _attendanceRateByClass = {};
+  int _weekSessions = 0;
+  int _timetableCount = 0;
+  Map<String, int> _timetableByDay = {};
   bool _loading = true;
 
   @override
@@ -37,12 +41,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _api.getTeachers(),
         _api.getClasses(),
         _api.getSubjects(),
+        _api.getAttendance(),
+        _api.getTimetableEntries(),
       ]);
 
       final students = results[0].cast<Map<String, dynamic>>();
       final teachers = results[1];
       final classes = results[2];
       final subjects = results[3];
+      final attendanceList = results[4].cast<Map<String, dynamic>>();
+      final timetableList = results[5].cast<Map<String, dynamic>>();
 
       int male = 0, female = 0;
       final Map<String, int> byClass = {};
@@ -57,6 +65,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
         byClass[cls] = (byClass[cls] ?? 0) + 1;
       }
 
+      final now = DateTime.now();
+      final weekStart = DateTime(now.year, now.month, now.day - (now.weekday - 1));
+      final weekEnd = weekStart.add(const Duration(days: 6));
+      int weekSessions = 0;
+      final Map<String, int> attPresent = {};
+      for (final a in attendanceList) {
+        final cls = (a['className'] as String?) ?? 'Unassigned';
+        final present = (a['present'] as num?)?.toInt() ?? 0;
+        final dateStr = (a['date'] as String?) ?? '';
+        bool inWeek = false;
+        if (dateStr.isNotEmpty) {
+          final recordDate = DateTime.tryParse(
+              dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr);
+          if (recordDate != null) {
+            final d =
+                DateTime(recordDate.year, recordDate.month, recordDate.day);
+            inWeek = !d.isBefore(weekStart) && !d.isAfter(weekEnd);
+          }
+        }
+        if (inWeek) {
+          weekSessions++;
+          attPresent[cls] = (attPresent[cls] ?? 0) + present;
+        }
+      }
+      final maxPresent =
+          attPresent.values.isEmpty ? 1 : attPresent.values.reduce(math.max);
+      final Map<String, double> rateByClass = {
+        for (final cls in attPresent.keys)
+          cls: maxPresent == 0 ? 0.0 : attPresent[cls]! / maxPresent * 100.0,
+      };
+
+      const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      final Map<String, int> byDay = {};
+      for (final entry in timetableList) {
+        final day = (entry['day'] as String?) ?? 'Other';
+        byDay[day] = (byDay[day] ?? 0) + 1;
+      }
+
       setState(() {
         _stats = {
           'students': students.length,
@@ -68,6 +114,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _studentsByClass = byClass;
         _subjectCount = subjects.length;
         _subjects = subjects.cast<Map<String, dynamic>>();
+        _attendanceRateByClass = rateByClass;
+        _weekSessions = weekSessions;
+        _timetableCount = timetableList.length;
+        _timetableByDay = Map.fromEntries(
+          dayOrder.where((d) => byDay.containsKey(d)).map((d) => MapEntry(d, byDay[d]!)),
+        );
         _loading = false;
       });
     } catch (_) {
@@ -83,6 +135,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         };
         _subjectCount = 8;
         _subjects = [];
+        _attendanceRateByClass = {
+          'Class A': 82.0,
+          'Class B': 68.0,
+          'Class C': 91.0,
+          'Unassigned': 55.0,
+        };
+        _weekSessions = 0;
+        _timetableCount = 18;
+        _timetableByDay = {
+          'Monday': 4,
+          'Tuesday': 3,
+          'Wednesday': 4,
+          'Thursday': 3,
+          'Friday': 2,
+          'Saturday': 2,
+        };
         _loading = false;
       });
     }
@@ -113,7 +181,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // ── Stat cards ─────────────────────────────────────────────
     Widget statCards;
     if (isMobile) {
-      // Mobile: 2-column grid
+      // Mobile: 2x2 grid
       statCards = Column(children: [
         Row(children: [
           Expanded(child: _StatCard(title: t['total_students'] ?? 'Total Students', value: _stats['students']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _StudentIcon())),
@@ -121,23 +189,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Expanded(child: _StatCard(title: t['total_teachers'] ?? 'Total Teachers', value: _stats['teachers']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _TeacherIcon())),
         ]),
         const SizedBox(height: 12),
-        _StatCard(title: t['total_classes'] ?? 'Total Classes', value: _stats['classes']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _ClassIcon()),
+        Row(children: [
+          Expanded(child: _StatCard(title: t['total_classes'] ?? 'Total Classes', value: _stats['classes']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _ClassIcon())),
+          const SizedBox(width: 12),
+          Expanded(child: _StatCard(title: t['total_subjects'] ?? 'Total Subjects', value: _subjectCount.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _SubjectIcon())),
+        ]),
       ]);
     } else {
-      // Tablet + Desktop: 3 in a row
+      // Tablet + Desktop: 4 in a row
       statCards = Row(children: [
         Expanded(child: _StatCard(title: t['total_students'] ?? 'Total Students', value: _stats['students']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _StudentIcon())),
         const SizedBox(width: 16),
         Expanded(child: _StatCard(title: t['total_teachers'] ?? 'Total Teachers', value: _stats['teachers']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _TeacherIcon())),
         const SizedBox(width: 16),
         Expanded(child: _StatCard(title: t['total_classes'] ?? 'Total Classes', value: _stats['classes']!.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _ClassIcon())),
+        const SizedBox(width: 16),
+        Expanded(child: _StatCard(title: t['total_subjects'] ?? 'Total Subjects', value: _subjectCount.toString().padLeft(2, '0'), subtitle: t['all_data'] ?? 'All Data', iconWidget: const _SubjectIcon())),
       ]);
     }
 
     // ── Charts row 1 ───────────────────────────────────────────
     Widget chartsRow1;
     if (isMobile) {
-      // Mobile: stacked vertically
       chartsRow1 = Column(children: [
         _GenderDonutChart(male: _maleCount, female: _femaleCount, total: _stats['students'] ?? 0, t: t),
         const SizedBox(height: 16),
@@ -222,6 +295,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
             subjects: _subjectCount,
             t: t,
           ),
+          const SizedBox(height: 16),
+
+          if (isMobile)
+            Column(children: [
+              _TimetableSummaryCard(
+                total: _timetableCount,
+                byDay: _timetableByDay,
+                t: t,
+              ),
+              const SizedBox(height: 16),
+              _AttendancePerClassChart(
+                data: _attendanceRateByClass,
+                t: t,
+                weekSessions: _weekSessions,
+              ),
+            ])
+          else
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(
+                child: _TimetableSummaryCard(
+                  total: _timetableCount,
+                  byDay: _timetableByDay,
+                  t: t,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _AttendancePerClassChart(
+                  data: _attendanceRateByClass,
+                  t: t,
+                  weekSessions: _weekSessions,
+                ),
+              ),
+            ]),
 
           // Inline subject panel on mobile/tablet
           if (!isDesktop) ...[
@@ -570,7 +677,11 @@ class _DashboardSkeletonState extends State<_DashboardSkeleton>
                       Expanded(child: statCard()),
                     ]),
                     const SizedBox(height: 12),
-                    statCard(),
+                    Row(children: [
+                      Expanded(child: statCard()),
+                      const SizedBox(width: 12),
+                      Expanded(child: statCard()),
+                    ]),
                   ])
                 else
                   Row(children: [
@@ -579,10 +690,12 @@ class _DashboardSkeletonState extends State<_DashboardSkeleton>
                     Expanded(child: statCard()),
                     const SizedBox(width: 16),
                     Expanded(child: statCard()),
+                    const SizedBox(width: 16),
+                    Expanded(child: statCard()),
                   ]),
                 const SizedBox(height: 16),
 
-                // Charts row 1
+                // Charts row 1 (donut + students/class)
                 if (isMobile)
                   Column(children: [
                     donutChartCard(),
@@ -602,6 +715,170 @@ class _DashboardSkeletonState extends State<_DashboardSkeleton>
 
                 // Wide chart
                 areaChartCard(),
+                const SizedBox(height: 16),
+
+                // Timetable (day tiles) + Attendance per class (ranked bars)
+                Builder(builder: (context) {
+                  Widget timetableCard() => Container(
+                        height: 320,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.cardRadius),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header row: title + badge
+                            Row(children: [
+                              Expanded(child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  block(w: 160, h: 13),
+                                  const SizedBox(height: 4),
+                                  block(w: 120, h: 10),
+                                ],
+                              )),
+                              block(w: 52, h: 26, r: 20),
+                            ]),
+                            const SizedBox(height: 12),
+                            // 3 stat tiles
+                            Row(children: [
+                              Expanded(child: block(h: 54, r: 10)),
+                              const SizedBox(width: 8),
+                              Expanded(child: block(h: 54, r: 10)),
+                              const SizedBox(width: 8),
+                              Expanded(child: block(h: 54, r: 10)),
+                            ]),
+                            const SizedBox(height: 12),
+                            block(h: 1),
+                            const SizedBox(height: 10),
+                            // Horizontal bar rows
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: List.generate(5, (_) => Row(children: [
+                                  block(w: 34, h: 12),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: block(h: 10, r: 5)),
+                                  const SizedBox(width: 8),
+                                  block(w: 20, h: 12),
+                                ])),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+
+                  Widget attendanceCard() => Container(
+                        height: 270,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.cardRadius),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header: title + Today chip
+                            Row(children: [
+                              Expanded(child: block(w: 160, h: 13)),
+                              block(w: 48, h: 24, r: 16),
+                            ]),
+                            const SizedBox(height: 10),
+                            // Chart: y-axis + vertical bars
+                            Expanded(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Y-axis shimmer labels
+                                  SizedBox(
+                                    width: 36,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        block(w: 32, h: 10),
+                                        block(w: 28, h: 10),
+                                        block(w: 20, h: 10),
+                                        const SizedBox(height: 22),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  // Bar columns
+                                  Expanded(
+                                    child: Column(children: [
+                                      Expanded(
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: List.generate(4, (i) {
+                                            const factors = [0.92, 0.78, 0.38, 0.70];
+                                            return Expanded(
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 5),
+                                                child: FractionallySizedBox(
+                                                  heightFactor: factors[i],
+                                                  alignment:
+                                                      Alignment.bottomCenter,
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      color: base,
+                                                      borderRadius:
+                                                          const BorderRadius
+                                                              .vertical(
+                                                                  top: Radius
+                                                                      .circular(
+                                                                          4)),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }),
+                                        ),
+                                      ),
+                                      // X-axis labels
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: List.generate(
+                                          4,
+                                          (_) => Expanded(
+                                              child: Center(
+                                                  child: block(w: 36, h: 10))),
+                                        ),
+                                      ),
+                                    ]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+
+                  if (isMobile) {
+                    return Column(children: [
+                      timetableCard(),
+                      const SizedBox(height: 16),
+                      attendanceCard(),
+                    ]);
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: timetableCard()),
+                      const SizedBox(width: 16),
+                      Expanded(child: attendanceCard()),
+                    ],
+                  );
+                }),
 
                 // Inline subject panel (mobile/tablet)
                 if (!isDesktop) ...[
@@ -888,6 +1165,19 @@ class _ClassIcon extends StatelessWidget {
             color: AppColors.classIconBg, shape: BoxShape.circle),
         child: const Icon(Icons.menu_book,
             size: 26, color: Color(0xFFF57F17)),
+      );
+}
+
+class _SubjectIcon extends StatelessWidget {
+  const _SubjectIcon();
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 48,
+        height: 48,
+        decoration: const BoxDecoration(
+            color: Color(0xFFF3E5F5), shape: BoxShape.circle),
+        child: const Icon(Icons.library_books,
+            size: 26, color: Color(0xFF7B1FA2)),
       );
 }
 
@@ -1674,6 +1964,401 @@ class _CourseItem extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Chart 4: Attendance per Class — Ranked gradient bars ─────────────────
+class _AttendancePerClassChart extends StatelessWidget {
+  final Map<String, double> data; // class → attendance rate 0–100
+  final Map<String, String> t;
+  final int weekSessions;
+
+  const _AttendancePerClassChart({
+    required this.data,
+    required this.t,
+    required this.weekSessions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white60 : AppColors.textSecondary;
+    final gridColor = isDark ? const Color(0xFF2A2A4A) : const Color(0xFFE5E7EB);
+    final barColor = isDark ? const Color(0xFF4CAF50) : const Color(0xFF2E7D32);
+
+    final sorted = data.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final displayed = sorted.toList();
+
+    const xLabelH = 22.0;
+    const yAxisW = 36.0;
+
+    final yStyle = AppTextStyles.caption
+        .copyWith(fontSize: 10, color: mutedColor);
+
+    return _chartCard(
+      context: context,
+      height: 270,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──────────────────────────────────────────
+          Row(children: [
+            Expanded(
+              child: Text(
+                t['attendance_per_class'] ?? 'Attendance by class',
+                style: AppTextStyles.label
+                    .copyWith(fontWeight: FontWeight.w600, color: textColor),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border.all(
+                    color: barColor.withValues(alpha: 0.55), width: 1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                weekSessions > 0 ? 'This Week' : 'All time',
+                style: AppTextStyles.caption.copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: barColor),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 10),
+
+          // ── Chart ────────────────────────────────────────────
+          displayed.isEmpty
+              ? Expanded(
+                  child: Center(
+                      child: Text(t['no_data'] ?? 'No data',
+                          style: AppTextStyles.body
+                              .copyWith(color: mutedColor))))
+              : Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final totalH = constraints.maxHeight;
+                      final barAreaH = totalH - xLabelH;
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Y-axis labels
+                          SizedBox(
+                            width: yAxisW,
+                            height: totalH,
+                            child: Stack(children: [
+                              Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Text('100%', style: yStyle)),
+                              Positioned(
+                                  top: barAreaH / 2 - 6,
+                                  right: 0,
+                                  child: Text('50%', style: yStyle)),
+                              Positioned(
+                                  top: barAreaH - 12,
+                                  right: 0,
+                                  child: Text('0%', style: yStyle)),
+                            ]),
+                          ),
+                          const SizedBox(width: 4),
+                          // Bar chart area
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                // Gridlines
+                                Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                        height: 1, color: gridColor)),
+                                Positioned(
+                                    top: barAreaH / 2,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                        height: 1, color: gridColor)),
+                                Positioned(
+                                    top: barAreaH,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                        height: 1, color: gridColor)),
+                                // Bars + x-labels
+                                Column(children: [
+                                  // Bar row
+                                  SizedBox(
+                                    height: barAreaH,
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: displayed.map((entry) {
+                                        final pct =
+                                            (entry.value / 100).clamp(0.02, 1.0);
+                                        return Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 5),
+                                            child: FractionallySizedBox(
+                                              heightFactor: pct,
+                                              alignment:
+                                                  Alignment.bottomCenter,
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: barColor,
+                                                  borderRadius:
+                                                      const BorderRadius
+                                                          .vertical(
+                                                              top: Radius
+                                                                  .circular(4)),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                  // X-axis labels
+                                  SizedBox(
+                                    height: xLabelH,
+                                    child: Row(
+                                      children: displayed.map((entry) {
+                                        return Expanded(
+                                          child: Text(
+                                            entry.key,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppTextStyles.caption
+                                                .copyWith(
+                                                    fontSize: 10,
+                                                    color: mutedColor),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ]),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Timetable Summary Card — Day tiles ────────────────────────────────────
+class _TimetableSummaryCard extends StatelessWidget {
+  final int total;
+  final Map<String, int> byDay;
+  final Map<String, String> t;
+
+  const _TimetableSummaryCard({
+    required this.total,
+    required this.byDay,
+    required this.t,
+  });
+
+  static const _allDays = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+  ];
+
+  static const _dayAbbrev = {
+    'Monday': 'Mon', 'Tuesday': 'Tue', 'Wednesday': 'Wed',
+    'Thursday': 'Thu', 'Friday': 'Fri', 'Saturday': 'Sat', 'Sunday': 'Sun',
+  };
+
+  static const _dayColors = [
+    Color(0xFF6366F1), // Mon — indigo
+    Color(0xFF8B5CF6), // Tue — violet
+    Color(0xFF06B6D4), // Wed — cyan
+    Color(0xFF10B981), // Thu — emerald
+    Color(0xFFF59E0B), // Fri — amber
+    Color(0xFFF43F5E), // Sat — rose
+    Color(0xFF64748B), // Sun — slate
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final mutedColor = isDark ? Colors.white60 : AppColors.textSecondary;
+    final dividerColor = isDark ? const Color(0xFF2A2A4A) : AppColors.border;
+
+    final activeDays = _allDays.where((d) => (byDay[d] ?? 0) > 0).toList();
+    final maxVal = byDay.values.isEmpty ? 1 : byDay.values.reduce(math.max);
+    final busiestEntry = byDay.entries.isEmpty
+        ? null
+        : byDay.entries.reduce((a, b) => a.value > b.value ? a : b);
+    final busiestLabel = busiestEntry == null
+        ? '—'
+        : '${_dayAbbrev[busiestEntry.key] ?? busiestEntry.key.substring(0, 3)} ${busiestEntry.value}';
+
+    Widget statTile(IconData icon, Color color, String value, String label) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: isDark ? 0.14 : 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(height: 5),
+              Text(value,
+                  style: AppTextStyles.heading2.copyWith(
+                      fontSize: 16, fontWeight: FontWeight.w700, color: textColor)),
+              Text(label,
+                  style: AppTextStyles.caption.copyWith(fontSize: 10, color: mutedColor)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return _chartCard(
+      context: context,
+      height: 320,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──────────────────────────────────────────
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  t['timetable_summary'] ?? 'Timetable Summary',
+                  style: AppTextStyles.label
+                      .copyWith(fontWeight: FontWeight.w600, color: textColor),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Weekly schedule overview',
+                  style: AppTextStyles.caption.copyWith(fontSize: 11, color: mutedColor),
+                ),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.calendar_month_rounded, size: 13, color: Colors.white),
+                const SizedBox(width: 4),
+                Text('$total',
+                    style: AppTextStyles.caption.copyWith(
+                        fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 12),
+
+          // ── 3 mini stat tiles ────────────────────────────────
+          Row(children: [
+            statTile(Icons.event_note_outlined, const Color(0xFF6366F1),
+                '$total', 'Total Entries'),
+            const SizedBox(width: 8),
+            statTile(Icons.event_available_outlined, const Color(0xFF10B981),
+                '${activeDays.length}', 'Active Days'),
+            const SizedBox(width: 8),
+            statTile(Icons.star_outline_rounded, const Color(0xFFF59E0B),
+                busiestLabel, 'Busiest Day'),
+          ]),
+          const SizedBox(height: 12),
+
+          Divider(height: 1, color: dividerColor),
+          const SizedBox(height: 10),
+
+          // ── Horizontal bars per day ──────────────────────────
+          activeDays.isEmpty
+              ? Expanded(
+                  child: Center(
+                      child: Text(t['no_data'] ?? 'No data',
+                          style: AppTextStyles.body.copyWith(color: mutedColor))))
+              : Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: activeDays.map((day) {
+                      final idx = _allDays.indexOf(day);
+                      final color = _dayColors[idx.clamp(0, _dayColors.length - 1)];
+                      final count = byDay[day] ?? 0;
+                      final abbrev = _dayAbbrev[day] ?? day.substring(0, 3);
+                      final pct = (count / maxVal).clamp(0.0, 1.0);
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 34,
+                            child: Text(abbrev,
+                                style: AppTextStyles.caption.copyWith(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Stack(children: [
+                              Container(
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: color.withValues(
+                                      alpha: isDark ? 0.15 : 0.10),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                              ),
+                              FractionallySizedBox(
+                                widthFactor: pct,
+                                child: Container(
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                        colors: [
+                                          color.withValues(alpha: 0.75),
+                                          color
+                                        ]),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                ),
+                              ),
+                            ]),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 24,
+                            child: Text('$count',
+                                textAlign: TextAlign.right,
+                                style: AppTextStyles.caption.copyWith(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: color)),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
         ],
       ),
     );

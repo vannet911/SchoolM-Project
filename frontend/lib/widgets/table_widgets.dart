@@ -1719,9 +1719,6 @@ class AttendanceDetailPanel extends StatelessWidget {
         decoration: _inputDeco(isDark: isDark).copyWith(suffixIcon: suffix),
       )));
 
-  Widget _sectionTitle(String label) => Text(label,
-      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textSecondary));
-
   @override
   Widget build(BuildContext context) {
     final locale = context.watch<LocaleProvider>().locale;
@@ -1819,8 +1816,6 @@ class AttendanceDetailPanel extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _sectionTitle(t['session_info'] ?? 'Session Info'),
-              const SizedBox(height: 12),
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: _readField('${t['code'] ?? 'Code'}:', s['code']?.toString(), isDark: isDark)),
                 const SizedBox(width: 16),
@@ -1840,87 +1835,103 @@ class AttendanceDetailPanel extends StatelessWidget {
                 Expanded(child: _readField('${t['subject'] ?? 'Subject'}:', s['subjectName']?.toString(), isDark: isDark)),
               ]),
               const SizedBox(height: 16),
-              _labeled('${t['remark'] ?? 'Remark'}:',
-                TextField(
-                  readOnly: true,
-                  controller: TextEditingController(text: s['remark']?.toString() ?? ''),
-                  maxLines: 3,
-                  style: AppTextStyles.body.copyWith(color: isDark ? Colors.white : AppColors.textPrimary),
-                  decoration: _inputDeco(isDark: isDark, multiline: true),
-                ),
-              ),
-              const SizedBox(height: 28),
-              Divider(color: borderColor, height: 1),
-              const SizedBox(height: 28),
-              _sectionTitle(t['attendance'] ?? 'Attendance'),
-              const SizedBox(height: 12),
-              Row(children: [
-                statCard(t['total_students'] ?? 'Total', '$total',                       AppColors.primary),
-                const SizedBox(width: 8),
-                statCard(t['present'] ?? 'Present',       '$present',                    const Color(0xFF16A34A)),
-                const SizedBox(width: 8),
-                statCard(t['absent']  ?? 'Absent',        '$absent',                     AppColors.error),
-                const SizedBox(width: 8),
-                statCard(t['late']    ?? 'Late',          '$late',                       const Color(0xFFD97706)),
-                const SizedBox(width: 8),
-                statCard(t['rate']    ?? 'Rate',          '${rate.toStringAsFixed(1)}%', const Color(0xFF2196F3)),
+              // Row 4: Total Students + Remark
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _labeled('${t['total_students'] ?? 'Total Students'}:',
+                  Text('$total'.padLeft(2, '0'),
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 22)),
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: _labeled('${t['remark'] ?? 'Remark'}:',
+                  SizedBox(height: 44, child: TextField(
+                    readOnly: true,
+                    controller: TextEditingController(text: s['remark']?.toString() ?? ''),
+                    style: AppTextStyles.body.copyWith(color: isDark ? Colors.white : AppColors.textPrimary),
+                    decoration: _inputDeco(isDark: isDark),
+                  )),
+                )),
               ]),
-              if (records.isNotEmpty) ...[
-                const SizedBox(height: 28),
-                Divider(color: borderColor, height: 1),
-                const SizedBox(height: 28),
-                _sectionTitle(t['students'] ?? 'Students'),
-                const SizedBox(height: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Column(children: records.asMap().entries.map((entry) {
+              const SizedBox(height: 24),
+              // Student Info table — matches form layout
+              Column(children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(children: [
+                    Expanded(child: Text(t['student_info'] ?? 'Student Info',
+                      style: AppTextStyles.body.copyWith(color: textColor, fontWeight: FontWeight.w600))),
+                    SizedBox(width: 76, child: Text(t['present'] ?? 'Present',
+                      style: AppTextStyles.body.copyWith(color: textColor, fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center)),
+                    SizedBox(width: 76, child: Text(t['absent'] ?? 'Absent',
+                      style: AppTextStyles.body.copyWith(color: textColor, fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center)),
+                    SizedBox(width: 76, child: Text(t['late'] ?? 'Late',
+                      style: AppTextStyles.body.copyWith(color: textColor, fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center)),
+                  ]),
+                ),
+                if (records.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 20, 14, 20),
+                    child: Text(t['no_students_in_class'] ?? 'No students',
+                      style: AppTextStyles.body.copyWith(color: mutedColor)),
+                  )
+                else
+                  ...records.asMap().entries.map((entry) {
                     final idx    = entry.key;
                     final r      = entry.value;
                     final name   = r['studentName']?.toString() ?? '—';
                     final code   = r['studentCode']?.toString() ?? '';
-                    final status = r['status']?.toString() ?? 'Present';
-                    final sColor = statusColor(status);
-                    final sLabel = statusLabel(status);
-                    final isLast = idx == records.length - 1;
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: idx.isOdd
-                            ? (isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF5F7FA))
-                            : Colors.transparent,
-                        border: isLast ? null : Border(bottom: BorderSide(color: borderColor)),
-                        borderRadius: BorderRadius.vertical(
-                          top: idx == 0 ? const Radius.circular(10) : Radius.zero,
-                          bottom: isLast ? const Radius.circular(10) : Radius.zero,
+                    final status = (r['status']?.toString() ?? 'Present').toLowerCase();
+                    final isPresent = status == 'present';
+                    final isAbsent  = status == 'absent';
+                    final isLate    = status == 'late';
+                    final rowBg = idx.isOdd
+                        ? (isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF5F7FA))
+                        : Colors.transparent;
+                    Widget dot(bool active, Color color) => SizedBox(width: 76,
+                      child: Center(child: Container(
+                        width: 20, height: 20,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: active ? color : Colors.transparent,
+                          border: Border.all(color: active ? color : borderColor, width: 1.5),
                         ),
-                      ),
+                      )));
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      color: rowBg,
                       child: Row(children: [
-                        SizedBox(width: 28,
-                          child: Text('${idx + 1}', style: AppTextStyles.body.copyWith(color: mutedColor), textAlign: TextAlign.center)),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 28, child: Text('${idx + 1}',
+                          style: AppTextStyles.body.copyWith(color: mutedColor), textAlign: TextAlign.center)),
+                        const SizedBox(width: 8),
                         if (code.isNotEmpty) ...[
                           Text(code, style: AppTextStyles.body.copyWith(
                             color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                         ],
                         Expanded(child: Text(name, style: AppTextStyles.body.copyWith(color: textColor))),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: sColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(sLabel,
-                            style: AppTextStyles.body.copyWith(color: sColor, fontWeight: FontWeight.w600, fontSize: 12)),
-                        ),
+                        dot(isPresent, const Color(0xFF16A34A)),
+                        dot(isAbsent,  AppColors.error),
+                        dot(isLate,    const Color(0xFFD97706)),
                       ]),
                     );
-                  }).toList()),
-                ),
-              ],
+                  }),
+              ]),
+              const SizedBox(height: 16),
+              Divider(color: borderColor, height: 1),
+              const SizedBox(height: 16),
+              // Stats row
+              Row(children: [
+                statCard(t['present'] ?? 'Present', '$present', const Color(0xFF16A34A)),
+                const SizedBox(width: 8),
+                statCard(t['absent']  ?? 'Absent',  '$absent',  AppColors.error),
+                const SizedBox(width: 8),
+                statCard(t['late']    ?? 'Late',    '$late',    const Color(0xFFD97706)),
+                const SizedBox(width: 8),
+                statCard(t['rate']    ?? 'Rate',    '${rate.toStringAsFixed(1)}%', const Color(0xFF2196F3)),
+              ]),
             ]),
           ),
         )),
